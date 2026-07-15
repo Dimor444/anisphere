@@ -103,6 +103,22 @@ class _ClaimSheetState extends ConsumerState<_ClaimSheet> {
             label: ref.tr('claim'),
             onPressed: _status == HandleStatus.available && !_claiming ? _claim : null,
           ),
+          // Availability can't be verified (offline / backend unreachable):
+          // never hold the whole app hostage behind an uncompletable gate.
+          // The launch caller re-prompts next time; barrier/drag/back stay
+          // disabled — this is the only exit, and only in the error state.
+          if (_status == HandleStatus.error) ...[
+            const SizedBox(height: 4),
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  Haptics.light();
+                  Navigator.pop(context);
+                },
+                child: Text(ref.tr('claimLater')),
+              ),
+            ),
+          ],
         ],
       ),
     );

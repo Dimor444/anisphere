@@ -77,7 +77,7 @@ class _UserNameFieldState extends ConsumerState<UserNameField> {
     if (h.isNotEmpty && h == widget.currentHandle) return _set(HandleStatus.unchanged);
     if (h.length < 3) return _set(HandleStatus.tooShort);
     if (!FollowService.handlePattern.hasMatch(h)) return _set(HandleStatus.invalid);
-    if (FollowService.reservedHandles.contains(h)) return _set(HandleStatus.reserved);
+    if (FollowService.isReservedHandle(h)) return _set(HandleStatus.reserved);
     _set(HandleStatus.checking);
     _debounce = Timer(const Duration(milliseconds: 400), () => _check(h));
   }

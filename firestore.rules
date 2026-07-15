@@ -159,7 +159,11 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.uid == request.auth.uid
         && name.matches('^[a-z0-9_]{3,20}$')
-        && !reserved();
+        && !reserved()
+        // Generated placeholder shape (ensureProfile) and the brand prefix
+        // are never claimable — display-handle squat + impersonation bait.
+        && !name.matches('^anifan_[a-z0-9]{6}$')
+        && !name.matches('^anisphere.*');
       // Releasing a handle (moving to a new one) — owner only.
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
       allow update: if false;

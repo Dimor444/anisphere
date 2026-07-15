@@ -162,22 +162,38 @@ class FollowService {
     'anonymous', 'null', 'undefined',
   };
 
+  /// The auto-generated placeholder shape ensureProfile writes — displayed
+  /// until the user claims a real handle, never claimable by anyone.
+  static final RegExp placeholderHandlePattern = RegExp(r'^anifan_[a-z0-9]{6}$');
+
+  /// Client mirror of everything the rules refuse to register: the exact
+  /// reserved set, the generated placeholder shape, and the brand prefix.
+  static bool isReservedHandle(String h) =>
+      reservedHandles.contains(h) ||
+      placeholderHandlePattern.hasMatch(h) ||
+      h.startsWith('anisphere');
+
   CollectionReference<Map<String, dynamic>> get _usernames =>
       _db.collection('usernames');
 
   /// [source] reduced to a legal handle: lowercased, invalid chars dropped.
-  /// Falls back to [fallback] (assumed legal) when under 3 chars remain.
+  /// Falls back to [fallback] when under 3 chars remain. NEVER returns a
+  /// reserved handle — either branch can produce one ("AniSphere Fan" →
+  /// anisphere-prefixed; a stripped-empty name → the anifan_ placeholder
+  /// fallback) and a born-reserved pre-fill would dead-end the claim sheet,
+  /// which is documented to work from empty.
   static String suggestHandle(String source, {required String fallback}) {
     final cleaned = source.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '');
     final capped = cleaned.length > 20 ? cleaned.substring(0, 20) : cleaned;
-    return capped.length >= 3 ? capped : fallback;
+    final candidate = capped.length >= 3 ? capped : fallback;
+    return isReservedHandle(candidate) ? '' : candidate;
   }
 
   /// True when [handle] is legal and free (or already the caller's own).
   Future<bool> isUserNameAvailable(String handle) {
     return _guard('isUserNameAvailable($handle)', () async {
       final h = handle.trim().toLowerCase();
-      if (!handlePattern.hasMatch(h) || reservedHandles.contains(h)) return false;
+      if (!handlePattern.hasMatch(h) || isReservedHandle(h)) return false;
       final doc = await _usernames.doc(h).get();
       if (!doc.exists) return true;
       return doc.data()?['uid'] == await _uid();
@@ -211,7 +227,7 @@ class FollowService {
     return _guard('claimUserName($handle)', () async {
       final h = handle.trim().toLowerCase();
       if (!handlePattern.hasMatch(h)) throw ArgumentError('invalid handle: $handle');
-      if (reservedHandles.contains(h)) throw UserNameTakenException(h);
+      if (isReservedHandle(h)) throw UserNameTakenException(h);
 
       final uid = await _uid();
       await _db.runTransaction((tx) async {

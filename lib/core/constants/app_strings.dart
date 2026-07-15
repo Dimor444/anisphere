@@ -67,6 +67,7 @@ class AppStrings {
       'claimUsernameBody':
           'Pick your unique @handle. Your display name stays separate and can be changed anytime.',
       'claim': 'Claim',
+      'claimLater': 'Not now — you can claim later',
       'usernameClaimFailed': 'Couldn\'t claim — check your connection and try again',
       'uploadPhotoSoon': 'Upload photo (coming soon)',
       'profileUpdated': 'Profile updated ✅',
