@@ -1,0 +1,18 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Sample/demo app — relax a few noisy rules.
+    deprecated_member_use: ignore
+    use_build_context_synchronously: ignore
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_literals_to_create_immutables: true
+    avoid_print: false
+    sort_child_properties_last: true
+    use_key_in_widget_constructors: false

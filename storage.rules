@@ -1,0 +1,49 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Multi-image posts: posts/{uid}/{postId}/{index}.jpg (index 0-2).
+    // Any signed-in user may view; only the owner may upload — JPEG only,
+    // strictly under 1 MB (the client compresses to guarantee this) — or
+    // delete their own files (needed to roll back a failed post).
+    match /posts/{userId}/{postId}/{fileName} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 1 * 1024 * 1024
+        && request.resource.contentType.matches('image/jpeg');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Legacy single-image posts (post_images/{uid}/{timestamp}.jpg): kept
+    // readable so existing posts still render; no new uploads land here.
+    match /post_images/{userId}/{fileName} {
+      allow read: if request.auth != null;
+    }
+
+    // Stories: stories/{uid}/{storyId}.jpg — same contract as posts (JPEG,
+    // strictly under 1 MB, client-compressed). Owner uploads/deletes; any
+    // signed-in user may view.
+    match /stories/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 1 * 1024 * 1024
+        && request.resource.contentType.matches('image/jpeg');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Ani Videos: {videoId}.mp4 + {videoId}.jpg thumbnail per upload. Any
+    // signed-in user may view; only the owner may upload (videos ≤ 50 MB,
+    // thumbnails ≤ 2 MB) or delete their own files.
+    match /ani_videos/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && ((request.resource.contentType.matches('video/.*')
+              && request.resource.size < 50 * 1024 * 1024)
+          || (request.resource.contentType.matches('image/.*')
+              && request.resource.size < 2 * 1024 * 1024));
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

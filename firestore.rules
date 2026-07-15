@@ -1,0 +1,496 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Public profile + follow graph. The profile doc is world-readable
+    // (signed-in); the owner may create it (zeroed counters) and edit only
+    // identity/bio fields. Counters (followerCount/followingCount/postsCount)
+    // are bumped ±1 by follow/post batches — never settable directly, and
+    // server-managed fields (aniGold, aniGem, …) stay client-immutable.
+    match /users/{userId} {
+      function validBio() {
+        return !('bio' in request.resource.data)
+          || (request.resource.data.bio is string
+            && request.resource.data.bio.size() <= 150);
+      }
+      // ISO 3166-1 alpha-2 (or "XX" unknown) — locale-detected, cached once.
+      function validCountry() {
+        return !('countryCode' in request.resource.data)
+          || (request.resource.data.countryCode is string
+            && request.resource.data.countryCode.size() >= 2
+            && request.resource.data.countryCode.size() <= 3);
+      }
+      function profileCounterBump() {
+        let d = request.resource.data;
+        let r = resource.data;
+        return d.diff(r).affectedKeys().hasOnly(['followerCount', 'followingCount', 'postsCount'])
+          && (d.followerCount == r.followerCount || d.followerCount == r.followerCount + 1 || d.followerCount == r.followerCount - 1)
+          && (d.followingCount == r.followingCount || d.followingCount == r.followingCount + 1 || d.followingCount == r.followingCount - 1)
+          && (d.postsCount == r.postsCount || d.postsCount == r.postsCount + 1 || d.postsCount == r.postsCount - 1);
+      }
+      // The request's UTC day as "YYYY-MM-DD" — the only value a streak
+      // check-in may stamp, so days can't be forged from the client.
+      function serverDay() {
+        return string(request.time.year()) + '-'
+          + (request.time.month() < 10 ? '0' + string(request.time.month()) : string(request.time.month())) + '-'
+          + (request.time.day() < 10 ? '0' + string(request.time.day()) : string(request.time.day()));
+      }
+      // userName is the unique @handle, backed by the usernames/{handle}
+      // registry. It may only change together with a claim of the matching
+      // registry doc in the same transaction — getAfter sees the
+      // post-transaction state, so a client can't set a handle it doesn't
+      // own. Handles are lowercase-only, so userNameLower (kept for prefix
+      // search) must always equal userName.
+      function validUserNameChange() {
+        let d = request.resource.data;
+        return !d.diff(resource.data).affectedKeys().hasAny(['userName', 'userNameLower'])
+          || (d.userName is string
+            && d.userName.matches('^[a-z0-9_]{3,20}$')
+            && d.userNameLower == d.userName
+            && getAfter(/databases/$(database)/documents/usernames/$(d.userName)).data.uid == request.auth.uid);
+      }
+      // One legal check-in per UTC day: streak-only keys, grows by exactly
+      // one or resets to 1, longest never decreases, and lastActiveDay must
+      // equal the server's UTC day AND strictly advance (blocks replays and
+      // future-dating). Old docs without streak fields start at 1.
+      function streakBump() {
+        let d = request.resource.data;
+        let r = resource.data;
+        return d.diff(r).affectedKeys().hasOnly(['currentStreak', 'longestStreak', 'lastActiveDay'])
+          && d.currentStreak is int
+          && d.currentStreak >= 1
+          && (d.currentStreak == 1 || d.currentStreak == r.currentStreak + 1)
+          && d.longestStreak is int
+          && d.longestStreak >= d.currentStreak
+          && (!('longestStreak' in r) || d.longestStreak >= r.longestStreak)
+          && d.lastActiveDay == serverDay()
+          && (!('lastActiveDay' in r) || d.lastActiveDay > r.lastActiveDay);
+      }
+
+      // Verification is granted server-side only: create must omit isVerified
+      // or set it false, and update can never touch it.
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly([
+          'userId', 'userName', 'userNameLower', 'displayName', 'userAvatar',
+          'bio', 'isVerified', 'isPlus', 'isPrivate', 'countryCode',
+          'followerCount', 'followingCount', 'postsCount',
+          'currentStreak', 'longestStreak', 'lastActiveDay', 'createdAt'
+        ])
+        && (!('isVerified' in request.resource.data)
+          || request.resource.data.isVerified == false)
+        && request.resource.data.followerCount == 0
+        && request.resource.data.followingCount == 0
+        && request.resource.data.postsCount == 0
+        && (!('currentStreak' in request.resource.data)
+          || request.resource.data.currentStreak == 0)
+        && (!('longestStreak' in request.resource.data)
+          || request.resource.data.longestStreak == 0)
+        && (!('lastActiveDay' in request.resource.data)
+          || request.resource.data.lastActiveDay == '')
+        // A fresh profile may only carry the generated placeholder handle
+        // (ensureProfile's 'anifan_' + 6 uid chars). Real handles are claimed
+        // through the usernames/ registry afterwards, so nobody can squat a
+        // name at account creation without owning its registry doc.
+        && request.resource.data.userName is string
+        && request.resource.data.userName.matches('^anifan_[a-z0-9]{6}$')
+        && request.resource.data.userNameLower == request.resource.data.userName
+        && validBio()
+        && validCountry();
+      allow update: if signedIn()
+        && ((request.auth.uid == userId
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'userName', 'userNameLower', 'displayName', 'userAvatar', 'bio', 'isPlus', 'isPrivate', 'countryCode'
+              ])
+              && validUserNameChange()
+              && validBio()
+              && validCountry())
+            || (request.auth.uid == userId && streakBump())
+            || profileCounterBump());
+      allow delete: if false;
+
+      // Personal anime list (My List) — full owner access.
+      match /myList/{animeId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      // Saved news articles — full owner access.
+      match /savedNews/{newsId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      // Who this user follows. Publicly listable; only the owner edits.
+      match /following/{targetId} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == userId;
+      }
+
+      // Who follows this user. Symmetric to following/ — the follower
+      // themselves writes their own entry (in the same batch as their
+      // following/ doc), so nobody can plant follows for someone else.
+      match /followers/{followerId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && request.auth.uid == followerId;
+      }
+    }
+
+    // ── Usernames ─────────────────────────────────────────────────────────
+    // Unique @handle registry: usernames/{handle} -> { uid }. The doc ID is
+    // the lowercase handle, so "taken?" is a single doc read, and Firestore's
+    // create semantics ARE the uniqueness guarantee — a create on an existing
+    // doc is an update, which is never allowed. users/{uid}.userName may only
+    // change together with a claim here (validUserNameChange above), giving
+    // one-owner-per-handle without Cloud Functions.
+    match /usernames/{name} {
+      // Handles nobody may register from the client (impersonation bait).
+      function reserved() {
+        return name in [
+          'admin', 'administrator', 'anisphere', 'anisphere_official',
+          'support', 'mod', 'moderator', 'official', 'help', 'staff',
+          'system', 'root', 'api', 'team', 'security', 'verified',
+          'anonymous', 'null', 'undefined'
+        ];
+      }
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && name.matches('^[a-z0-9_]{3,20}$')
+        && !reserved();
+      // Releasing a handle (moving to a new one) — owner only.
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ── Feed ──────────────────────────────────────────────────────────────
+    // Engagement counters are bumped client-side (batched with the like/
+    // comment doc) until Cloud Functions take over; counterBump() only admits
+    // ±1 counter-only updates so counters can't be set to arbitrary values.
+    match /posts/{postId} {
+      function isAuthor() {
+        return signedIn() && resource.data.userId == request.auth.uid;
+      }
+      function bumpedByOne(field) {
+        return request.resource.data[field] == resource.data[field]
+          || request.resource.data[field] == resource.data[field] + 1
+          || request.resource.data[field] == resource.data[field] - 1;
+      }
+      function counterBump() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['likes', 'commentsCount', 'viewCount'])
+          && bumpedByOne('likes')
+          && bumpedByOne('commentsCount')
+          && (request.resource.data.viewCount == resource.data.viewCount
+            || request.resource.data.viewCount == resource.data.viewCount + 1);
+      }
+
+      allow read: if signedIn();
+      // imageUrls, when present, must be a list of at most 3 (mirrors the
+      // client's hard cap). A post needs text or at least one image — an
+      // image-only post carries an empty caption.
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.content is string
+        && request.resource.data.content.size() <= 500
+        && (!('imageUrls' in request.resource.data)
+          || (request.resource.data.imageUrls is list
+            && request.resource.data.imageUrls.size() <= 3))
+        && (request.resource.data.content.size() > 0
+          || ('imageUrls' in request.resource.data
+            && request.resource.data.imageUrls.size() > 0))
+        && request.resource.data.likes == 0
+        && request.resource.data.commentsCount == 0
+        && request.resource.data.viewCount == 0;
+      allow delete: if isAuthor();
+      // Author may edit content fields (never counters); anyone signed in may
+      // bump counters by one.
+      allow update: if signedIn()
+        && ((isAuthor()
+              && !request.resource.data.diff(resource.data).affectedKeys()
+                  .hasAny(['likes', 'commentsCount', 'viewCount', 'userId']))
+            || counterBump());
+
+      match /likes/{likeUid} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && request.auth.uid == likeUid;
+      }
+
+      match /comments/{commentId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.content is string
+          && request.resource.data.content.size() > 0
+          && request.resource.data.content.size() <= 250;
+        // Comment author, or the post author moderating their own post.
+        allow delete: if signedIn()
+          && (resource.data.userId == request.auth.uid
+            || get(/databases/$(database)/documents/posts/$(postId)).data.userId == request.auth.uid);
+      }
+    }
+
+    // ── Ani Videos ────────────────────────────────────────────────────────
+    // Short vertical videos — same engagement model as posts: counters are
+    // bumped client-side in the same batch as the like/comment doc, admitted
+    // only as ±1 counter-only updates (views/shares +1 only).
+    match /ani_videos/{videoId} {
+      function isVideoAuthor() {
+        return signedIn() && resource.data.userId == request.auth.uid;
+      }
+      function videoBumpedByOne(field) {
+        return request.resource.data[field] == resource.data[field]
+          || request.resource.data[field] == resource.data[field] + 1
+          || request.resource.data[field] == resource.data[field] - 1;
+      }
+      function videoCounterBump() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['likes', 'commentsCount', 'shareCount', 'viewCount'])
+          && videoBumpedByOne('likes')
+          && videoBumpedByOne('commentsCount')
+          && (request.resource.data.shareCount == resource.data.shareCount
+            || request.resource.data.shareCount == resource.data.shareCount + 1)
+          && (request.resource.data.viewCount == resource.data.viewCount
+            || request.resource.data.viewCount == resource.data.viewCount + 1);
+      }
+
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.videoUrl is string
+        && request.resource.data.videoUrl.size() > 0
+        && request.resource.data.caption is string
+        && request.resource.data.caption.size() <= 200
+        && request.resource.data.durationSeconds is int
+        && request.resource.data.durationSeconds <= 60
+        && request.resource.data.likes == 0
+        && request.resource.data.commentsCount == 0
+        && request.resource.data.shareCount == 0
+        && request.resource.data.viewCount == 0;
+      allow delete: if isVideoAuthor();
+      // Author may edit content fields (never counters); anyone signed in may
+      // bump counters by one.
+      allow update: if signedIn()
+        && ((isVideoAuthor()
+              && !request.resource.data.diff(resource.data).affectedKeys()
+                  .hasAny(['likes', 'commentsCount', 'shareCount', 'viewCount', 'userId']))
+            || videoCounterBump());
+
+      match /likes/{likeUid} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && request.auth.uid == likeUid;
+      }
+
+      match /comments/{commentId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.content is string
+          && request.resource.data.content.size() > 0
+          && request.resource.data.content.size() <= 250;
+        // Comment author, or the video author moderating their own video.
+        allow delete: if signedIn()
+          && (resource.data.userId == request.auth.uid
+            || get(/databases/$(database)/documents/ani_videos/$(videoId)).data.userId == request.auth.uid);
+      }
+    }
+
+    // Curated news — admin-managed (Console / Admin SDK bypasses rules).
+    // Clients read and may only bump the tallies: views +1, saves ±1.
+    match /news/{newsId} {
+      allow read: if signedIn();
+      allow create, delete: if false;
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'saves'])
+        && (request.resource.data.views == resource.data.views
+          || request.resource.data.views == resource.data.views + 1)
+        && (request.resource.data.saves == resource.data.saves
+          || request.resource.data.saves == resource.data.saves + 1
+          || request.resource.data.saves == resource.data.saves - 1);
+    }
+
+    // Daily community vote (AniSphere's own poll — separate from the AniList
+    // Top 100). Votes are FINAL: no update/delete for anyone client-side.
+    // Doc id {uid}_{slot} makes slots single-use; slots 2-4 need AniPlus
+    // (read from the voter's profile). Same-anime-same-day dedupe moves to a
+    // Cloud Function later — structural limits are enforced here today.
+    match /community_votes/{dayId}/votes/{voteId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && voteId == request.auth.uid + '_' + string(request.resource.data.voteSlot)
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.dayId == dayId
+        && request.resource.data.voteSlot is int
+        && request.resource.data.voteSlot >= 1
+        && request.resource.data.voteSlot <= 4
+        && (request.resource.data.voteSlot == 1
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isPlus == true);
+      allow update, delete: if false; // votes are permanent
+    }
+
+    // Per-anime daily tallies — +1 per write only, batched with the vote.
+    match /community_votes/{dayId}/tally/{animeId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.voteCount == 1;
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['voteCount', 'animeTitle', 'animeCover'])
+        && request.resource.data.voteCount == resource.data.voteCount + 1;
+      allow delete: if false;
+    }
+
+    // Hashtag tallies — clients may only ever add one use at a time.
+    match /trending_hashtags/{tag} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.count == 1;
+      allow update: if signedIn() && request.resource.data.count == resource.data.count + 1;
+    }
+
+    // ── True Fan leaderboards ─────────────────────────────────────────────
+    // One self-owned doc per user per anime ({uid}_{anilistId}) holding their
+    // best passing run — leaderboards read them ordered by timeSeconds.
+    // Only passing runs may be written (passed is always true); countryCode
+    // is denormalized from the profile for the Local (country) tab.
+    match /trueFanScores/{scoreId} {
+      function validScorePayload() {
+        let d = request.resource.data;
+        return d.keys().hasOnly([
+            'userId', 'anilistId', 'animeTitle', 'passed', 'score',
+            'timeSeconds', 'userName', 'userAvatar', 'countryCode', 'updatedAt'
+          ])
+          && d.userId == request.auth.uid
+          && d.anilistId is int
+          && scoreId == request.auth.uid + '_' + string(d.anilistId)
+          && d.passed == true
+          && d.score is int
+          && d.score >= 0
+          && d.score <= 10
+          && d.timeSeconds is number
+          && d.timeSeconds > 0
+          && d.animeTitle is string
+          && d.animeTitle.size() <= 200
+          && d.userName is string
+          && d.userName.size() <= 50
+          && d.userAvatar is string
+          && (!('countryCode' in d)
+            || (d.countryCode is string
+              && d.countryCode.size() >= 2
+              && d.countryCode.size() <= 3));
+      }
+
+      // Owner-only display toggle: hide/show this pass on their public
+      // profile. Strictly the one bool — the diff check guarantees every
+      // score field (timeSeconds, passed, score, userId, anilistId,
+      // countryCode, ...) is byte-identical to the stored doc. Hiding never
+      // removes the score from leaderboards; it is read-side filtering only.
+      function hideTogglePayload() {
+        return resource.data.userId == request.auth.uid
+          && scoreId == request.auth.uid + '_' + string(resource.data.anilistId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hiddenFromProfile'])
+          && request.resource.data.hiddenFromProfile is bool;
+      }
+
+      allow read: if signedIn();
+      allow create: if signedIn() && validScorePayload();
+      allow update: if signedIn() && (validScorePayload() || hideTogglePayload());
+      allow delete: if false;
+    }
+
+    // Write-only from clients; reviewed server-side.
+    match /reports/{reportId} {
+      allow create: if signedIn() && request.resource.data.reporterId == request.auth.uid;
+      allow read, update, delete: if false;
+    }
+
+    // ── Stories (24h ephemeral images) ────────────────────────────────────
+    // Immutable once posted: create + delete only, never update. expiresAt
+    // is range-checked against the server clock (in the future, under 25h
+    // out) rather than tied to createdAt by exact equality — equality broke
+    // on sub-millisecond precision differences and rejected every create.
+    // The bound still guarantees a story cannot outlive ~24h (+ skew).
+    // createdAt is serverTimestamp() on the client; the ±5-minute window
+    // keeps a hand-rolled client from forging feed ordering.
+    match /stories/{storyId} {
+      // Optional anime tag: AniList reference by id ONLY (no denormalized
+      // AniList data), plus the sticker's normalized rect (fractions of the
+      // image) so the viewer can place the tap hotspot on the baked pixels.
+      function validAnimeTag(t) {
+        return t is map
+          && t.keys().hasOnly(['anilistId', 'x', 'y', 'w', 'h'])
+          && t.anilistId is int
+          && t.anilistId > 0
+          && t.x is number && t.x >= 0 && t.x <= 1
+          && t.y is number && t.y >= 0 && t.y <= 1
+          && t.w is number && t.w > 0 && t.w <= 1
+          && t.h is number && t.h > 0 && t.h <= 1;
+      }
+
+      // One person-mention: app user by uid ONLY (no denormalized identity),
+      // plus the sticker's normalized rect — same scheme as the anime tag.
+      function validMention(m) {
+        return m is map
+          && m.keys().hasOnly(['uid', 'x', 'y', 'w', 'h'])
+          && m.uid is string
+          && m.uid.size() > 0
+          && m.x is number && m.x >= 0 && m.x <= 1
+          && m.y is number && m.y >= 0 && m.y <= 1
+          && m.w is number && m.w > 0 && m.w <= 1
+          && m.h is number && m.h > 0 && m.h <= 1;
+      }
+
+      // Rules can't loop, so per-element checks unroll to the cap of 10.
+      function validMentions(l) {
+        return l is list
+          && l.size() > 0
+          && l.size() <= 10
+          && (l.size() < 1 || validMention(l[0]))
+          && (l.size() < 2 || validMention(l[1]))
+          && (l.size() < 3 || validMention(l[2]))
+          && (l.size() < 4 || validMention(l[3]))
+          && (l.size() < 5 || validMention(l[4]))
+          && (l.size() < 6 || validMention(l[5]))
+          && (l.size() < 7 || validMention(l[6]))
+          && (l.size() < 8 || validMention(l[7]))
+          && (l.size() < 9 || validMention(l[8]))
+          && (l.size() < 10 || validMention(l[9]));
+      }
+
+      function validStoryCreate() {
+        let d = request.resource.data;
+        return d.uid == request.auth.uid
+          && d.keys().hasOnly(['uid', 'mediaUrl', 'caption', 'createdAt', 'expiresAt', 'animeTag', 'mentions'])
+          && d.uid is string
+          && d.mediaUrl is string
+          && d.mediaUrl.size() > 0
+          && (!('caption' in d) || (d.caption is string && d.caption.size() <= 200))
+          && (!('animeTag' in d) || validAnimeTag(d.animeTag))
+          && (!('mentions' in d) || validMentions(d.mentions))
+          && d.createdAt is timestamp
+          && d.createdAt > request.time - duration.value(5, 'm')
+          && d.createdAt < request.time + duration.value(5, 'm')
+          && d.expiresAt is timestamp
+          && d.expiresAt > request.time
+          && d.expiresAt < request.time + duration.value(25, 'h');
+      }
+
+      allow read: if signedIn();
+      allow create: if signedIn() && validStoryCreate();
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+
+      // Who has seen the story. Create-only, self-keyed, server-stamped.
+      match /viewers/{viewerUid} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.auth.uid == viewerUid
+          && request.resource.data.keys().hasOnly(['viewedAt'])
+          && request.resource.data.viewedAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    // Everything else stays closed by default.
+  }
+}

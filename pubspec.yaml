@@ -1,0 +1,109 @@
+name: anisphere
+description: "AniSphere — Your World. Your Anime. A premium social platform for anime fans."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+  flutter: ">=3.16.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.4.0
+
+  # Navigation
+  go_router: ^12.0.0
+
+  # Icons — lucide_icons_flutter (plain IconData, compatible with final IconData
+  # in Flutter 3.27+). The old `lucide_icons` subclassed IconData and no longer builds.
+  flutter_svg: ^2.0.9
+
+  # Animation
+  flutter_animate: ^4.3.0
+  lottie: ^2.7.0
+  shimmer: ^3.0.0
+
+  # Storage
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.0
+
+  # Charts
+  fl_chart: ^0.65.0
+
+  # Media
+  cached_network_image: ^3.3.0
+  video_player: ^2.8.0
+  image_picker: ^1.1.2
+  # Post images are recompressed client-side to stay under the 1 MB Storage
+  # rule (JPEG output, HEIC input handled natively on iOS 11+)
+  flutter_image_compress: ^2.4.0
+  # First-frame JPEG extraction for Ani Video upload thumbnails
+  video_thumbnail: ^0.5.6
+
+  # Networking
+  http: ^1.1.0
+
+  # Sharing (export the True Fan result card as an image)
+  share_plus: ^10.0.0
+  # Open news source links in the external browser
+  url_launcher: ^6.3.0
+
+  # Utils
+  # `any` lets intl resolve to whatever the bundled flutter_localizations pins
+  # (it varies per Flutter release — a hard pin breaks `pub get` on newer SDKs).
+  intl: any
+  timeago: ^3.6.0
+  lucide_icons_flutter: ^3.1.14+2
+  firebase_core: ^4.11.0
+  firebase_auth: ^6.5.4
+  cloud_firestore: ^6.6.0
+  firebase_storage: ^13.4.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  # App-icon + native-splash generators (run manually — see README)
+  flutter_launcher_icons: ^0.13.1
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/images/cards/
+    - assets/images/community/
+    - assets/lottie/
+    - assets/icons/
+  # Vendored variable fonts — fully offline (run tool/fetch_fonts.sh to refresh).
+  fonts:
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit.ttf
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk.ttf
+
+# ── App icon generation (drop a 1024x1024 PNG at assets/icons/app_icon.png first)
+#    Run: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#0D0F1A"
+  adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"
+
+# ── Native splash (background #0D0F1A, centered logo)
+#    Run: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#0D0F1A"
+  image: "assets/icons/splash_logo.png"
+  android_12:
+    color: "#0D0F1A"
+    image: "assets/icons/splash_logo.png"
