@@ -37,7 +37,7 @@ class UserTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            UserAvatar(name: user.userName, radius: 20),
+            UserAvatar(name: user.nameToShow, imageUrl: user.userAvatar, radius: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -46,7 +46,7 @@ class UserTile extends StatelessWidget {
                   Row(
                     children: [
                       Flexible(
-                        child: Text(user.userName,
+                        child: Text(user.nameToShow,
                             style: AppTextStyles.subheading, overflow: TextOverflow.ellipsis),
                       ),
                       if (user.isVerified) ...[
@@ -55,8 +55,9 @@ class UserTile extends StatelessWidget {
                       ],
                     ],
                   ),
-                  if (user.bio.isNotEmpty)
-                    Text(user.bio, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.captionMuted),
+                  // Handle first (like the profile header), bio tucked after.
+                  Text('@${user.userName}${user.bio.isNotEmpty ? ' · ${user.bio}' : ''}',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.captionMuted),
                   if (subtitle != null)
                     Text(subtitle!,
                         style: AppTextStyles.captionMuted.copyWith(color: AppColors.primaryLight)),

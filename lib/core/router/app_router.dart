@@ -38,7 +38,6 @@ import '../../features/profile/followers_screen.dart';
 import '../../features/profile/following_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/time_capsule_screen.dart';
-import '../../features/profile/user_profile_screen.dart';
 import '../../features/profile/wrapped_screen.dart';
 import '../../features/seasonal/seasonal_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -136,7 +135,7 @@ final appRouter = GoRouter(
         )),
     _top('/profile/:userId/followers', (c, s) => FollowersScreen(userId: s.pathParameters['userId']!)),
     _top('/profile/:userId/following', (c, s) => FollowingScreen(userId: s.pathParameters['userId']!)),
-    _top('/profile/:userId', (c, s) => UserProfileScreen(userId: s.pathParameters['userId']!)),
+    _top('/profile/:userId', (c, s) => ProfileScreen(userId: s.pathParameters['userId']!)),
     _top('/club/:name', (c, s) => ClubDetailScreen(clubName: s.pathParameters['name']!)),
   ],
 );

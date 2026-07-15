@@ -123,9 +123,9 @@ void main() {
     expect(await FollowService.instance.isFollowing(aUid), isTrue);
     await binding.takeScreenshot('phase1_visiting_after_follow');
 
-    // A's Followers list shows B live.
+    // A's Followers list shows B live (UserTile subtitles the @handle).
     appRouter.push('/profile/$aUid/followers');
-    await pumpUntil(tester, find.text(bHandle));
+    await pumpUntil(tester, find.textContaining(bHandle));
     await binding.takeScreenshot('phase1_followers_list');
     appRouter.pop();
     await tester.pump(const Duration(milliseconds: 400));

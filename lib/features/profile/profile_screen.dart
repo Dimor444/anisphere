@@ -1,7 +1,11 @@
-import 'package:flutter/material.dart';
+import 'dart:math' as math;
+
+import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
@@ -9,8 +13,8 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/models/post.dart';
+import '../../data/models/user.dart';
 import '../../data/models/user_model.dart';
-import '../../data/models/user_profile.dart';
 import '../../data/sample_data.dart';
 import '../../services/auth_service.dart';
 import '../../services/feed_service.dart';
@@ -18,451 +22,479 @@ import '../../services/profile_repository.dart';
 import '../../services/streak_service.dart';
 import '../../services/true_fan_profile_service.dart';
 import '../../shared/providers/follow_counts_provider.dart';
+import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/providers/user_provider.dart';
 import '../../shared/widgets/anime_card.dart';
 import '../../shared/widgets/anime_cover_image.dart';
+import '../../shared/widgets/follow_button.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/level_badge.dart';
 import '../../shared/widgets/post_card.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 import 'edit_profile_sheet.dart';
-import 'follow_list_screen.dart';
 import 'widgets/true_fan_section.dart';
 
-class ProfileScreen extends ConsumerWidget {
-  /// When set, shows this user's profile (e.g. opened from a story/post author)
-  /// instead of the signed-in user's; self-only actions are hidden.
-  final UserModel? viewUser;
-  const ProfileScreen({super.key, this.viewUser});
+// ── Header geometry ────────────────────────────────────────────────────────
+// Banner, avatar and action row live in ONE Stack that is sized to contain
+// every child. Nothing is translated across sliver boundaries and nothing
+// overflows the Stack — a Stack clips AND skips hit-testing outside its
+// bounds, so an overflowing child would paint wrong and have dead tap zones.
+const double _bannerHeight = 180;
+const double _avatarRadius = 44;
+const double _ringWidth = 3;
+
+/// Half the avatar (radius + ring) hangs below the banner edge, Instagram-style.
+const double _avatarOverlap = _avatarRadius + _ringWidth;
+
+/// Fixed box the action row is centered in. Natural heights (runtime-measured
+/// by the phase-3 verification test so a style change can't silently
+/// overflow): Edit Profile GradientButton and the Follow + Message row both
+/// measure under this.
+const double _actionRowHeight = 40;
+const double _actionRowTopGap = 8;
+
+/// Breathing room between the avatar's bottom edge and the name column.
+const double _bottomGap = 10;
+
+final double _headerStackHeight =
+    _bannerHeight + math.max(_avatarOverlap, _actionRowTopGap + _actionRowHeight) + _bottomGap;
+
+/// One profile for everyone. The shell tab (`/profile`) renders it with
+/// [userId] null (signed-in user, drawer leading); `/profile/:userId` passes
+/// the target uid (back leading). `isOwn` switches actions and own-only
+/// sections — the layout is identical either way.
+class ProfileScreen extends StatelessWidget {
+  final String? userId;
+  const ProfileScreen({super.key, this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    final target = userId;
+    if (target != null) return _ProfileBody(uid: target, fromTab: false);
+    final uid = AuthService.instance.uid;
+    if (uid != null) return _ProfileBody(uid: uid, fromTab: true);
+    // Tab opened before the guest session resolved — wait for it once.
+    return FutureBuilder<User>(
+      future: AuthService.instance.initAuth(),
+      builder: (context, snap) {
+        final user = snap.data;
+        if (user == null) return const Center(child: CircularProgressIndicator());
+        return _ProfileBody(uid: user.uid, fromTab: true);
+      },
+    );
+  }
+}
+
+class _ProfileBody extends ConsumerWidget {
+  final String uid;
+
+  /// True when rendered as the shell tab: drawer leading and no inner
+  /// Scaffold (the shell's Scaffold owns the drawer — a nested one would
+  /// shadow it and break Scaffold.of(ctx).openDrawer()).
+  final bool fromTab;
+  const _ProfileBody({required this.uid, required this.fromTab});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final UserModel user = viewUser ?? ref.watch(userProvider);
-    return DefaultTabController(
-      length: 6,
-      child: NestedScrollView(
-        headerSliverBuilder: (context, _) => [
-          SliverAppBar(
-            expandedHeight: 180,
-            pinned: false,
-            leading: viewUser != null
-                ? const BackButton()
-                : Builder(
-                    builder: (ctx) => IconButton(icon: const Icon(LucideIcons.menu), onPressed: () => Scaffold.of(ctx).openDrawer()),
-                  ),
-            actions: [
-              IconButton(icon: const Icon(LucideIcons.share2, size: 20), onPressed: () => _shareCard(context, user)),
-              if (viewUser == null)
-                IconButton(icon: const Icon(LucideIcons.settings, size: 20), onPressed: () => context.push('/settings')),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(gradient: AppGradients.brandTri),
-                child: Stack(
-                  children: [
-                    Positioned(right: -20, top: -10, child: Text('∞', style: TextStyle(fontSize: 180, color: Colors.white.withOpacity(0.08)))),
-                  ],
-                ),
-              ),
+    final isOwn = uid == (AuthService.instance.uid ?? '');
+    final identityAsync = ref.watch(identityProvider(uid));
+    final identity = identityOf(ref, uid);
+
+    // Doc confirmed missing (not merely loading) — visiting semantics only;
+    // the own tab renders placeholders while ensureProfile is in flight.
+    if (identityAsync is AsyncData<UserData?> && identityAsync.value == null && identity == null && !fromTab) {
+      return Scaffold(
+        appBar: AppBar(title: Text(ref.tr('profile'))),
+        body: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppGradients.pageBg),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(LucideIcons.userX, size: 42, color: AppColors.textMuted),
+                const SizedBox(height: 12),
+                Text(ref.tr('userNotFound'), style: AppTextStyles.captionMuted),
+              ],
             ),
           ),
-          SliverToBoxAdapter(
-            // Own profile → live Firestore data; profiles opened from
-            // stories/posts keep rendering their sample UserModel.
-            child: viewUser == null ? _LiveHeader(user: user) : _Header(user: user, isOwn: false),
-          ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _TabBarDelegate(
-              const TabBar(
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                tabs: [
-                  Tab(text: 'Posts'), Tab(text: 'Reviews'), Tab(text: 'Lists'),
-                  Tab(text: 'Ani Videos'), Tab(text: 'Fan Art'), Tab(text: '📊 Stats'),
+        ),
+      );
+    }
+
+    final handle = identity?.userName ?? '';
+    final page = DecoratedBox(
+      decoration: const BoxDecoration(gradient: AppGradients.pageBg),
+      child: DefaultTabController(
+        length: isOwn ? 6 : 3,
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.surface,
+          // Streams are live; the gesture is just a familiar affordance.
+          onRefresh: () async {
+            Haptics.light();
+            await Future.delayed(const Duration(milliseconds: 400));
+          },
+          child: NestedScrollView(
+            headerSliverBuilder: (context, _) => [
+              // Toolbar only — the banner lives in the header Stack below, so
+              // no sliver ever paints over the avatar.
+              SliverAppBar(
+                pinned: true,
+                backgroundColor: AppColors.background,
+                leading: fromTab
+                    ? Builder(
+                        builder: (ctx) => IconButton(
+                            icon: const Icon(LucideIcons.menu),
+                            onPressed: () => Scaffold.of(ctx).openDrawer()),
+                      )
+                    : const BackButton(),
+                title: handle.isEmpty ? null : Text('@$handle', style: AppTextStyles.subheading),
+                centerTitle: false,
+                actions: [
+                  if (isOwn)
+                    IconButton(
+                        icon: const Icon(LucideIcons.share2, size: 20),
+                        onPressed: () => _shareCard(context, ref.read(userProvider))),
+                  if (isOwn)
+                    IconButton(
+                        icon: const Icon(LucideIcons.settings, size: 20),
+                        onPressed: () => context.push('/settings')),
                 ],
               ),
+              SliverToBoxAdapter(child: _ProfileHeader(uid: uid, identity: identity, isOwn: isOwn)),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _TabBarDelegate(
+                  isOwn
+                      ? const TabBar(
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          tabs: [
+                            Tab(text: 'Posts'), Tab(text: 'Reviews'), Tab(text: 'Lists'),
+                            Tab(text: 'Ani Videos'), Tab(text: 'Fan Art'), Tab(text: '📊 Stats'),
+                          ],
+                        )
+                      : TabBar(tabs: [
+                          Tab(text: ref.tr('posts')),
+                          Tab(text: ref.tr('likes')),
+                          Tab(text: ref.tr('lists')),
+                        ]),
+                ),
+              ),
+            ],
+            body: TabBarView(
+              children: isOwn
+                  ? [
+                      _PostsTab(userId: uid),
+                      const _ReviewsTab(),
+                      const _ListsTab(),
+                      const _GridTab(icon: LucideIcons.playCircle, label: 'Ani Video'),
+                      const _GridTab(icon: LucideIcons.image, label: 'Fan Art'),
+                      const _StatsTab(),
+                    ]
+                  : [
+                      _PostsTab(userId: uid),
+                      _EmptyTab(text: ref.tr('emptyListTitle')),
+                      _EmptyTab(text: ref.tr('emptyListTitle')),
+                    ],
             ),
           ),
-        ],
-        body: TabBarView(
+        ),
+      ),
+    );
+    return fromTab ? page : Scaffold(body: page);
+  }
+}
+
+/// Banner + overlapping avatar + action row (one bounded Stack), then the
+/// identity column and stats. Identity resolves via [identityProvider] only.
+class _ProfileHeader extends ConsumerWidget {
+  final String uid;
+  final UserData? identity;
+  final bool isOwn;
+  const _ProfileHeader({required this.uid, required this.identity, required this.isOwn});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final name = identity?.nameToShow ?? '—';
+    final handle = identity?.userName ?? '';
+    final bio = identity?.bio ?? '';
+    final verified = identity?.isVerified ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: _headerStackHeight,
+          child: Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: _bannerHeight,
+                child: Container(
+                  decoration: const BoxDecoration(gradient: AppGradients.brandTri),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                          right: -20,
+                          top: -10,
+                          child: Text('∞',
+                              style: TextStyle(fontSize: 180, color: Colors.white.withOpacity(0.08)))),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                // Center of the avatar sits exactly on the banner's bottom edge.
+                top: _bannerHeight - _avatarOverlap,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.all(_ringWidth),
+                  decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.background),
+                  child: UserAvatar(
+                    name: name == '—' ? '' : name,
+                    imageUrl: identity?.userAvatar,
+                    radius: _avatarRadius,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: _bannerHeight + _actionRowTopGap,
+                right: 16,
+                child: SizedBox(
+                  height: _actionRowHeight,
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: isOwn
+                          ? [
+                              GradientButton(
+                                label: ref.tr('editProfile'),
+                                expand: false,
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                                onPressed: () => showEditProfileSheet(context),
+                              ),
+                            ]
+                          : [
+                              FollowButton(userId: uid),
+                              const SizedBox(width: 10),
+                              _MessageButton(onTap: () {
+                                Haptics.light();
+                                context.push('/messages');
+                              }),
+                            ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Flexible(
+                  child: Text(name,
+                      style: AppTextStyles.display.copyWith(fontSize: 22),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ),
+                if (verified) ...[
+                  const SizedBox(width: 6),
+                  const VerifiedBadge(size: BadgeSize.md),
+                ],
+                if (isOwn) ...[
+                  const SizedBox(width: 8),
+                  LevelBadge(level: ref.watch(userProvider).level),
+                ],
+              ]),
+              if (handle.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text('@$handle', style: AppTextStyles.captionMuted),
+              ],
+              // Empty bio → no row, no gap.
+              if (bio.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(bio, style: AppTextStyles.bodyMuted),
+              ],
+              const SizedBox(height: 14),
+              _StatsRow(uid: uid, postsCount: identity?.postsCount),
+              if (isOwn)
+                _OwnSections(identity: identity)
+              else
+                // Read-only True Fan rail — pads itself when it has content.
+                _TrueFanRail(userId: uid),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One stats row for every profile: Posts / Followers / Following. Follow
+/// tallies come from the relationship-derived [followCountsProvider]; the
+/// denormalized doc counters are never read for display.
+class _StatsRow extends ConsumerWidget {
+  final String uid;
+  final int? postsCount;
+  const _StatsRow({required this.uid, required this.postsCount});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final counts = ref.watch(followCountsProvider(uid)).asData?.value;
+    String live(int? v) => v == null ? '—' : Fmt.compact(v);
+    final items = <(String, String, VoidCallback?)>[
+      (live(postsCount), ref.tr('posts'), null),
+      (live(counts?.followers), ref.tr('followers'),
+          () => context.push('/profile/$uid/followers')),
+      (live(counts?.following), ref.tr('following'),
+          () => context.push('/profile/$uid/following')),
+    ];
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: items
+            .map((e) => Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: e.$3 == null
+                        ? null
+                        : () {
+                            Haptics.light();
+                            e.$3!();
+                          },
+                    child: Column(children: [
+                      Text(e.$1, style: AppTextStyles.numbersLg().copyWith(fontSize: 18)),
+                      const SizedBox(height: 2),
+                      Text(e.$2, style: AppTextStyles.captionMuted, textAlign: TextAlign.center),
+                    ]),
+                  ),
+                ))
+            .toList(),
+      ),
+    );
+  }
+}
+
+/// Own-profile extras: badges rail, Anime DNA, True Fan section (with the
+/// owner's hide/show toggles) and feature banners. Futures held in state so
+/// header rebuilds don't refetch.
+class _OwnSections extends ConsumerStatefulWidget {
+  final UserData? identity;
+  const _OwnSections({required this.identity});
+
+  @override
+  ConsumerState<_OwnSections> createState() => _OwnSectionsState();
+}
+
+class _OwnSectionsState extends ConsumerState<_OwnSections> {
+  late final Future<int> _animeCount = ProfileRepository.instance.fetchMyListCount();
+  late final Future<List<TrueFanProfileEntry>> _trueFan =
+      TrueFanProfileService.instance.fetchMyEntries();
+
+  /// "March 2024" from the profile's createdAt. Null-tolerant: a pending
+  /// serverTimestamp surfaces locally as null right after ensureProfile
+  /// creates the doc (same latency-compensation footgun as Stories).
+  static String _joinDate(DateTime? createdAt) =>
+      createdAt == null ? '—' : DateFormat('MMMM yyyy').format(createdAt.toLocal());
+
+  @override
+  Widget build(BuildContext context) {
+    final u = ref.watch(userProvider);
+    return FutureBuilder<int>(
+      future: _animeCount,
+      builder: (context, animeSnap) => FutureBuilder<List<TrueFanProfileEntry>>(
+        future: _trueFan,
+        builder: (context, trueFanSnap) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _PostsTab(),
-            const _ReviewsTab(),
-            const _ListsTab(),
-            const _GridTab(icon: LucideIcons.playCircle, label: 'Ani Video'),
-            const _GridTab(icon: LucideIcons.image, label: 'Fan Art'),
-            const _StatsTab(),
+            const SizedBox(height: 14),
+            _badgesRail(animeSnap, trueFanSnap),
+            const SizedBox(height: 16),
+            _animeDna(u),
+            const SizedBox(height: 16),
+            TrueFanSection(
+              entries: trueFanSnap.data,
+              error: trueFanSnap.hasError,
+              onToggleHidden: (anilistId, hidden) =>
+                  TrueFanProfileService.instance.setHidden(anilistId: anilistId, hidden: hidden),
+            ),
+            const SizedBox(height: 14),
+            _banners(context),
           ],
         ),
       ),
     );
   }
 
-  void _shareCard(BuildContext context, UserModel u) {
-    Haptics.medium();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(gradient: AppGradients.brandTri, borderRadius: BorderRadius.circular(24)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('My AniCard', style: AppTextStyles.heading.copyWith(color: Colors.white)),
-              const SizedBox(height: 16),
-              UserAvatar.fromUser(u, radius: 36),
-              const SizedBox(height: 10),
-              Text(u.username, style: AppTextStyles.display.copyWith(color: Colors.white)),
-              Text(u.level.title, style: AppTextStyles.body.copyWith(color: Colors.white70)),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _miniStat('${u.watchedAnime}', 'Anime'),
-                  _miniStat(Fmt.compact(u.episodes), 'Eps'),
-                  _miniStat('${u.hours}h', 'Watched'),
-                  _miniStat('#${u.trueFanRank}', 'Rank'),
-                ],
-              ),
-              const SizedBox(height: 18),
-              GradientButton(label: 'Share AniCard', icon: LucideIcons.share2, gradient: const LinearGradient(colors: [Colors.white, Color(0xFFE5E7EB)]), onPressed: () => Navigator.pop(context)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _badgesRail(AsyncSnapshot<int> anime, AsyncSnapshot<List<TrueFanProfileEntry>> trueFan) {
+    final identity = widget.identity;
 
-  Widget _miniStat(String v, String l) => Column(children: [
-        Text(v, style: AppTextStyles.numbersLg(color: Colors.white)),
-        Text(l, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-      ]);
-}
-
-/// Header values resolved from Firestore (or placeholders/fallbacks) — the
-/// data-only swap for the signed-in user's header. Everything else in the
-/// header (level badge, streak, True Fan, Anime DNA) still comes from the
-/// session [UserModel] until those features are wired.
-class _LiveHeaderData {
-  final String displayName;
-
-  /// The unique @handle; '' while loading or before the first claim.
-  final String userName;
-  final String bio; // empty → bio row hidden
-  final String? avatarUrl;
-  final String initials;
-  final bool isVerified;
-  final String animeCount;
-  final String followers;
-  final String following;
-  final String joinDate;
-
-  /// Full text of the streak chip ("🔥 3-day streak" / "🔥 Start your streak").
-  final String streakChip;
-
-  /// Full text of the True Fan chip ("🏆 3 True Fan" / "🏆 —" while loading).
-  final String trueFanChip;
-
-  /// The user's True Fan passes with live global ranks — null while loading.
-  final List<TrueFanProfileEntry>? trueFanEntries;
-  final bool trueFanError;
-
-  const _LiveHeaderData({
-    required this.displayName,
-    required this.userName,
-    required this.bio,
-    required this.avatarUrl,
-    required this.initials,
-    required this.isVerified,
-    required this.animeCount,
-    required this.followers,
-    required this.following,
-    required this.joinDate,
-    required this.streakChip,
-    required this.trueFanChip,
-    required this.trueFanEntries,
-    required this.trueFanError,
-  });
-}
-
-/// Streams `users/{uid}` and aggregates the counts, then renders the
-/// unchanged [_Header] layout with resolved values. Never flashes mock data:
-/// stats show "—" while loading and fall back to safe defaults on error.
-/// Follow tallies come from [myFollowCountsProvider] so they re-count live
-/// after every follow/unfollow instead of once per session.
-class _LiveHeader extends ConsumerStatefulWidget {
-  final UserModel user;
-  const _LiveHeader({required this.user});
-
-  @override
-  ConsumerState<_LiveHeader> createState() => _LiveHeaderState();
-}
-
-class _LiveHeaderState extends ConsumerState<_LiveHeader> {
-  // Held in state so rebuilds don't re-subscribe or refetch.
-  late final Stream<UserProfile?> _profile = ProfileRepository.instance.watchProfile();
-  late final Future<int> _animeCount = ProfileRepository.instance.fetchMyListCount();
-  late final Future<List<TrueFanProfileEntry>> _trueFan =
-      TrueFanProfileService.instance.fetchMyEntries();
-
-  @override
-  Widget build(BuildContext context) {
-    // Relationship-derived counts — re-count on every follow/unfollow.
-    final follow = ref.watch(myFollowCountsProvider);
-    return StreamBuilder<UserProfile?>(
-      stream: _profile,
-      builder: (context, profileSnap) => FutureBuilder<int>(
-        future: _animeCount,
-        builder: (context, animeSnap) => FutureBuilder<List<TrueFanProfileEntry>>(
-          future: _trueFan,
-          builder: (context, trueFanSnap) => _Header(
-              user: widget.user, isOwn: true, live: _resolve(profileSnap, animeSnap, follow, trueFanSnap)),
-        ),
-      ),
-    );
-  }
-
-  _LiveHeaderData _resolve(AsyncSnapshot<UserProfile?> p, AsyncSnapshot<int> a,
-      AsyncValue<FollowCounts> f, AsyncSnapshot<List<TrueFanProfileEntry>> t) {
-    final profile = p.data;
-    final profileLoading = p.connectionState == ConnectionState.waiting && !p.hasError;
-    final animeLoading = a.connectionState == ConnectionState.waiting && !a.hasError;
-    final counts = f.asData?.value;
-
-    // Loading → "—" placeholders; error or missing doc → safe defaults.
-    final String displayName;
-    final String initials;
-    if (profile != null && profile.displayName.isNotEmpty) {
-      displayName = profile.displayName;
-      initials = profile.initials;
-    } else if (profileLoading) {
-      displayName = '—';
-      initials = '·';
-    } else {
-      displayName = 'Anime Fan';
-      initials = 'AF';
-    }
-
-    // Loading → "—" placeholder; error or missing → safe zero.
-    String followStat(int? v) => v == null ? (f.isLoading ? '—' : '0') : Fmt.compact(v);
-
-    // Streak chip: placeholder while loading (never flash the sample value),
-    // a nudge before the first check-in, then the live count. Display-side
-    // only: a lapsed streak (last check-in older than yesterday) shows as 0
-    // even though the stored value waits for the next check-in to reset it.
+    // Placeholder while loading (never flash sample values); a lapsed streak
+    // shows as 0 display-side even though the stored value waits for the
+    // next check-in to reset it.
     final String streakChip;
-    if (profileLoading) {
+    if (identity == null) {
       streakChip = '🔥 —';
     } else {
-      final streak = profile == null
-          ? 0
-          : StreakService.displayStreak(
-              currentStreak: profile.currentStreak,
-              lastActiveDay: profile.lastActiveDay,
-            );
+      final streak = StreakService.displayStreak(
+        currentStreak: identity.currentStreak,
+        lastActiveDay: identity.lastActiveDay,
+      );
       streakChip = streak == 0 ? '🔥 Start your streak' : '🔥 $streak-day streak';
     }
 
-    // True Fan chip shows the COUNT of passed challenges (replaces the old
-    // sample "#847" rank). "—" while the ranks load; plain label on error.
-    final trueFanEntries = t.data;
-    final trueFanError = t.hasError;
     final String trueFanChip;
-    if (trueFanEntries != null) {
-      trueFanChip = '🏆 ${trueFanEntries.length} True Fan';
+    if (trueFan.data != null) {
+      trueFanChip = '🏆 ${trueFan.data!.length} True Fan';
     } else {
-      trueFanChip = trueFanError ? '🏆 True Fan' : '🏆 —';
+      trueFanChip = trueFan.hasError ? '🏆 True Fan' : '🏆 —';
     }
 
-    return _LiveHeaderData(
-      displayName: displayName,
-      userName: profile?.userName ?? '',
-      bio: profile?.bio ?? '',
-      avatarUrl: profile?.avatarUrl,
-      initials: initials,
-      isVerified: profile?.isVerified ?? false,
-      animeCount: a.data == null ? (animeLoading ? '—' : '0') : '${a.data}',
-      followers: followStat(counts?.followers),
-      following: followStat(counts?.following),
-      joinDate: profileLoading ? '—' : ProfileRepository.instance.joinDate(profile),
-      streakChip: streakChip,
-      trueFanChip: trueFanChip,
-      trueFanEntries: trueFanEntries,
-      trueFanError: trueFanError,
-    );
-  }
-}
-
-class _Header extends ConsumerWidget {
-  final UserModel user;
-
-  /// True when this is the signed-in user's own profile (stats link to the
-  /// real Firestore follower/following lists).
-  final bool isOwn;
-
-  /// Live Firestore values for the signed-in user; null → render [user]'s
-  /// sample values (profiles opened from stories/posts).
-  final _LiveHeaderData? live;
-  const _Header({required this.user, this.isOwn = false, this.live});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Data-only swap: live Firestore values when present, sample values
-    // otherwise. Layout below is identical either way.
-    final l = live;
-    final name = l?.displayName ?? user.username;
-    // Live profiles show the real claimed handle; sample profiles fake one
-    // from the demo username.
-    final handle = l?.userName ?? user.username.toLowerCase();
-    final bio = l?.bio ?? user.bio;
-    final verified = l?.isVerified ?? user.isVerified;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Transform.translate(
-            offset: const Offset(0, -34),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.background),
-                  child: l != null
-                      ? UserAvatar(
-                          name: l.displayName,
-                          level: user.level,
-                          imageUrl: l.avatarUrl,
-                          initials: l.initials,
-                          radius: 38,
-                        )
-                      : UserAvatar.fromUser(user, radius: 38),
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: GradientButton(
-                    label: ref.tr('editProfile'),
-                    expand: false,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-                    // Editing writes to users/{uid} — own profile only.
-                    onPressed: isOwn ? () => showEditProfileSheet(context) : () {},
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Transform.translate(
-            offset: const Offset(0, -24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Text(name, style: AppTextStyles.display.copyWith(fontSize: 22)),
-                  const SizedBox(width: 6),
-                  if (verified) const VerifiedBadge(size: BadgeSize.md),
-                  const SizedBox(width: 8),
-                  LevelBadge(level: user.level),
-                ]),
-                if (handle.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text('@$handle', style: AppTextStyles.captionMuted),
-                ],
-                // Empty bio → no row, no gap.
-                if (bio.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(bio, style: AppTextStyles.bodyMuted),
-                ],
-                const SizedBox(height: 14),
-                _statsRow(context, user),
-                const SizedBox(height: 14),
-                _badges(user, verified),
-                const SizedBox(height: 16),
-                _animeDna(user),
-                // Live True Fan ranks exist for the signed-in user only.
-                // Owner mode: hidden titles stay visible (dimmed) and each
-                // card carries the hide/show eye toggle.
-                if (l != null) ...[
-                  const SizedBox(height: 16),
-                  TrueFanSection(
-                    entries: l.trueFanEntries,
-                    error: l.trueFanError,
-                    onToggleHidden: (anilistId, hidden) => TrueFanProfileService.instance
-                        .setHidden(anilistId: anilistId, hidden: hidden),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                _banners(context),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statsRow(BuildContext context, UserModel u) {
-    // Own profile → the real (Firestore-backed) follower/following lists;
-    // sample profiles opened from stories keep the demo list.
-    final ownUid = isOwn ? AuthService.instance.uid : null;
-    void open(String title) {
-      if (ownUid != null) {
-        context.push(title == 'Followers' ? '/profile/$ownUid/followers' : '/profile/$ownUid/following');
-      } else {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => FollowListScreen(title: title, users: SampleData.people)),
-        );
-      }
+    final String animeChip;
+    if (anime.data != null) {
+      animeChip = '🎌 ${anime.data} anime';
+    } else {
+      animeChip = anime.hasError ? '🎌 anime' : '🎌 —';
     }
 
-    final items = <(String, String, VoidCallback?)>[
-      (live?.animeCount ?? '${u.watchedAnime}', 'Anime', null),
-      (live?.followers ?? Fmt.compact(u.followers), 'Followers', () => open('Followers')),
-      (live?.following ?? Fmt.compact(u.following), 'Following', () => open('Following')),
-    ];
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
-      child: Row(
-        children: items.map((e) => Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: e.$3,
-            child: Column(children: [
-              Text(e.$1, style: AppTextStyles.numbersLg().copyWith(fontSize: 18)),
-              const SizedBox(height: 2),
-              Text(e.$2, style: AppTextStyles.captionMuted, textAlign: TextAlign.center),
-            ]),
-          ),
-        )).toList(),
-      ),
-    );
-  }
-
-  Widget _badges(UserModel u, bool verified) {
-    // Join date, streak, True Fan, and Verified come from live data on the
-    // own profile; the birthday chip is a future step and stays as-is.
     final badges = [
-      '📅 ${live?.joinDate ?? u.memberSince}', live?.streakChip ?? '🔥 ${u.streak}-day streak', live?.trueFanChip ?? '🌍 True Fan #${u.trueFanRank}', '🎂 Birthday Mar 14', if (verified) '✓ Verified',
+      '📅 ${_joinDate(identity?.createdAt)}',
+      streakChip,
+      trueFanChip,
+      animeChip,
+      if (identity?.isVerified ?? false) '✓ Verified',
     ];
     return SizedBox(
       height: 34,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        children: badges.map((b) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.border)),
-                child: Text(b, style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary)),
-              ),
-            )).toList(),
+        children: badges
+            .map((b) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                        color: AppColors.surfaceAlt,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.border)),
+                    child: Text(b, style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary)),
+                  ),
+                ))
+            .toList(),
       ),
     );
   }
@@ -543,6 +575,106 @@ class _Header extends ConsumerWidget {
   }
 }
 
+/// Read-only True Fan rail for a public profile: only entries the owner
+/// hasn't hidden. Collapses entirely (no box, no error) when there's nothing
+/// to show; the fetch is held in state so header rebuilds don't refetch.
+class _TrueFanRail extends StatefulWidget {
+  final String userId;
+  const _TrueFanRail({required this.userId});
+
+  @override
+  State<_TrueFanRail> createState() => _TrueFanRailState();
+}
+
+class _TrueFanRailState extends State<_TrueFanRail> {
+  late final Future<List<TrueFanProfileEntry>> _entries =
+      TrueFanProfileService.instance.fetchVisibleEntriesFor(widget.userId);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<TrueFanProfileEntry>>(
+      future: _entries,
+      builder: (context, snap) {
+        // Viewer surface: errors and empty results just collapse.
+        if (snap.hasError || (snap.data?.isEmpty ?? false)) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: TrueFanSection(entries: snap.data, error: false),
+        );
+      },
+    );
+  }
+}
+
+class _MessageButton extends ConsumerWidget {
+  final VoidCallback onTap;
+  const _MessageButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(children: [
+          const Icon(LucideIcons.send, size: 13, color: AppColors.textSecondary),
+          const SizedBox(width: 6),
+          Text(ref.tr('message'),
+              style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12.5)),
+        ]),
+      ),
+    );
+  }
+}
+
+void _shareCard(BuildContext context, UserModel u) {
+  Haptics.medium();
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (_) => Padding(
+      padding: const EdgeInsets.all(20),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(gradient: AppGradients.brandTri, borderRadius: BorderRadius.circular(24)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('My AniCard', style: AppTextStyles.heading.copyWith(color: Colors.white)),
+            const SizedBox(height: 16),
+            UserAvatar.fromUser(u, radius: 36),
+            const SizedBox(height: 10),
+            Text(u.username, style: AppTextStyles.display.copyWith(color: Colors.white)),
+            Text(u.level.title, style: AppTextStyles.body.copyWith(color: Colors.white70)),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _miniStat('${u.watchedAnime}', 'Anime'),
+                _miniStat(Fmt.compact(u.episodes), 'Eps'),
+                _miniStat('${u.hours}h', 'Watched'),
+                _miniStat('#${u.trueFanRank}', 'Rank'),
+              ],
+            ),
+            const SizedBox(height: 18),
+            GradientButton(label: 'Share AniCard', icon: LucideIcons.share2, gradient: const LinearGradient(colors: [Colors.white, Color(0xFFE5E7EB)]), onPressed: () => Navigator.pop(context)),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _miniStat(String v, String l) => Column(children: [
+      Text(v, style: AppTextStyles.numbersLg(color: Colors.white)),
+      Text(l, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+    ]);
+
 class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
   _TabBarDelegate(this.tabBar);
@@ -560,32 +692,41 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
 }
 
 class _PostsTab extends ConsumerWidget {
+  final String userId;
+  const _PostsTab({required this.userId});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The signed-in user's real posts from Firestore — never sample content,
-    // so the tab reflects what's actually been published.
-    final uid = AuthService.instance.uid;
-    if (uid == null) {
-      return Center(child: Text(ref.tr('noPostsYet'), style: AppTextStyles.captionMuted));
-    }
     return StreamBuilder<List<PostData>>(
-      stream: FeedService.instance.getUserPosts(uid),
+      stream: FeedService.instance.getUserPosts(userId),
       builder: (context, snap) {
         final posts = snap.data;
         if (posts == null) return const Center(child: CircularProgressIndicator());
-        if (posts.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Text(ref.tr('noPostsYet'), textAlign: TextAlign.center, style: AppTextStyles.captionMuted),
-            ),
-          );
-        }
+        if (posts.isEmpty) return _EmptyTab(text: ref.tr('noPostsYet'));
         return ListView(
           padding: const EdgeInsets.only(top: 8, bottom: 90),
           children: posts.map((p) => PostCard(key: ValueKey(p.id), post: p)).toList(),
         );
       },
+    );
+  }
+}
+
+class _EmptyTab extends StatelessWidget {
+  final String text;
+  const _EmptyTab({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      // Keeps pull-to-refresh working on an empty tab.
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(48),
+          child: Center(child: Text(text, textAlign: TextAlign.center, style: AppTextStyles.captionMuted)),
+        ),
+      ],
     );
   }
 }
