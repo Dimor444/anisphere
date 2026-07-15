@@ -23,6 +23,7 @@ import '../../services/streak_service.dart';
 import '../../services/true_fan_profile_service.dart';
 import '../../shared/providers/follow_counts_provider.dart';
 import '../../shared/providers/identity_provider.dart';
+import '../../shared/providers/post_count_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/providers/user_provider.dart';
 import '../../shared/widgets/anime_card.dart';
@@ -325,12 +326,15 @@ class _ProfileHeader extends ConsumerWidget {
                 Text(bio, style: AppTextStyles.bodyMuted),
               ],
               const SizedBox(height: 14),
-              _StatsRow(uid: uid, postsCount: identity?.postsCount),
+              _StatsRow(uid: uid),
               if (isOwn)
                 _OwnSections(identity: identity)
-              else
+              else ...[
+                const SizedBox(height: 14),
+                _VisitorChips(identity: identity),
                 // Read-only True Fan rail — pads itself when it has content.
                 _TrueFanRail(userId: uid),
+              ],
             ],
           ),
         ),
@@ -339,20 +343,20 @@ class _ProfileHeader extends ConsumerWidget {
   }
 }
 
-/// One stats row for every profile: Posts / Followers / Following. Follow
-/// tallies come from the relationship-derived [followCountsProvider]; the
-/// denormalized doc counters are never read for display.
+/// One stats row for every profile: Posts / Followers / Following — all
+/// three relationship-derived ([postCountProvider] / [followCountsProvider]);
+/// the denormalized doc counters are never read for display.
 class _StatsRow extends ConsumerWidget {
   final String uid;
-  final int? postsCount;
-  const _StatsRow({required this.uid, required this.postsCount});
+  const _StatsRow({required this.uid});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final counts = ref.watch(followCountsProvider(uid)).asData?.value;
+    final posts = ref.watch(postCountProvider(uid)).asData?.value;
     String live(int? v) => v == null ? '—' : Fmt.compact(v);
     final items = <(String, String, VoidCallback?)>[
-      (live(postsCount), ref.tr('posts'), null),
+      (live(posts), ref.tr('posts'), null),
       (live(counts?.followers), ref.tr('followers'),
           () => context.push('/profile/$uid/followers')),
       (live(counts?.following), ref.tr('following'),
@@ -389,6 +393,56 @@ class _StatsRow extends ConsumerWidget {
   }
 }
 
+/// "March 2024" from the profile's createdAt. Null-tolerant: a pending
+/// serverTimestamp surfaces locally as null right after ensureProfile
+/// creates the doc (same latency-compensation footgun as Stories).
+String _joinDate(DateTime? createdAt) =>
+    createdAt == null ? '—' : DateFormat('MMMM yyyy').format(createdAt.toLocal());
+
+Widget _chip(String text) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+          color: AppColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border)),
+      child: Text(text, style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary)),
+    );
+
+/// 34px horizontally scrolling chip rail — scrolls, never overflows.
+Widget _chipRail(List<String> chips) => SizedBox(
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: chips
+            .map((b) => Padding(padding: const EdgeInsets.only(right: 8), child: _chip(b)))
+            .toList(),
+      ),
+    );
+
+/// Public chips every visitor sees: join date + streak. The streak shown is
+/// DERIVED from lastActiveDay via [StreakService.displayStreak] — the stored
+/// value only refreshes when its owner opens the app — and a broken streak
+/// renders no chip at all ("0-day streak" on someone else's profile is
+/// owner-directed noise).
+class _VisitorChips extends StatelessWidget {
+  final UserData? identity;
+  const _VisitorChips({required this.identity});
+
+  @override
+  Widget build(BuildContext context) {
+    final streak = identity == null
+        ? 0
+        : StreakService.displayStreak(
+            currentStreak: identity!.currentStreak,
+            lastActiveDay: identity!.lastActiveDay,
+          );
+    return _chipRail([
+      '📅 ${_joinDate(identity?.createdAt)}',
+      if (streak > 0) '🔥 $streak-day streak',
+    ]);
+  }
+}
+
 /// Own-profile extras: badges rail, Anime DNA, True Fan section (with the
 /// owner's hide/show toggles) and feature banners. Futures held in state so
 /// header rebuilds don't refetch.
@@ -404,12 +458,6 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
   late final Future<int> _animeCount = ProfileRepository.instance.fetchMyListCount();
   late final Future<List<TrueFanProfileEntry>> _trueFan =
       TrueFanProfileService.instance.fetchMyEntries();
-
-  /// "March 2024" from the profile's createdAt. Null-tolerant: a pending
-  /// serverTimestamp surfaces locally as null right after ensureProfile
-  /// creates the doc (same latency-compensation footgun as Stories).
-  static String _joinDate(DateTime? createdAt) =>
-      createdAt == null ? '—' : DateFormat('MMMM yyyy').format(createdAt.toLocal());
 
   @override
   Widget build(BuildContext context) {
@@ -471,32 +519,13 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
       animeChip = anime.hasError ? '🎌 anime' : '🎌 —';
     }
 
-    final badges = [
+    return _chipRail([
       '📅 ${_joinDate(identity?.createdAt)}',
       streakChip,
       trueFanChip,
       animeChip,
       if (identity?.isVerified ?? false) '✓ Verified',
-    ];
-    return SizedBox(
-      height: 34,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: badges
-            .map((b) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                        color: AppColors.surfaceAlt,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border)),
-                    child: Text(b, style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary)),
-                  ),
-                ))
-            .toList(),
-      ),
-    );
+    ]);
   }
 
   Widget _animeDna(UserModel u) {

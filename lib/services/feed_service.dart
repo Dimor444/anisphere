@@ -149,6 +149,12 @@ class FeedService {
 
   // ── Post writes ────────────────────────────────────────────────────────
 
+  /// Bumped after every successful post create/delete commit. The
+  /// relationship-derived post-count provider re-runs its count()
+  /// aggregation when this changes — display never reads the denormalized
+  /// postsCount field (write-only bookkeeping, kept byte-identical).
+  final ValueNotifier<int> postsEpoch = ValueNotifier(0);
+
   /// Client-generated id for a post that hasn't been written yet, so image
   /// uploads can target `posts/{uid}/{postId}/` before the doc exists and
   /// [createPost] then writes the doc under the same id.
@@ -214,6 +220,7 @@ class FeedService {
         );
       }
       await batch.commit();
+      postsEpoch.value++;
       return doc.id;
     });
   }
@@ -269,6 +276,7 @@ class FeedService {
         ..delete(_posts.doc(postId))
         ..update(_db.collection('users').doc(uid), {'postsCount': FieldValue.increment(-1)});
       await batch.commit();
+      postsEpoch.value++;
     });
   }
 
