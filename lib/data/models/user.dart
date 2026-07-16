@@ -40,7 +40,15 @@ class UserData {
   final String lastActiveDay;
   final DateTime? createdAt;
 
+  /// Anime DNA overrides — AniList ids ONLY (no denormalized titles/covers;
+  /// everything displayed is fetched live from AniList). [dnaPinned] holds
+  /// the owner's pinned card ids (max [maxDnaPinned], empty = fully derived);
+  /// [firstAnimeId] is the user-entered "first anime ever" (null = unset).
+  final List<int> dnaPinned;
+  final int? firstAnimeId;
+
   static const int maxBioLength = 150;
+  static const int maxDnaPinned = 5;
 
   /// The name surfaces should render: displayName, falling back to the handle.
   String get nameToShow {
@@ -66,6 +74,8 @@ class UserData {
     this.longestStreak = 0,
     this.lastActiveDay = '',
     this.createdAt,
+    this.dnaPinned = const [],
+    this.firstAnimeId,
   }) : userNameLower = userNameLower ?? '';
 
   factory UserData.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -89,11 +99,20 @@ class UserData {
       longestStreak: (d['longestStreak'] as num?)?.toInt() ?? 0,
       lastActiveDay: d['lastActiveDay'] as String? ?? '',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+      dnaPinned: (d['dnaPinned'] as List<dynamic>?)
+              ?.whereType<num>()
+              .map((n) => n.toInt())
+              .where((id) => id > 0)
+              .toList() ??
+          const [],
+      firstAnimeId: (d['firstAnimeId'] as num?)?.toInt(),
     );
   }
 
   /// Full Firestore payload (no id — that's the document key). Used on profile
   /// creation; partial updates go through FollowService with explicit fields.
+  /// DNA fields (dnaPinned/firstAnimeId) are deliberately absent — the create
+  /// rule whitelist doesn't admit them; they're written by AnimeDnaService.
   Map<String, dynamic> toMap() => {
         'userId': id,
         'userName': userName,

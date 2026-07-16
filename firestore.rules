@@ -52,6 +52,28 @@ service cloud.firestore {
             && d.userNameLower == d.userName
             && getAfter(/databases/$(database)/documents/usernames/$(d.userName)).data.uid == request.auth.uid);
       }
+      // Anime DNA overrides — AniList id ints ONLY, no denormalized AniList
+      // data (titles/covers/genres are fetched live at render time). Both
+      // fields are OPTIONAL: a doc carrying neither passes exactly as
+      // before. dnaPinned is the owner's pinned card ids (max 5, positive
+      // ints — rules can't loop, so element checks unroll to the cap);
+      // firstAnimeId is the user-entered first-ever anime.
+      function validDnaPinned() {
+        let d = request.resource.data;
+        return !('dnaPinned' in d)
+          || (d.dnaPinned is list
+            && d.dnaPinned.size() <= 5
+            && (d.dnaPinned.size() < 1 || (d.dnaPinned[0] is int && d.dnaPinned[0] > 0))
+            && (d.dnaPinned.size() < 2 || (d.dnaPinned[1] is int && d.dnaPinned[1] > 0))
+            && (d.dnaPinned.size() < 3 || (d.dnaPinned[2] is int && d.dnaPinned[2] > 0))
+            && (d.dnaPinned.size() < 4 || (d.dnaPinned[3] is int && d.dnaPinned[3] > 0))
+            && (d.dnaPinned.size() < 5 || (d.dnaPinned[4] is int && d.dnaPinned[4] > 0)));
+      }
+      function validFirstAnime() {
+        return !('firstAnimeId' in request.resource.data)
+          || (request.resource.data.firstAnimeId is int
+            && request.resource.data.firstAnimeId > 0);
+      }
       // One legal check-in per UTC day: streak-only keys, grows by exactly
       // one or resets to 1, longest never decreases, and lastActiveDay must
       // equal the server's UTC day AND strictly advance (blocks replays and
@@ -103,11 +125,14 @@ service cloud.firestore {
       allow update: if signedIn()
         && ((request.auth.uid == userId
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                'userName', 'userNameLower', 'displayName', 'userAvatar', 'bio', 'isPlus', 'isPrivate', 'countryCode'
+                'userName', 'userNameLower', 'displayName', 'userAvatar', 'bio', 'isPlus', 'isPrivate', 'countryCode',
+                'dnaPinned', 'firstAnimeId'
               ])
               && validUserNameChange()
               && validBio()
-              && validCountry())
+              && validCountry()
+              && validDnaPinned()
+              && validFirstAnime())
             || (request.auth.uid == userId && streakBump())
             || profileCounterBump());
       allow delete: if false;

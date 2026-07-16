@@ -26,7 +26,6 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/post_count_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/providers/user_provider.dart';
-import '../../shared/widgets/anime_card.dart';
 import '../../shared/widgets/anime_cover_image.dart';
 import '../../shared/widgets/follow_button.dart';
 import '../../shared/widgets/gradient_button.dart';
@@ -35,6 +34,7 @@ import '../../shared/widgets/post_card.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 import 'edit_profile_sheet.dart';
+import 'widgets/anime_dna_section.dart';
 import 'widgets/true_fan_section.dart';
 
 // ── Header geometry ────────────────────────────────────────────────────────
@@ -328,7 +328,7 @@ class _ProfileHeader extends ConsumerWidget {
               const SizedBox(height: 14),
               _StatsRow(uid: uid),
               if (isOwn)
-                _OwnSections(identity: identity)
+                _OwnSections(uid: uid, identity: identity)
               else ...[
                 const SizedBox(height: 14),
                 _VisitorChips(identity: identity),
@@ -447,8 +447,9 @@ class _VisitorChips extends StatelessWidget {
 /// owner's hide/show toggles) and feature banners. Futures held in state so
 /// header rebuilds don't refetch.
 class _OwnSections extends ConsumerStatefulWidget {
+  final String uid;
   final UserData? identity;
-  const _OwnSections({required this.identity});
+  const _OwnSections({required this.uid, required this.identity});
 
   @override
   ConsumerState<_OwnSections> createState() => _OwnSectionsState();
@@ -461,7 +462,6 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
 
   @override
   Widget build(BuildContext context) {
-    final u = ref.watch(userProvider);
     return FutureBuilder<int>(
       future: _animeCount,
       builder: (context, animeSnap) => FutureBuilder<List<TrueFanProfileEntry>>(
@@ -472,7 +472,7 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
             const SizedBox(height: 14),
             _badgesRail(animeSnap, trueFanSnap),
             const SizedBox(height: 16),
-            _animeDna(u),
+            AnimeDnaSection(uid: widget.uid, isOwn: true),
             const SizedBox(height: 16),
             TrueFanSection(
               entries: trueFanSnap.data,
@@ -526,37 +526,6 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
       animeChip,
       if (identity?.isVerified ?? false) '✓ Verified',
     ]);
-  }
-
-  Widget _animeDna(UserModel u) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('🧬 Anime DNA', style: AppTextStyles.subheading),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 150,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: u.topAnime.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => AnimeCard(anime: SampleData.animeByTitle(u.topAnime[i]), width: 110, height: 150),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: u.genres.map((g) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(gradient: AppGradients.forSeed(g), borderRadius: BorderRadius.circular(20)),
-                child: Text(g, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-              )).toList(),
-        ),
-        const SizedBox(height: 8),
-        Text('First anime: ${u.firstAnime}', style: AppTextStyles.captionMuted),
-      ],
-    );
   }
 
   Widget _banners(BuildContext context) {
