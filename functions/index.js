@@ -8,35 +8,51 @@
 
 const { onDocumentCreated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore } = require('firebase-admin/firestore');
 
 initializeApp();
 
 const db = getFirestore();
 
 /**
- * Shifts rooms/{roomId}.memberCount by [delta], flooring at 0.
+ * Recomputes rooms/{roomId}.memberCount from the members subcollection.
  *
- * A transaction rather than FieldValue.increment because the floor needs to
- * read the current value: a decrement that raced ahead of its create (or ran
- * twice — triggers are at-least-once) must not push the count negative.
- * A room deleted out from under its members is a no-op, not an error.
+ * Deliberately NOT a ±1 delta. Cloud Functions deliver at-least-once, and the
+ * emulator demonstrably redelivers a create event AFTER the matching delete —
+ * a delta-based handler double-counts that join and the room is left with a
+ * count no subsequent event repairs. Deriving the count from the docs makes
+ * the handler idempotent (a redelivery recomputes the same number), order-
+ * independent, and self-healing: any drift is corrected by the next event.
+ * It also removes the need to floor at 0, since a count is never negative.
+ *
+ * The read and the write share a transaction so concurrent joins can't
+ * interleave into a lost update. A room deleted out from under its members is
+ * a no-op, not an error.
  */
-async function shiftMemberCount(roomId, delta) {
+async function syncMemberCount(roomId) {
   const roomRef = db.collection('rooms').doc(roomId);
   await db.runTransaction(async (tx) => {
     const room = await tx.get(roomRef);
     if (!room.exists) return;
-    const current = room.get('memberCount');
-    const next = Math.max(0, (typeof current === 'number' ? current : 0) + delta);
-    tx.update(roomRef, { memberCount: next });
+
+    const members = await tx.get(roomRef.collection('members').count());
+    const actual = members.data().count;
+
+    // Skip the write when already correct — most redeliveries land here.
+    if (room.get('memberCount') === actual) return;
+    tx.update(roomRef, { memberCount: actual });
   });
 }
 
 exports.onRoomMemberJoined = onDocumentCreated('rooms/{roomId}/members/{uid}', (event) =>
-  shiftMemberCount(event.params.roomId, 1),
+  syncMemberCount(event.params.roomId),
 );
 
 exports.onRoomMemberLeft = onDocumentDeleted('rooms/{roomId}/members/{uid}', (event) =>
-  shiftMemberCount(event.params.roomId, -1),
+  syncMemberCount(event.params.roomId),
 );
+
+// Exported for test/member_count.test.js: redelivery of a single event is the
+// case this design exists for, and no amount of driving Firestore reproduces
+// it on demand. Calling the body directly does.
+exports._syncMemberCount = syncMemberCount;

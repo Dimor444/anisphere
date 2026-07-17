@@ -77,7 +77,9 @@ void main() {
     final raw = (await rooms().doc(id).get()).data()!;
     expect(raw.containsKey('animeId'), isFalse);
     expect(raw.containsKey('episodeNumber'), isFalse);
-    expect(Room.fromDoc(await rooms().doc(id).get()).memberCount, 0);
+    // Seeded at 0 by the create payload; the host-join trigger may already have
+    // bumped it to 1 by now. Either way it's server-derived, never client-set.
+    expect((raw['memberCount'] as num).toInt(), anyOf(0, 1));
   });
 
   testWidgets('memberCount is not client-writable', (tester) async {
@@ -109,7 +111,10 @@ void main() {
     final room = Room.fromDoc(await rooms().doc(id).get());
     expect(room.title, 'New title');
     expect(room.isLive, isFalse);
-    expect(room.memberCount, 0, reason: 'still untouched by any client write');
+    // memberCount reflects ONLY the server (the host-join trigger sets it to 1,
+    // possibly not yet applied → 0). Never any value a client tried to write.
+    expect(room.memberCount, anyOf(0, 1), reason: 'server-owned — never a client-supplied value');
+    expect(room.memberCount, isNot(anyOf(500, 99, 42)), reason: 'no client write landed');
   });
 
   testWidgets('hostUid cannot be forged, and non-hosts cannot edit', (tester) async {

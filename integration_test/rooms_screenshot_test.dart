@@ -2,11 +2,12 @@
 // and the new Room Detail screen — run with flutter drive so the driver saves
 // PNGs (see test_driver/integration_test.dart).
 //
-// Rooms are seeded through the emulator's admin REST endpoint ("Bearer owner"
-// bypasses rules) so memberCount can be set to the values the Cloud Function
-// trigger would have produced. The trigger itself needs the functions
-// emulator; the rules boundary that keeps memberCount server-owned is covered
-// by rooms_rules_test.dart.
+// REQUIRES the functions emulator: the member counts in these shots are
+// produced by the real memberCount trigger, not seeded directly. Each room is
+// created with memberCount 0, then given that many real member docs; the
+// trigger recomputes the count from the subcollection, and we poll until it
+// converges before capturing. If the functions emulator isn't up, the counts
+// never move off 0 and the poll fails loudly.
 //
 // Captures:
 //  1. Rooms tab — Watch Party card streaming live rooms, live ones first.
@@ -42,9 +43,14 @@ Future<void> _clearRooms() async {
   }
 }
 
-/// Seeds one room, memberCount included — the value the members trigger would
-/// have written after that many joins.
-Future<void> _seedRoom(
+/// Builds a room whose memberCount is produced by the REAL trigger.
+///
+/// Writes the room doc with memberCount 0, then adds [memberCount] real member
+/// docs — each fires onRoomMemberJoined, which recomputes the count from the
+/// subcollection. Polls until the count converges, so the number in the shot
+/// is the trigger's output, not a value we set. (createdAt is backdated only
+/// to control list ordering; the trigger touches memberCount alone.)
+Future<void> _buildRoom(
   String id, {
   required String title,
   required String hostUid,
@@ -54,7 +60,7 @@ Future<void> _seedRoom(
   int? episodeNumber,
   required Duration age,
 }) async {
-  final res = await http.patch(
+  final roomRes = await http.patch(
     Uri.parse('$_base/rooms/$id'),
     headers: _ownerHeaders,
     body: jsonEncode({
@@ -62,7 +68,7 @@ Future<void> _seedRoom(
         'type': {'stringValue': 'watch_party'},
         'title': {'stringValue': title},
         'hostUid': {'stringValue': hostUid},
-        'memberCount': {'integerValue': '$memberCount'},
+        'memberCount': {'integerValue': '0'},
         'isLive': {'booleanValue': isLive},
         if (animeId != null) 'animeId': {'stringValue': animeId},
         if (episodeNumber != null) 'episodeNumber': {'integerValue': '$episodeNumber'},
@@ -72,7 +78,41 @@ Future<void> _seedRoom(
       },
     }),
   );
-  expect(res.statusCode, 200, reason: 'seed failed: ${res.body}');
+  expect(roomRes.statusCode, 200, reason: 'room write failed: ${roomRes.body}');
+
+  // Deleting a room doc does NOT delete its members subcollection, so a rerun
+  // would otherwise stack stale member docs and inflate the count. Clear first.
+  final existing = await http.get(Uri.parse('$_base/rooms/$id/members?pageSize=300'), headers: _ownerHeaders);
+  for (final d in (jsonDecode(existing.body) as Map<String, dynamic>)['documents'] as List<dynamic>? ?? const []) {
+    await http.delete(Uri.parse('http://localhost:8080/v1/${(d as Map)['name']}'), headers: _ownerHeaders);
+  }
+
+  // Deterministic member ids so the count is exactly [memberCount] on rerun.
+  for (var i = 0; i < memberCount; i++) {
+    final m = await http.patch(
+      Uri.parse('$_base/rooms/$id/members/${id}_m$i'),
+      headers: _ownerHeaders,
+      body: jsonEncode({
+        'fields': {
+          'joinedAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
+        },
+      }),
+    );
+    expect(m.statusCode, 200, reason: 'member write failed: ${m.body}');
+  }
+
+  // Wait for the trigger to catch up to the real member count.
+  final ref = FirebaseFirestore.instance.collection('rooms').doc(id);
+  final deadline = DateTime.now().add(const Duration(seconds: 25));
+  var seen = -1;
+  while (DateTime.now().isBefore(deadline)) {
+    seen = ((await ref.get()).data()?['memberCount'] as num?)?.toInt() ?? -1;
+    if (seen == memberCount) break;
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
+  expect(seen, memberCount,
+      reason: 'trigger never drove memberCount to $memberCount for $id '
+          '(is the functions emulator running?)');
 }
 
 Future<void> pumpFor(WidgetTester tester, Duration total) async {
@@ -97,11 +137,12 @@ void main() {
     final uid = (await AuthService.instance.initAuth()).uid;
 
     await _clearRooms();
+    // Counts below are produced by the trigger from real member docs.
     // Real AniList id for Frieren so the id-only link is realistic.
-    await _seedRoom('zz_frieren', title: 'Frieren ep 28', hostUid: uid, memberCount: 14, isLive: true, animeId: '154587', episodeNumber: 28, age: const Duration(minutes: 3));
-    await _seedRoom('zz_jjk', title: 'JJK rewatch', hostUid: 'zzhost2', memberCount: 6, isLive: true, age: const Duration(minutes: 40));
-    await _seedRoom('zz_op', title: 'One Piece marathon', hostUid: 'zzhost3', memberCount: 23, isLive: true, episodeNumber: 1071, age: const Duration(hours: 2));
-    await _seedRoom('zz_vinland', title: 'Vinland Saga — ended', hostUid: 'zzhost4', memberCount: 0, isLive: false, age: const Duration(hours: 5));
+    await _buildRoom('zz_frieren', title: 'Frieren ep 28', hostUid: uid, memberCount: 14, isLive: true, animeId: '154587', episodeNumber: 28, age: const Duration(minutes: 3));
+    await _buildRoom('zz_jjk', title: 'JJK rewatch', hostUid: 'zzhost2', memberCount: 6, isLive: true, age: const Duration(minutes: 40));
+    await _buildRoom('zz_op', title: 'One Piece marathon', hostUid: 'zzhost3', memberCount: 23, isLive: true, episodeNumber: 1071, age: const Duration(hours: 2));
+    await _buildRoom('zz_vinland', title: 'Vinland Saga — ended', hostUid: 'zzhost4', memberCount: 0, isLive: false, age: const Duration(hours: 5));
 
     await tester.pumpWidget(ProviderScope(
       child: MaterialApp(theme: AppTheme.dark, home: const CommunityScreen()),
@@ -159,10 +200,21 @@ void main() {
     expect(int.tryParse(data['animeId'] as String), isNotNull, reason: 'id-only, no title text');
     expect(data['episodeNumber'], 29);
     expect(data['hostUid'], uid);
-    expect(data['memberCount'], 0, reason: 'seeded at 0 — only the trigger moves it');
 
     final members = await snap.docs.single.reference.collection('members').get();
     expect(members.docs.map((d) => d.id), [uid], reason: 'creator joined — fires the trigger');
+
+    // The trigger is live, so the creator's join drives memberCount 0 → 1.
+    // Poll: the count settles a beat after the join lands.
+    final ref = snap.docs.single.reference;
+    final deadline = DateTime.now().add(const Duration(seconds: 15));
+    var count = -1;
+    while (DateTime.now().isBefore(deadline)) {
+      count = ((await ref.get()).data()?['memberCount'] as num?)?.toInt() ?? -1;
+      if (count == 1) break;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+    expect(count, 1, reason: 'trigger drives the creator-join to memberCount 1');
   });
 
   testWidgets('room detail renders the server-owned count', (tester) async {
