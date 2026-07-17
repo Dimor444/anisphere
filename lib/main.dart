@@ -1,4 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +12,17 @@ import 'app.dart';
 import 'core/constants/app_colors.dart';
 import 'firebase_options.dart';
 
+/// Compile-time backend switch: `flutter run --dart-define=USE_EMULATOR=true`
+/// points the app at the local Firebase emulator suite (same define the
+/// integration tests use). Default is OFF → production.
+const bool _emulatorDefine = bool.fromEnvironment('USE_EMULATOR');
+
+/// Belt and braces: also require debug mode. Both operands are compile-time
+/// consts, so in release/profile builds this is `false` at compile time and
+/// the localhost hookup below is dead code — a release build is structurally
+/// incapable of targeting the emulators even if the define is passed.
+const bool _useEmulators = kDebugMode && _emulatorDefine;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -15,7 +30,23 @@ Future<void> main() async {
   final firebaseApp = await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  debugPrint('Firebase initialized: ${firebaseApp.options.projectId}');
+
+  // Backend hookup MUST sit between initializeApp and the first Auth/
+  // Firestore/Storage touch. Nothing reaches Firebase before runApp (no
+  // eager top-level singletons; services hit FirebaseFirestore.instance
+  // lazily inside methods), so this spot is safe by construction.
+  if (_useEmulators) {
+    // Host/ports mirror firebase.json. 127.0.0.1, NOT localhost — the
+    // emulators bind IPv4 explicitly and localhost can resolve to ::1 on iOS.
+    await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
+    FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
+    await FirebaseStorage.instance.useStorageEmulator('127.0.0.1', 9199);
+    debugPrint('>>> BACKEND: EMULATOR (127.0.0.1 — auth:9099 firestore:8080 storage:9199)');
+    debugPrint('>>> An emulator-minted auth session is INVALID against production: '
+        'uninstall the app before switching backends.');
+  } else {
+    debugPrint('>>> BACKEND: PRODUCTION (${firebaseApp.options.projectId})');
+  }
 
   // Local storage
   await Hive.initFlutter();
