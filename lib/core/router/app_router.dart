@@ -15,6 +15,7 @@ import '../../features/auth/splash_screen.dart';
 import '../../features/challenges/challenges_screen.dart';
 import '../../features/community/club_detail_screen.dart';
 import '../../features/community/community_screen.dart';
+import '../../features/community/room_detail_screen.dart';
 import '../../features/community_vote/community_vote_history_screen.dart';
 import '../../features/community_vote/community_vote_screen.dart';
 import '../../features/discover/discover_screen.dart';
@@ -92,6 +93,7 @@ final appRouter = GoRouter(
     _top('/trending', (c, s) => const TrendingScreen()),
     _top('/my-list', (c, s) => const MyListScreen()),
     _top('/community', (c, s) => const CommunityScreen()),
+    _top('/room/:id', (c, s) => RoomDetailScreen(roomId: s.pathParameters['id']!)),
 
     // Full-screen pushed routes (over the bottom nav).
     _top('/anime/:id', (c, s) => AnimeDetailScreen(animeId: s.pathParameters['id']!)),

@@ -520,6 +520,57 @@ service cloud.firestore {
       }
     }
 
+    // ── Community rooms (Watch Party) ─────────────────────────────────────
+    // A room is host-owned: the creator pins hostUid to themselves and only
+    // they may edit or delete it. memberCount is NOT in any client-writable
+    // key set — it is moved solely by the members/{uid} Cloud Function
+    // trigger, the same way other protected counters work in this project.
+    // Anime reference is an AniList id ONLY (title/cover are fetched live).
+    match /rooms/{roomId} {
+      function validRoomCreate() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['type', 'title', 'animeId', 'episodeNumber', 'hostUid', 'memberCount', 'isLive', 'createdAt'])
+          && d.hostUid == request.auth.uid
+          && d.type == 'watch_party'
+          && d.title is string
+          && d.title.size() > 0
+          && d.title.size() <= 80
+          && (!('animeId' in d) || (d.animeId is string && d.animeId.size() <= 12))
+          && (!('episodeNumber' in d) || (d.episodeNumber is int && d.episodeNumber > 0 && d.episodeNumber <= 9999))
+          && d.isLive is bool
+          // Seeded at 0 — the members trigger takes it from here.
+          && d.memberCount == 0
+          && d.createdAt == request.time;
+      }
+
+      // The host may retitle / flip isLive, and nothing else. memberCount is
+      // absent from the whitelist, so any client attempt to touch it fails.
+      function validRoomUpdate() {
+        let d = request.resource.data;
+        return d.diff(resource.data).affectedKeys().hasOnly(['title', 'isLive', 'episodeNumber'])
+          && (!('title' in d) || (d.title is string && d.title.size() > 0 && d.title.size() <= 80))
+          && (!('episodeNumber' in d) || (d.episodeNumber is int && d.episodeNumber > 0 && d.episodeNumber <= 9999))
+          && d.isLive is bool;
+      }
+
+      allow read: if signedIn();
+      allow create: if signedIn() && validRoomCreate();
+      allow update: if signedIn() && resource.data.hostUid == request.auth.uid && validRoomUpdate();
+      allow delete: if signedIn() && resource.data.hostUid == request.auth.uid;
+
+      // Membership — self-keyed, server-stamped, join/leave only. Each write
+      // here fires the trigger that owns the parent's memberCount.
+      match /members/{uid} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['joinedAt'])
+          && request.resource.data.joinedAt == request.time;
+        allow delete: if signedIn() && request.auth.uid == uid;
+        allow update: if false;
+      }
+    }
+
     // Everything else stays closed by default.
   }
 }

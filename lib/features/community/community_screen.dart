@@ -6,6 +6,9 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
+import '../../data/models/room.dart';
+import '../../services/anime_search_service.dart';
+import '../../services/room_service.dart';
 import '../../shared/widgets/gradient_button.dart';
 
 class CommunityScreen extends ConsumerWidget {
@@ -56,19 +59,10 @@ class _RoomsTab extends StatelessWidget {
           imagePath: 'assets/images/community/art_room.jpg', imageHeight: 130,
           child: Row(children: [_pill('Traditional'), const SizedBox(width: 8), _pill('Digital')]),
         ),
-        _RoomCard(
+        const _RoomCard(
           emoji: '🍿', title: 'Watch Party', subtitle: 'Sync-watch with friends', gradient: AppGradients.purpleCyan,
           imagePath: 'assets/images/community/watch_party.jpg', imageHeight: 110,
-          child: Column(children: [
-            GradientButton(label: 'Create Room +', expand: true, gradient: const LinearGradient(colors: [Colors.white24, Colors.white10]), onPressed: () {}),
-            const SizedBox(height: 8),
-            ...['Frieren ep 28 🔴', 'JJK rewatch', 'One Piece marathon'].map((r) => Container(
-                  margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                  child: Row(children: [Expanded(child: Text(r, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13))), _joinBtn()]),
-                )),
-          ]),
+          child: _WatchPartyBody(),
         ),
         _RoomCard(
           emoji: '✍️', title: 'Writers Room', subtitle: 'Theories, reviews & fanfic', gradient: AppGradients.gem,
@@ -109,6 +103,296 @@ class _RoomsTab extends StatelessWidget {
 
   static Widget _pill(String t) => Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)), child: Text(t, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)));
   static Widget _joinBtn({String label = 'Join'}) => Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)), child: Text(label, style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w800)));
+}
+
+/// Live contents of the Watch Party card: the create action plus every open
+/// watch_party room, live ones first. Art Room / Anime Chat next to it are
+/// still static — only Watch Party is Firestore-backed so far.
+class _WatchPartyBody extends StatelessWidget {
+  const _WatchPartyBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      GradientButton(
+        label: 'Create Room +',
+        expand: true,
+        gradient: const LinearGradient(colors: [Colors.white24, Colors.white10]),
+        onPressed: () => _openCreateSheet(context),
+      ),
+      const SizedBox(height: 8),
+      StreamBuilder<List<Room>>(
+        stream: RoomService.instance.watchPartyRooms(),
+        builder: (context, snap) {
+          if (snap.hasError) return _note('Rooms are unavailable right now.');
+          if (!snap.hasData) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 14),
+              child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70)),
+            );
+          }
+          final rooms = snap.data!;
+          if (rooms.isEmpty) return _note('No rooms yet — start one!');
+          return Column(children: rooms.map((r) => _RoomRow(room: r)).toList());
+        },
+      ),
+    ]);
+  }
+
+  static Widget _note(String text) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+      );
+
+  static void _openCreateSheet(BuildContext context) {
+    Haptics.light();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (_) => const _CreateRoomSheet(),
+    );
+  }
+}
+
+/// One room in the Watch Party list. Joining writes the membership doc (which
+/// is what moves memberCount, server-side) and then opens the room.
+class _RoomRow extends StatefulWidget {
+  final Room room;
+  const _RoomRow({required this.room});
+
+  @override
+  State<_RoomRow> createState() => _RoomRowState();
+}
+
+class _RoomRowState extends State<_RoomRow> {
+  bool _joining = false;
+
+  Future<void> _join() async {
+    if (_joining) return;
+    setState(() => _joining = true);
+    Haptics.light();
+    try {
+      await RoomService.instance.joinRoom(widget.room.id);
+      if (!mounted) return;
+      context.push('/room/${widget.room.id}');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't join that room."), duration: Duration(seconds: 2)),
+      );
+    } finally {
+      if (mounted) setState(() => _joining = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final room = widget.room;
+    final subtitle = [
+      if (room.episodeNumber != null) 'Ep ${room.episodeNumber}',
+      room.memberCount == 1 ? '1 watching' : '${room.memberCount} watching',
+    ].join(' · ');
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+      child: Row(children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Flexible(
+                  child: Text(room.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                ),
+                if (room.isLive) const Padding(padding: EdgeInsets.only(left: 6), child: Text('🔴', style: TextStyle(fontSize: 10))),
+              ]),
+              const SizedBox(height: 2),
+              Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: _joining ? null : _join,
+          child: Opacity(opacity: _joining ? 0.5 : 1, child: _RoomsTab._joinBtn()),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Create-a-room sheet: a title, an optional AniList anime to hang the room
+/// off (stored as an id — cover/title are fetched live), and an optional
+/// episode number.
+class _CreateRoomSheet extends StatefulWidget {
+  const _CreateRoomSheet();
+
+  @override
+  State<_CreateRoomSheet> createState() => _CreateRoomSheetState();
+}
+
+class _CreateRoomSheetState extends State<_CreateRoomSheet> {
+  final _titleCtrl = TextEditingController();
+  final _episodeCtrl = TextEditingController();
+  final _searchCtrl = TextEditingController();
+
+  List<AnimeSearchResult> _results = const [];
+  AnimeSearchResult? _picked;
+  bool _searching = false;
+  bool _submitting = false;
+  // Guards against a slow earlier query landing after a newer one.
+  int _searchSeq = 0;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _episodeCtrl.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search(String q) async {
+    final seq = ++_searchSeq;
+    if (q.trim().isEmpty) {
+      setState(() {
+        _results = const [];
+        _searching = false;
+      });
+      return;
+    }
+    setState(() => _searching = true);
+    final results = await AnimeSearchService.instance.searchAnime(q);
+    if (!mounted || seq != _searchSeq) return;
+    setState(() {
+      _results = results.take(6).toList();
+      _searching = false;
+    });
+  }
+
+  Future<void> _submit() async {
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty || _submitting) return;
+    setState(() => _submitting = true);
+    Haptics.medium();
+    try {
+      final roomId = await RoomService.instance.createWatchParty(
+        title: title,
+        animeId: _picked != null && _picked!.anilistId > 0 ? '${_picked!.anilistId}' : null,
+        episodeNumber: int.tryParse(_episodeCtrl.text.trim()),
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      context.push('/room/$roomId');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't create the room."), duration: Duration(seconds: 2)),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 18, right: 18, top: 18),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Start a Watch Party', style: AppTextStyles.heading),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _titleCtrl,
+              autofocus: true,
+              maxLength: 80,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(labelText: 'Room title', hintText: 'Frieren ep 28', counterText: ''),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 10),
+            if (_picked == null) ...[
+              TextField(
+                controller: _searchCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Anime (optional)',
+                  hintText: 'Search anime…',
+                  prefixIcon: const Icon(LucideIcons.search, size: 16),
+                  suffixIcon: _searching
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                        )
+                      : null,
+                ),
+                onSubmitted: _search,
+                onChanged: (v) {
+                  if (v.trim().isEmpty) _search(v);
+                },
+              ),
+              ..._results.map((a) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: a.coverImage.isEmpty
+                        ? null
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.network(a.coverImage, width: 32, height: 44, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const SizedBox(width: 32, height: 44)),
+                          ),
+                    title: Text(a.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body),
+                    subtitle: Text(a.genre, style: AppTextStyles.captionMuted),
+                    onTap: () => setState(() {
+                      _picked = a;
+                      _results = const [];
+                    }),
+                  )),
+            ] else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(children: [
+                  const Icon(LucideIcons.tv, size: 16, color: AppColors.primaryLight),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_picked!.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body)),
+                  IconButton(
+                    icon: const Icon(LucideIcons.x, size: 16),
+                    onPressed: () => setState(() {
+                      _picked = null;
+                      _searchCtrl.clear();
+                    }),
+                  ),
+                ]),
+              ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _episodeCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Episode number (optional)'),
+            ),
+            const SizedBox(height: 18),
+            GradientButton(
+              label: _submitting ? 'Creating…' : 'Create Room',
+              onPressed: _titleCtrl.text.trim().isEmpty || _submitting ? null : _submit,
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _RoomCard extends StatelessWidget {
