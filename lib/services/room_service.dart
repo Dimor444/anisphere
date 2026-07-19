@@ -69,7 +69,13 @@ class RoomService {
 
   /// Creates a Watch Party room and joins the creator to it, returning the new
   /// room id. The join is what sets memberCount to 1 — the trigger sees the
-  /// members doc appear and bumps the parent.
+  /// members doc appear and recomputes the parent.
+  ///
+  /// Room + host membership go in ONE batch, deliberately. As two writes, a
+  /// create that timed out (but stayed queued — see [writeTimeout]) flushed
+  /// later as a GHOST: the room landed, but execution never reached the join,
+  /// so it arrived live with no members and its host convinced creation had
+  /// failed. A batch is atomic — however late it lands, it lands whole.
   Future<String> createWatchParty({
     required String title,
     String? animeId,
@@ -85,9 +91,12 @@ class RoomService {
         hostUid: uid,
         isLive: true,
       );
-      final ref = await _rooms.add(room.toCreateMap()).timeout(writeTimeout);
-      await joinRoom(ref.id);
-      return ref.id;
+      final roomRef = _rooms.doc();
+      final batch = _db.batch()
+        ..set(roomRef, room.toCreateMap())
+        ..set(_members(roomRef.id).doc(uid), {'joinedAt': FieldValue.serverTimestamp()});
+      await batch.commit().timeout(writeTimeout);
+      return roomRef.id;
     });
   }
 

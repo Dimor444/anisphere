@@ -254,6 +254,9 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
   AnimeSearchResult? _picked;
   bool _searching = false;
   bool _submitting = false;
+  // Shown INSIDE the sheet — a snackbar on the parent scaffold renders
+  // underneath the open sheet, so the user never sees it (observed live).
+  String? _error;
   // Guards against a slow earlier query landing after a newer one.
   int _searchSeq = 0;
 
@@ -286,7 +289,10 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
   Future<void> _submit() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty || _submitting) return;
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
     Haptics.medium();
     try {
       final roomId = await RoomService.instance.createWatchParty(
@@ -299,16 +305,16 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
       context.push('/room/$roomId');
     } on TimeoutException {
       if (!mounted) return;
-      setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Can't reach the server — check your connection."), duration: Duration(seconds: 3)),
-      );
+      setState(() {
+        _submitting = false;
+        _error = "Can't reach the server — check your connection.";
+      });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't create the room."), duration: Duration(seconds: 2)),
-      );
+      setState(() {
+        _submitting = false;
+        _error = "Couldn't create the room.";
+      });
     }
   }
 
@@ -395,6 +401,23 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Episode number (optional)'),
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.error.withOpacity(0.5)),
+                ),
+                child: Row(children: [
+                  const Icon(LucideIcons.wifiOff, size: 16, color: AppColors.error),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_error!, style: AppTextStyles.caption.copyWith(color: AppColors.error))),
+                ]),
+              ),
+            ],
             const SizedBox(height: 18),
             GradientButton(
               label: _submitting ? 'Creating…' : 'Create Room',
