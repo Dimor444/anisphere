@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -177,6 +179,11 @@ class _RoomRowState extends State<_RoomRow> {
       await RoomService.instance.joinRoom(widget.room.id);
       if (!mounted) return;
       context.push('/room/${widget.room.id}');
+    } on TimeoutException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Can't reach the server — check your connection."), duration: Duration(seconds: 3)),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -290,6 +297,12 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
       if (!mounted) return;
       Navigator.pop(context);
       context.push('/room/$roomId');
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Can't reach the server — check your connection."), duration: Duration(seconds: 3)),
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _submitting = false);

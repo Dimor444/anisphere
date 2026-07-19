@@ -16,6 +16,14 @@ class RoomService {
   RoomService._();
   static final RoomService instance = RoomService._();
 
+  /// Bound on every room mutation. With offline persistence on, a Firestore
+  /// write against an unreachable backend never throws — it queues locally
+  /// and its Future only completes on server ack — so an unbounded await
+  /// leaves the UI stuck (observed: "Creating…" forever against a downed
+  /// backend). A timeout surfaces the failure instead. It does NOT cancel
+  /// the queued write: it may still commit once connectivity returns.
+  static const Duration writeTimeout = Duration(seconds: 10);
+
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _rooms => _db.collection('rooms');
@@ -77,7 +85,7 @@ class RoomService {
         hostUid: uid,
         isLive: true,
       );
-      final ref = await _rooms.add(room.toCreateMap());
+      final ref = await _rooms.add(room.toCreateMap()).timeout(writeTimeout);
       await joinRoom(ref.id);
       return ref.id;
     });
@@ -94,8 +102,10 @@ class RoomService {
     return _guard('joinRoom($roomId)', () async {
       final uid = await _uid();
       final ref = _members(roomId).doc(uid);
-      if ((await ref.get()).exists) return;
-      await ref.set({'joinedAt': FieldValue.serverTimestamp()});
+      // The get() is bounded too: don't rely on it happening to throw when
+      // the backend is unreachable — that's incidental, not a guarantee.
+      if ((await ref.get().timeout(writeTimeout)).exists) return;
+      await ref.set({'joinedAt': FieldValue.serverTimestamp()}).timeout(writeTimeout);
     });
   }
 
@@ -103,7 +113,7 @@ class RoomService {
   Future<void> leaveRoom(String roomId) {
     return _guard('leaveRoom($roomId)', () async {
       final uid = await _uid();
-      await _members(roomId).doc(uid).delete();
+      await _members(roomId).doc(uid).delete().timeout(writeTimeout);
     });
   }
 }
