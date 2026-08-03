@@ -571,6 +571,102 @@ service cloud.firestore {
       }
     }
 
+    // ── Direct Messages ───────────────────────────────────────────────────
+    // A 1:1 thread at conversations/{cid} between exactly two participants
+    // (the client derives cid from the sorted uid pair, so "open" is
+    // idempotent). No author identity is denormalized — names/avatars/badges
+    // resolve at render time. Unread state is the per-uid lastReadAt map and
+    // each participant may move ONLY their own key. blockedBy freezes message
+    // creates for BOTH sides while non-empty; a participant may only ever add
+    // or remove themselves from it.
+    match /conversations/{cid} {
+      function isParticipant() {
+        return signedIn() && request.auth.uid in resource.data.participants;
+      }
+
+      function validConversationCreate() {
+        let d = request.resource.data;
+        return d.keys().hasOnly([
+            'participants', 'createdAt', 'updatedAt',
+            'lastMessage', 'lastSenderId', 'lastReadAt', 'blockedBy'
+          ])
+          && request.auth.uid in d.participants
+          && d.participants.size() == 2
+          && d.lastMessage == ''
+          && d.lastSenderId == ''
+          // Born empty: pre-seeding the counterpart's read mark would let a
+          // creator forge their unread state.
+          && d.lastReadAt is map
+          && d.lastReadAt.size() == 0
+          && d.blockedBy is list
+          && d.blockedBy.size() == 0
+          && d.createdAt == request.time
+          && d.updatedAt == request.time;
+      }
+
+      // Send bookkeeping: the sender stamps the preview fields on the parent
+      // (batched with the message create). lastSenderId is pinned to the
+      // caller so previews can't be attributed to the other side.
+      function validSendUpdate() {
+        let d = request.resource.data;
+        return d.diff(resource.data).affectedKeys()
+            .hasOnly(['updatedAt', 'lastMessage', 'lastSenderId'])
+          && d.lastSenderId == request.auth.uid;
+      }
+
+      // Read receipt: only the caller's own lastReadAt key may move.
+      function validReadReceipt() {
+        let d = request.resource.data;
+        return d.diff(resource.data).affectedKeys().hasOnly(['lastReadAt'])
+          && d.lastReadAt.diff(resource.data.lastReadAt)
+              .affectedKeys().hasOnly([request.auth.uid]);
+      }
+
+      // Block toggle: the blockedBy diff adds or removes ONLY the caller —
+      // nobody can plant a block for (or lift a block by) someone else.
+      function validBlockToggle() {
+        let before = resource.data.blockedBy;
+        let after = request.resource.data.blockedBy;
+        return request.resource.data.diff(resource.data)
+            .affectedKeys().hasOnly(['blockedBy'])
+          && after is list
+          && ((!(request.auth.uid in before)
+                && request.auth.uid in after
+                && after.size() == before.size() + 1
+                && after.hasAll(before))
+            || (request.auth.uid in before
+                && !(request.auth.uid in after)
+                && after.size() == before.size() - 1
+                && before.hasAll(after)));
+      }
+
+      allow read: if isParticipant();
+      allow create: if signedIn() && validConversationCreate();
+      allow update: if isParticipant()
+        && (validSendUpdate() || validReadReceipt() || validBlockToggle());
+      allow delete: if false;
+
+      // Append-only messages: sender-pinned, server-stamped, text capped.
+      // Any non-empty blockedBy on the parent denies creates for BOTH sides.
+      match /messages/{mid} {
+        function convo() {
+          return get(/databases/$(database)/documents/conversations/$(cid)).data;
+        }
+
+        allow read: if signedIn() && request.auth.uid in convo().participants;
+        allow create: if signedIn()
+          && request.auth.uid in convo().participants
+          && convo().blockedBy.size() == 0
+          && request.resource.data.keys().hasOnly(['senderId', 'text', 'imageUrl', 'createdAt'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if signedIn() && resource.data.senderId == request.auth.uid;
+      }
+    }
+
     // Everything else stays closed by default.
   }
 }
