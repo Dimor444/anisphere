@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -58,6 +59,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   final _input = TextEditingController();
   final _scroll = ScrollController();
+
+  /// True from pick through upload — compression and the blob upload happen
+  /// BEFORE the batch write, so latency compensation can't show a pending
+  /// bubble yet; the composer spinner covers that window.
+  bool _sendingImage = false;
 
   @override
   void initState() {
@@ -182,6 +188,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  /// Pick → compress → upload → batched send. The composer text rides along
+  /// as the caption and is cleared optimistically like a text send.
+  Future<void> _sendImage() async {
+    if (_sendingImage || (_convo?.isBlocked ?? false)) return;
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null || !mounted) return;
+    Haptics.light();
+    final caption = _input.text.trim();
+    _input.clear();
+    setState(() => _sendingImage = true);
+    try {
+      await DmService.instance
+          .sendImageMessage(widget.cid, picked.path, caption: caption);
+    } on TimeoutException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Still sending — it will go out once you're back online."),
+        duration: Duration(seconds: 3),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Couldn't send that photo."),
+        duration: Duration(seconds: 2),
+      ));
+    } finally {
+      if (mounted) setState(() => _sendingImage = false);
+    }
+  }
+
   @override
   void dispose() {
     _convoSub?.cancel();
@@ -261,7 +297,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                     );
                   }
-                  return _Bubble(message: messages[i], isMine: messages[i].senderId == me);
+                  return _Bubble(
+                    message: messages[i],
+                    isMine: messages[i].senderId == me,
+                    // Read state derives from the counterpart's read mark —
+                    // no per-message field exists or is needed.
+                    otherLastRead: _convo?.lastReadBy(_convo!.otherUid(me)),
+                  );
                 },
               ),
       ),
@@ -276,6 +318,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
         decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border))),
         child: Row(children: [
+          IconButton(
+            onPressed: _sendingImage ? null : _sendImage,
+            icon: _sendingImage
+                ? const SizedBox(
+                    width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(LucideIcons.image, size: 22, color: AppColors.textSecondary),
+          ),
           Expanded(
             child: TextField(
               controller: _input,
@@ -306,13 +355,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
 /// One message bubble. Side and styling come from [isMine] (senderId
 /// comparison in the caller) — the model itself is viewer-neutral.
+/// [otherLastRead] is the counterpart's read mark: own messages older than
+/// it show the double (read) tick, newer ones the single (sent) tick.
 class _Bubble extends StatelessWidget {
   final DmMessage message;
   final bool isMine;
-  const _Bubble({required this.message, required this.isMine});
+  final DateTime? otherLastRead;
+  const _Bubble({
+    required this.message,
+    required this.isMine,
+    required this.otherLastRead,
+  });
+
+  bool get _read =>
+      otherLastRead != null &&
+      message.createdAt != null &&
+      !message.createdAt!.isAfter(otherLastRead!);
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = message.imageUrl != null;
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -324,22 +386,81 @@ class _Bubble extends StatelessWidget {
             Opacity(
               opacity: message.pending ? 0.65 : 1,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: hasImage
+                    ? const EdgeInsets.all(4)
+                    : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: isMine ? AppGradients.brand : null,
                   color: isMine ? null : AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: isMine ? null : Border.all(color: AppColors.border),
                 ),
-                child: Text(message.text, style: AppTextStyles.body.copyWith(color: Colors.white)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (hasImage)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: Image.network(
+                          message.imageUrl!,
+                          width: 220,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) => progress == null
+                              ? child
+                              : Container(
+                                  width: 220,
+                                  height: 160,
+                                  color: Colors.black26,
+                                  child: const Center(
+                                    child: SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2)),
+                                  ),
+                                ),
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 220,
+                            height: 120,
+                            color: Colors.black26,
+                            child: const Icon(LucideIcons.imageOff,
+                                size: 26, color: AppColors.textMuted),
+                          ),
+                        ),
+                      ),
+                    if (message.text.isNotEmpty)
+                      Padding(
+                        padding: hasImage
+                            ? const EdgeInsets.fromLTRB(10, 8, 10, 6)
+                            : EdgeInsets.zero,
+                        child: Text(message.text,
+                            style: AppTextStyles.body.copyWith(color: Colors.white)),
+                      ),
+                  ],
+                ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.only(top: 3, left: 4, right: 4),
               child: message.pending
                   ? const _PendingDots()
-                  : Text(_time(message.createdAt),
-                      style: AppTextStyles.captionMuted.copyWith(fontSize: 10)),
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_time(message.createdAt),
+                            style: AppTextStyles.captionMuted.copyWith(fontSize: 10)),
+                        // Own messages only: single tick = sent (server-acked),
+                        // double = read. No delivered state — unobservable.
+                        if (isMine) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            _read ? LucideIcons.checkCheck : LucideIcons.check,
+                            size: 12,
+                            color: _read ? AppColors.accent : AppColors.textMuted,
+                          ),
+                        ],
+                      ],
+                    ),
             ),
           ],
         ),

@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/utils/post_image_compressor.dart';
 import '../data/models/dm_conversation.dart';
 import '../data/models/dm_message.dart';
 import 'auth_service.dart';
@@ -34,6 +36,10 @@ class DmService {
   static final DmService instance = DmService._();
 
   static const Duration writeTimeout = Duration(seconds: 10);
+
+  /// Image uploads move ~1 MB and deserve more headroom than a doc write —
+  /// still bounded so the composer can never hang forever.
+  static const Duration uploadTimeout = Duration(seconds: 30);
 
   /// Messages fetched per page (newest-first live window + older pages).
   static const int messagesPageSize = 30;
@@ -175,6 +181,43 @@ class DmService {
       final msgRef = _messages(cid).doc();
       final batch = _db.batch()
         ..set(msgRef, DmMessage(id: msgRef.id, senderId: uid, text: body).toMap())
+        ..update(_conversations.doc(cid), {
+          'lastMessage': preview,
+          'lastSenderId': uid,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      await batch.commit().timeout(writeTimeout);
+    });
+  }
+
+  /// Sends the image at [imagePath] (with an optional [caption]) to [cid]:
+  /// compress to a JPEG the `dm_images/` Storage rule is guaranteed to
+  /// accept (same contract as posts/stories), upload FIRST, then commit the
+  /// message + preview bump in the same one batch as a text send.
+  ///
+  /// If the batch fails after the upload succeeded, the blob is orphaned —
+  /// deliberately left alone (client deletes are denied by rules, and a
+  /// cleanup path invites worse bugs than a stray file); _guard logs it.
+  Future<void> sendImageMessage(String cid, String imagePath,
+      {String caption = ''}) {
+    return _guard('sendImageMessage($cid)', () async {
+      final uid = await _uid();
+      final jpeg = await PostImageCompressor.compress(imagePath);
+      final msgRef = _messages(cid).doc();
+      final blob =
+          FirebaseStorage.instance.ref('dm_images/$cid/${msgRef.id}.jpg');
+      await blob
+          .putData(jpeg, SettableMetadata(contentType: 'image/jpeg'))
+          .timeout(uploadTimeout);
+      final url = await blob.getDownloadURL().timeout(writeTimeout);
+
+      final text = _clamp(caption.trim(), 1000);
+      final preview = text.isNotEmpty ? _clamp(text, 120) : '📷 Photo';
+      final batch = _db.batch()
+        ..set(
+            msgRef,
+            DmMessage(id: msgRef.id, senderId: uid, text: text, imageUrl: url)
+                .toMap())
         ..update(_conversations.doc(cid), {
           'lastMessage': preview,
           'lastSenderId': uid,
