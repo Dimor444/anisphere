@@ -139,11 +139,24 @@ class DmService {
   /// Opens the thread between the signed-in user and [otherUid], returning
   /// its deterministic id ([DmConversation.cidFor]).
   ///
-  /// Idempotent by way of the existence check: an existing doc is returned
-  /// untouched — re-setting it would be an update touching createdAt, which
-  /// no rules branch admits, so even a lost race cannot produce a second doc
-  /// or clobber the first. The create goes through a WriteBatch so however
-  /// late a timed-out-but-queued commit lands, it lands whole.
+  /// Writes FIRST, deliberately. There is no existence pre-read because the
+  /// read rule is `request.auth.uid in resource.data.participants`, and on a
+  /// document that does not exist yet `resource` is null — so the guard read
+  /// is itself denied and the very first open can never succeed. That shipped
+  /// once; see integration_test/dm_open_conversation_test.dart.
+  ///
+  /// The create IS the idempotence mechanism: a `set` on an existing doc is
+  /// an update, and the create payload moves createdAt, which no update
+  /// branch admits (they allow only {updatedAt,lastMessage,lastSenderId},
+  /// {lastReadAt}, or {blockedBy}). So a second call is denied rather than
+  /// duplicating or clobbering — including under a lost race.
+  ///
+  /// "Already open" therefore arrives as permission-denied, which must not be
+  /// reported as failure — but neither may every denial be swallowed. The two
+  /// are told apart by reading the doc back: participants may read an
+  /// existing thread, so a successful read proves both that it exists and
+  /// that we belong to it. A genuine refusal (someone else's cid, a rules
+  /// change) leaves the read denied too, and the original error propagates.
   Future<String> openConversation(String otherUid) {
     return _guard('openConversation($otherUid)', () async {
       final uid = await _uid();
@@ -152,16 +165,16 @@ class DmService {
       }
       final cid = DmConversation.cidFor(uid, otherUid);
       final ref = _conversations.doc(cid);
-      // Bounded get — don't rely on an unreachable backend happening to throw.
-      if ((await ref.get().timeout(writeTimeout)).exists) return cid;
-      final batch = _db.batch()
-        ..set(
-            ref,
-            DmConversation(
-              id: cid,
-              participants: [uid, otherUid],
-            ).toMap());
-      await batch.commit().timeout(writeTimeout);
+      try {
+        await ref
+            .set(DmConversation(id: cid, participants: [uid, otherUid]).toMap())
+            .timeout(writeTimeout);
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied') rethrow;
+        final existing = await ref.get().timeout(writeTimeout);
+        if (!existing.exists) rethrow;
+        debugPrint('[DmService] openConversation($cid): already open');
+      }
       return cid;
     });
   }
