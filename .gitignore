@@ -49,3 +49,6 @@ ui-debug.log
 .env
 .env.*
 flutter_*.log
+
+# Local emulator state (rebuild with functions/test/seed_dms.js)
+emulator-data/
