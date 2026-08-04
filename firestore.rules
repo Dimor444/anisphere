@@ -606,12 +606,17 @@ service cloud.firestore {
 
       // Send bookkeeping: the sender stamps the preview fields on the parent
       // (batched with the message create). lastSenderId is pinned to the
-      // caller so previews can't be attributed to the other side.
+      // caller so previews can't be attributed to the other side; the preview
+      // is capped server-side (client truncation is not enforcement) and
+      // updatedAt must be the server clock so list ordering can't be forged.
       function validSendUpdate() {
         let d = request.resource.data;
         return d.diff(resource.data).affectedKeys()
             .hasOnly(['updatedAt', 'lastMessage', 'lastSenderId'])
-          && d.lastSenderId == request.auth.uid;
+          && d.lastSenderId == request.auth.uid
+          && d.lastMessage is string
+          && d.lastMessage.size() <= 120
+          && d.updatedAt == request.time;
       }
 
       // Read receipt: only the caller's own lastReadAt key may move.
@@ -661,6 +666,9 @@ service cloud.firestore {
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.text is string
           && request.resource.data.text.size() <= 1000
+          // A message must carry something: text, or an image (Phase 3).
+          && (request.resource.data.text.size() > 0
+            || 'imageUrl' in request.resource.data)
           && request.resource.data.createdAt == request.time;
         allow update: if false;
         allow delete: if signedIn() && resource.data.senderId == request.auth.uid;

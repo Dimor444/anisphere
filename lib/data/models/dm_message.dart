@@ -12,10 +12,15 @@ class DmMessage {
   final String senderId;
   final String text;
 
-  /// Optional image attachment URL (Phase 2 wires uploads; the field shape
+  /// Optional image attachment URL (Phase 3 wires uploads; the field shape
   /// is fixed now so rules and docs don't churn).
   final String? imageUrl;
   final DateTime? createdAt;
+
+  /// True while this doc is a local write awaiting server ack (latency
+  /// compensation) — drives the send-pending indicator. Derived from
+  /// snapshot metadata, never stored.
+  final bool pending;
 
   const DmMessage({
     required this.id,
@@ -23,6 +28,7 @@ class DmMessage {
     this.text = '',
     this.imageUrl,
     this.createdAt,
+    this.pending = false,
   });
 
   factory DmMessage.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -33,6 +39,7 @@ class DmMessage {
       text: d['text'] as String? ?? '',
       imageUrl: d['imageUrl'] as String?,
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+      pending: doc.metadata.hasPendingWrites,
     );
   }
 

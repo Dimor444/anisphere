@@ -1,326 +1,403 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
-import '../../data/models/message_model.dart';
-import '../../data/sample_data.dart';
-import '../../shared/widgets/anime_cover_image.dart';
+import '../../data/models/dm_conversation.dart';
+import '../../data/models/dm_message.dart';
+import '../../services/auth_service.dart';
+import '../../services/dm_service.dart';
+import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
-import 'call_screen.dart';
-import 'incoming_call_screen.dart';
+import '../../shared/widgets/verified_badge.dart';
 
-class ChatScreen extends StatefulWidget {
-  final String conversationId;
-  const ChatScreen({super.key, required this.conversationId});
+/// One DM thread at `/chat/:cid`, fully Firestore-backed.
+///
+/// Bubble side is decided by senderId == the signed-in uid — never a stored
+/// isMe. The newest [DmService.messagesPageSize] messages ride a live
+/// listener; older history loads in pages on scroll. Every message ever seen
+/// is kept in an id-keyed map, so the sliding live window can't open gaps
+/// and a local pending send reconciles (same doc id) instead of duplicating.
+class ChatScreen extends ConsumerStatefulWidget {
+  final String cid;
+  const ChatScreen({super.key, required this.cid});
+
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
-  late Conversation _convo;
-  late List<MessageModel> _messages;
+class _ChatScreenState extends ConsumerState<ChatScreen> {
+  String? _me;
+  DmConversation? _convo;
+  bool _convoLoaded = false;
+
+  StreamSubscription<DmConversation?>? _convoSub;
+  StreamSubscription<DmMessagePage>? _liveSub;
+  bool _liveLoaded = false;
+
+  /// Every message seen this session, keyed by doc id (see class doc).
+  final Map<String, DmMessage> _byId = {};
+
+  /// Local arrival stamp per id — orders docs whose serverTimestamp hasn't
+  /// resolved yet (pending sends read createdAt == null).
+  final Map<String, DateTime> _seen = {};
+
+  DocumentSnapshot<Map<String, dynamic>>? _cursor;
+  bool _cursorSeeded = false;
+  bool _hasMore = false;
+  bool _loadingMore = false;
+
+  String? _lastMarkedMsgId;
+
   final _input = TextEditingController();
-  bool _typing = true;
+  final _scroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _convo = SampleData.conversations.firstWhere((c) => c.id == widget.conversationId, orElse: () => SampleData.conversations.first);
-    _messages = List.of(_convo.messages.reversed); // reverse:true list
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _typing = false);
+    _scroll.addListener(_maybeLoadMore);
+    _init();
+  }
+
+  Future<void> _init() async {
+    final uid = (await AuthService.instance.initAuth()).uid;
+    if (!mounted) return;
+    setState(() => _me = uid);
+
+    _convoSub = DmService.instance.watchConversation(widget.cid).listen((c) {
+      if (!mounted) return;
+      setState(() {
+        _convo = c;
+        _convoLoaded = true;
+      });
     });
+
+    _liveSub = DmService.instance.watchLatestMessages(widget.cid).listen((page) {
+      if (!mounted) return;
+      setState(() {
+        _merge(page.messages);
+        _liveLoaded = true;
+        // The pagination anchor comes from the FIRST live window only —
+        // afterwards olderMessages owns the cursor as it walks back.
+        if (!_cursorSeeded) {
+          _cursorSeeded = true;
+          _cursor = page.cursor;
+          _hasMore = page.hasMore;
+        }
+      });
+      _maybeMarkRead(page);
+    });
+
+    // Opening the thread reads it.
+    DmService.instance.markRead(widget.cid, uid).catchError((Object _) {});
+  }
+
+  void _merge(Iterable<DmMessage> msgs) {
+    for (final m in msgs) {
+      _byId[m.id] = m;
+      _seen.putIfAbsent(m.id, DateTime.now);
+    }
+  }
+
+  /// Newest-first for the reverse ListView.
+  List<DmMessage> get _ordered {
+    final list = _byId.values.toList()
+      ..sort((a, b) {
+        final ta = a.createdAt ?? _seen[a.id]!;
+        final tb = b.createdAt ?? _seen[b.id]!;
+        final byTime = tb.compareTo(ta);
+        return byTime != 0 ? byTime : b.id.compareTo(a.id);
+      });
+    return list;
+  }
+
+  /// New incoming message while this screen is up and the app is foreground
+  /// — mark it read so the list dot clears live.
+  void _maybeMarkRead(DmMessagePage page) {
+    final me = _me;
+    if (me == null || page.messages.isEmpty) return;
+    final newest = page.messages.first;
+    if (newest.senderId == me || newest.id == _lastMarkedMsgId) return;
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (lifecycle != null && lifecycle != AppLifecycleState.resumed) return;
+    _lastMarkedMsgId = newest.id;
+    DmService.instance.markRead(widget.cid, me).catchError((Object _) {});
+  }
+
+  void _maybeLoadMore() {
+    if (!_hasMore || _loadingMore || _cursor == null) return;
+    // reverse:true — maxScrollExtent is the oldest end.
+    if (_scroll.position.pixels < _scroll.position.maxScrollExtent - 300) {
+      return;
+    }
+    _loadOlder();
+  }
+
+  Future<void> _loadOlder() async {
+    final cursor = _cursor;
+    if (cursor == null) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await DmService.instance.olderMessages(widget.cid, cursor);
+      if (!mounted) return;
+      setState(() {
+        _merge(page.messages);
+        _cursor = page.cursor ?? _cursor;
+        _hasMore = page.hasMore;
+      });
+    } catch (_) {
+      // Scrolling again retries; history is not worth an error banner.
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  Future<void> _send() async {
+    final text = _input.text.trim();
+    if (text.isEmpty || (_convo?.isBlocked ?? false)) return;
+    Haptics.light();
+    _input.clear();
+    try {
+      await DmService.instance.sendMessage(widget.cid, text);
+    } on TimeoutException {
+      if (!mounted) return;
+      // The queued write may still land later — the bubble stays pending.
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Still sending — it will go out once you're back online."),
+        duration: Duration(seconds: 3),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Couldn't send that message."),
+        duration: Duration(seconds: 2),
+      ));
+    }
   }
 
   @override
   void dispose() {
+    _convoSub?.cancel();
+    _liveSub?.cancel();
     _input.dispose();
+    _scroll.dispose();
     super.dispose();
-  }
-
-  void _send([MessageModel? custom]) {
-    final msg = custom ?? MessageModel(id: 'n${_messages.length}', isMe: true, text: _input.text.trim(), time: DateTime.now());
-    if (custom == null && msg.text.isEmpty) return;
-    Haptics.light();
-    setState(() {
-      _messages.insert(0, msg);
-      _input.clear();
-    });
-  }
-
-  /// Outgoing call. Awaits the call duration (seconds) the screen pops with,
-  /// then drops a "Call ended" system message into the chat.
-  Future<void> _startCall({required bool video}) async {
-    Haptics.medium();
-    final seconds = await Navigator.of(context).push<int>(MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => CallScreen(user: _convo.user, video: video),
-    ));
-    _logCall(seconds, video);
-  }
-
-  /// Simulates an *incoming* call (demo trigger: long-press a header call icon).
-  Future<void> _simulateIncoming({required bool video}) async {
-    Haptics.medium();
-    final seconds = await Navigator.of(context).push<int>(MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => IncomingCallScreen(user: _convo.user, video: video),
-    ));
-    _logCall(seconds, video);
-  }
-
-  /// Inserts a system-type message summarising a finished call.
-  void _logCall(int? seconds, bool video) {
-    if (!mounted || seconds == null) return; // null = dismissed before answering
-    final icon = video ? '📹' : '📞';
-    final label = seconds > 0 ? '$icon Call ended · ${_duration(seconds)}' : '$icon Call cancelled';
-    setState(() {
-      _messages.insert(0, MessageModel(id: 'call${_messages.length}', isMe: false, kind: MessageKind.system, text: label, time: DateTime.now()));
-    });
-  }
-
-  String _duration(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
-
-  void _shareAniVideo() {
-    Haptics.light();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Share an Ani Video', style: AppTextStyles.heading),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 150,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: 6,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (_, i) {
-                    final a = SampleData.animeList[i];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _send(MessageModel(id: 'v${_messages.length}', isMe: true, kind: MessageKind.aniVideo, videoTitle: '${a.title} • AMV', videoTag: a.title, time: DateTime.now()));
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: SizedBox(
-                          width: 100,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            alignment: Alignment.center,
-                            children: [
-                              AnimeCoverImage(animeName: a.title, gradient: a.gradient, emoji: a.emoji, emojiSize: 40),
-                              const Center(child: Icon(Icons.play_circle_fill_rounded, color: Colors.white70, size: 30)),
-                              Positioned(bottom: 6, left: 6, right: 6, child: Text(a.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final me = _me;
+    final otherUid = (me == null) ? '' : (_convo?.otherUid(me) ?? '');
+    final other = otherUid.isEmpty ? null : identityOf(ref, otherUid);
+    final name = other?.nameToShow ?? '';
+
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(children: [
-          UserAvatar.fromUser(_convo.user, radius: 17, isOnline: _convo.isOnline),
+          UserAvatar(name: name.isEmpty ? '?' : name, imageUrl: other?.userAvatar, radius: 17),
           const SizedBox(width: 10),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_convo.user.username, style: AppTextStyles.subheading),
-            if (_convo.isOnline)
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(width: 7, height: 7, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
-                const SizedBox(width: 5),
-                Text('Online', style: AppTextStyles.captionMuted.copyWith(color: AppColors.success)),
-              ])
-            else if (_convo.streak > 0)
-              Text('🔥 ${_convo.streak}-day streak', style: AppTextStyles.captionMuted),
-          ]),
-        ]),
-        // Tap = outgoing call. Long-press = simulate an incoming call (demo).
-        actions: [
-          GestureDetector(
-            onLongPress: () => _simulateIncoming(video: false),
-            child: IconButton(icon: const Icon(LucideIcons.phone, size: 18), onPressed: () => _startCall(video: false)),
-          ),
-          GestureDetector(
-            onLongPress: () => _simulateIncoming(video: true),
-            child: IconButton(icon: const Icon(LucideIcons.video, size: 18), onPressed: () => _startCall(video: true)),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (_convo.streakAtRisk)
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              color: AppColors.streak.withOpacity(0.15),
-              child: Row(children: [
-                const Icon(LucideIcons.flame, color: AppColors.streak, size: 18),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Your ${_convo.streak}-day streak ends in 4h! Send a message to keep it alive.', style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary))),
-              ]),
-            ),
           Expanded(
-            child: ListView.builder(
-              reverse: true,
-              padding: const EdgeInsets.all(14),
-              itemCount: _messages.length + (_typing ? 1 : 0),
-              itemBuilder: (_, i) {
-                if (_typing && i == 0) return const _TypingBubble();
-                final m = _messages[_typing ? i - 1 : i];
-                return _bubble(m);
-              },
-            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Flexible(
+                  child: Text(name.isEmpty ? 'Anime fan' : name,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.subheading),
+                ),
+                if (other?.isVerified == true) ...[
+                  const SizedBox(width: 4),
+                  const VerifiedBadge(size: BadgeSize.sm),
+                ],
+              ]),
+              if (other != null)
+                Text('@${other.userName}', style: AppTextStyles.captionMuted),
+            ]),
           ),
-          _inputBar(),
-        ],
+        ]),
       ),
+      body: _body(me),
     );
   }
 
-  Widget _bubble(MessageModel m) {
-    // System messages (e.g. "Call ended · 00:12") render as a centered pill.
-    if (m.kind == MessageKind.system) {
-      return Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.border)),
-          child: Text(m.text, style: AppTextStyles.captionMuted),
+  Widget _body(String? me) {
+    if (me == null || (!_convoLoaded && !_liveLoaded)) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_convoLoaded && _convo == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('This conversation is unavailable.',
+              textAlign: TextAlign.center, style: AppTextStyles.bodyMuted),
         ),
       );
     }
-    final isVideo = m.kind == MessageKind.aniVideo;
-    return Align(
-      alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        constraints: const BoxConstraints(maxWidth: 280),
-        child: Column(
-          crossAxisAlignment: m.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            if (isVideo)
-              Container(
-                width: 220,
-                decoration: BoxDecoration(gradient: AppGradients.forSeed(m.videoTag), borderRadius: BorderRadius.circular(16)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      height: 120,
-                      child: Stack(alignment: Alignment.center, children: [
-                        Text(SampleData.animeByTitle(m.videoTag).emoji, style: const TextStyle(fontSize: 50)),
-                        Container(width: 44, height: 44, decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle), child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 30)),
-                      ]),
-                    ),
-                    Padding(padding: const EdgeInsets.all(10), child: Row(children: [const Icon(LucideIcons.playCircle, size: 14, color: Colors.white), const SizedBox(width: 6), Expanded(child: Text(m.videoTitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)))])),
-                  ],
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: m.isMe ? AppGradients.brand : null,
-                  color: m.isMe ? null : AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: m.isMe ? null : Border.all(color: AppColors.border),
-                ),
-                child: Text(m.text, style: AppTextStyles.body.copyWith(color: Colors.white)),
+    final messages = _ordered;
+    final blocked = _convo?.isBlocked ?? false;
+
+    return Column(children: [
+      Expanded(
+        child: messages.isEmpty
+            ? const Center(child: Text('Say hi 👋', style: AppTextStyles.bodyMuted))
+            : ListView.builder(
+                controller: _scroll,
+                reverse: true,
+                padding: const EdgeInsets.all(14),
+                itemCount: messages.length + (_loadingMore ? 1 : 0),
+                itemBuilder: (_, i) {
+                  if (i == messages.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: SizedBox(
+                            width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                    );
+                  }
+                  return _Bubble(message: messages[i], isMine: messages[i].senderId == me);
+                },
               ),
-            Padding(
-              padding: const EdgeInsets.only(top: 3, left: 4, right: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (!m.isMe)
-                    GestureDetector(
-                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🌐 Translated'), duration: Duration(seconds: 1))),
-                      child: const Padding(padding: EdgeInsets.only(right: 6), child: Icon(LucideIcons.languages, size: 12, color: AppColors.accent)),
-                    ),
-                  Text(_time(m.time), style: AppTextStyles.captionMuted.copyWith(fontSize: 10)),
-                  if (m.isMe) ...[const SizedBox(width: 4), Icon(m.read ? LucideIcons.checkCheck : LucideIcons.check, size: 12, color: m.read ? AppColors.accent : AppColors.textMuted)],
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
-    );
+      if (blocked) const _BlockedBanner() else _composer(),
+    ]);
   }
 
-  String _time(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
-  Widget _inputBar() {
+  Widget _composer() {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
         decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border))),
-        child: Row(
-          children: [
-            IconButton(icon: const Icon(LucideIcons.smile, size: 22, color: AppColors.textSecondary), onPressed: () {}),
-            IconButton(icon: const Icon(LucideIcons.paperclip, size: 20, color: AppColors.textSecondary), onPressed: () {}),
-            GestureDetector(onTap: _shareAniVideo, child: const Text('🎬', style: TextStyle(fontSize: 22))),
-            const SizedBox(width: 8),
-            Expanded(child: TextField(controller: _input, style: AppTextStyles.body, onSubmitted: (_) => _send(), decoration: const InputDecoration(hintText: 'Message…', isDense: true))),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => _send(),
-              child: Container(width: 44, height: 44, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: const Icon(LucideIcons.send, color: Colors.white, size: 19)),
+        child: Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _input,
+              style: AppTextStyles.body,
+              maxLength: 1000,
+              minLines: 1,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              onSubmitted: (_) => _send(),
+              decoration: const InputDecoration(hintText: 'Message…', isDense: true, counterText: ''),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _send,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle),
+              child: const Icon(LucideIcons.send, color: Colors.white, size: 19),
+            ),
+          ),
+        ]),
       ),
     );
   }
 }
 
-class _TypingBubble extends StatelessWidget {
-  const _TypingBubble();
+/// One message bubble. Side and styling come from [isMine] (senderId
+/// comparison in the caller) — the model itself is viewer-neutral.
+class _Bubble extends StatelessWidget {
+  final DmMessage message;
+  final bool isMine;
+  const _Bubble({required this.message, required this.isMine});
+
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) {
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              width: 7,
-              height: 7,
-              decoration: const BoxDecoration(color: AppColors.textMuted, shape: BoxShape.circle),
-            ).animate(onPlay: (c) => c.repeat(reverse: true)).fadeIn(delay: (i * 180).ms, duration: 400.ms).scaleXY(begin: 0.6, end: 1, duration: 400.ms);
-          }),
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Column(
+          crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Opacity(
+              opacity: message.pending ? 0.65 : 1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: isMine ? AppGradients.brand : null,
+                  color: isMine ? null : AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: isMine ? null : Border.all(color: AppColors.border),
+                ),
+                child: Text(message.text, style: AppTextStyles.body.copyWith(color: Colors.white)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 3, left: 4, right: 4),
+              child: message.pending
+                  ? const _PendingDots()
+                  : Text(_time(message.createdAt),
+                      style: AppTextStyles.captionMuted.copyWith(fontSize: 10)),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  static String _time(DateTime? t) => t == null
+      ? ''
+      : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+}
+
+/// Send-pending indicator — the old typing-bubble dots, shrunk to timestamp
+/// scale. Visuals only; there is deliberately no typing presence here.
+class _PendingDots extends StatelessWidget {
+  const _PendingDots();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 1.5),
+          width: 5,
+          height: 5,
+          decoration: const BoxDecoration(color: AppColors.textMuted, shape: BoxShape.circle),
+        )
+            .animate(onPlay: (c) => c.repeat(reverse: true))
+            .fadeIn(delay: (i * 180).ms, duration: 400.ms)
+            .scaleXY(begin: 0.6, end: 1, duration: 400.ms);
+      }),
+    );
+  }
+}
+
+/// Shown in place of the composer while blockedBy is non-empty — both
+/// participants see it; rules deny sends from both sides regardless.
+class _BlockedBanner extends StatelessWidget {
+  const _BlockedBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(LucideIcons.ban, size: 18, color: AppColors.textMuted),
+          const SizedBox(height: 6),
+          Text('This conversation is blocked',
+              style: AppTextStyles.body.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          const Text("Messages can't be sent or received right now.",
+              style: AppTextStyles.captionMuted),
+        ]),
       ),
     );
   }

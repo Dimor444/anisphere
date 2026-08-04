@@ -102,7 +102,7 @@ final appRouter = GoRouter(
           anime: s.extra is TrendingAnime ? s.extra as TrendingAnime : null,
         )),
     _top('/messages', (c, s) => const MessagesScreen()),
-    _top('/chat/:id', (c, s) => ChatScreen(conversationId: s.pathParameters['id']!)),
+    _top('/chat/:cid', (c, s) => ChatScreen(cid: s.pathParameters['cid']!)),
     _top('/notifications', (c, s) => const NotificationsScreen()),
     _top('/wallet', (c, s) => WalletScreen(initialTab: s.uri.queryParameters['tab'])),
     _top('/settings', (c, s) => const SettingsScreen()),

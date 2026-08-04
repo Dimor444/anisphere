@@ -82,10 +82,12 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
   @override
   void didUpdateWidget(_ConversationTile old) {
     super.didUpdateWidget(old);
-    // Re-count only when the thread actually moved — every snapshot rebuilds
-    // the list, and re-running an aggregation per rebuild would be waste.
+    // Re-count only when the thread moved OR my read mark did (markRead from
+    // the chat screen must clear the dot live) — every snapshot rebuilds the
+    // list, and re-running an aggregation per rebuild would be waste.
     if (old.convo.updatedAt != widget.convo.updatedAt ||
-        old.convo.id != widget.convo.id) {
+        old.convo.id != widget.convo.id ||
+        old.convo.lastReadBy(widget.me) != widget.convo.lastReadBy(widget.me)) {
       _unread = _fetchUnread();
     }
   }
