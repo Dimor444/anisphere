@@ -247,8 +247,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Reason sheet shared by the user- and message-level reports; [onPick]
-  /// receives the reason code. Same localized strings as post reports.
-  void _showReasonSheet(void Function(String code) onPick) {
+  /// receives the reason code. [titleKey] names what is being reported —
+  /// the post-specific `whyReport` belongs to the feed, not here. The reason
+  /// options themselves are shared with post reports.
+  void _showReasonSheet(String titleKey, void Function(String code) onPick) {
     final reasons = [
       ('spam', ref.tr('reportSpam')),
       ('spoiler', ref.tr('reportSpoiler')),
@@ -265,7 +267,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 16),
-            Text(ref.tr('whyReport'), style: AppTextStyles.subheading),
+            Text(ref.tr(titleKey), style: AppTextStyles.subheading),
             const SizedBox(height: 6),
             for (final (code, label) in reasons)
               ListTile(
@@ -300,7 +302,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final me = _me;
     final other = _convo?.otherUid(me ?? '') ?? '';
     if (other.isEmpty) return;
-    _showReasonSheet(
+    _showReasonSheet('whyReportUser',
         (code) => _submitReport(() => DmService.instance.reportUser(widget.cid, other, code)));
   }
 
@@ -362,8 +364,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     style: AppTextStyles.body.copyWith(color: AppColors.error)),
                 onTap: () {
                   Navigator.pop(sheetCtx);
-                  _showReasonSheet((code) => _submitReport(() => DmService.instance
-                      .reportMessage(widget.cid, message.id, message.senderId, code)));
+                  _showReasonSheet(
+                      'whyReportMessage',
+                      (code) => _submitReport(() => DmService.instance
+                          .reportMessage(widget.cid, message.id, message.senderId, code)));
                 },
               ),
             ],
