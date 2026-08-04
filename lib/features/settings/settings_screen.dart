@@ -119,7 +119,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           }),
 
           _section('More'),
-          _tile(LucideIcons.ban, 'Block List', () {}),
+          _tile(LucideIcons.ban, 'Block List', () => context.push('/block-list')),
           _tile(LucideIcons.flag, 'Report a Problem', () {}),
           if (user.isPlusUser)
             _tile(LucideIcons.badgeCheck, 'Apply for Press Pass', () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Press Pass application opened'), duration: Duration(seconds: 1))), trailing: const _PressEligible()),

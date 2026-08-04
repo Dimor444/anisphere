@@ -191,12 +191,18 @@ class DmService {
   }
 
   /// Threads the signed-in user has blocked — drives the settings Block
-  /// List. Single-field arrayContains, no orderBy: no composite needed.
+  /// List.
+  ///
+  /// Deliberately the SAME query as the inbox, filtered client-side. A
+  /// server-side `where('blockedBy', arrayContains: uid)` is rejected: the
+  /// read rule gates on `participants`, and Firestore evaluates a query
+  /// against the rule rather than the documents it happens to return
+  /// (rules are not filters), so it cannot prove a blockedBy-only query
+  /// safe. The two clauses can't be combined either — one array-contains
+  /// per query. Reusing the inbox query also means no extra index.
   Stream<List<DmConversation>> watchBlockedConversations(String uid) =>
-      _conversations
-          .where('blockedBy', arrayContains: uid)
-          .snapshots()
-          .map((s) => s.docs.map(DmConversation.fromDoc).toList());
+      watchConversations(uid).map(
+          (all) => all.where((c) => c.blockedBy.contains(uid)).toList());
 
   /// Toggles the caller's reaction on a message: same emoji again removes
   /// it, anything else sets it. The dot-path write touches only the
