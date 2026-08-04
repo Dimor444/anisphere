@@ -670,7 +670,23 @@ service cloud.firestore {
           && (request.resource.data.text.size() > 0
             || 'imageUrl' in request.resource.data)
           && request.resource.data.createdAt == request.time;
-        allow update: if false;
+        // The ONE legal message mutation: a participant toggling their own
+        // reaction. The create whitelist stays untouched (reactions never
+        // appear at create), the map diff pins the change to the caller's
+        // own key — same pattern as lastReadAt — and get('reactions', {})
+        // lets pre-reactions messages accept their first one. A blocked
+        // thread freezes reactions exactly like sends.
+        allow update: if signedIn()
+          && request.auth.uid in convo().participants
+          && convo().blockedBy.size() == 0
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+          && request.resource.data.reactions is map
+          && request.resource.data.reactions
+              .diff(resource.data.get('reactions', {}))
+              .affectedKeys().hasOnly([request.auth.uid])
+          && (!(request.auth.uid in request.resource.data.reactions)
+            || (request.resource.data.reactions[request.auth.uid] is string
+              && request.resource.data.reactions[request.auth.uid].size() <= 8));
         allow delete: if signedIn() && resource.data.senderId == request.auth.uid;
       }
     }

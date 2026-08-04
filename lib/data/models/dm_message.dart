@@ -22,6 +22,11 @@ class DmMessage {
   /// snapshot metadata, never stored.
   final bool pending;
 
+  /// Per-uid reaction emoji ({uid: emoji}, one per participant). Written
+  /// only through the own-key update branch — never part of the create
+  /// payload, so [toMap] deliberately omits it.
+  final Map<String, String> reactions;
+
   const DmMessage({
     required this.id,
     required this.senderId,
@@ -29,10 +34,12 @@ class DmMessage {
     this.imageUrl,
     this.createdAt,
     this.pending = false,
+    this.reactions = const {},
   });
 
   factory DmMessage.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? const <String, dynamic>{};
+    final rawReactions = d['reactions'] as Map<String, dynamic>? ?? const {};
     return DmMessage(
       id: doc.id,
       senderId: d['senderId'] as String? ?? '',
@@ -40,6 +47,10 @@ class DmMessage {
       imageUrl: d['imageUrl'] as String?,
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
       pending: doc.metadata.hasPendingWrites,
+      reactions: {
+        for (final e in rawReactions.entries)
+          if (e.value is String) e.key: e.value as String,
+      },
     );
   }
 

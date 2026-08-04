@@ -190,6 +190,77 @@ class DmService {
     });
   }
 
+  /// Threads the signed-in user has blocked — drives the settings Block
+  /// List. Single-field arrayContains, no orderBy: no composite needed.
+  Stream<List<DmConversation>> watchBlockedConversations(String uid) =>
+      _conversations
+          .where('blockedBy', arrayContains: uid)
+          .snapshots()
+          .map((s) => s.docs.map(DmConversation.fromDoc).toList());
+
+  /// Toggles the caller's reaction on a message: same emoji again removes
+  /// it, anything else sets it. The dot-path write touches only the
+  /// caller's own reactions key — the only shape the rules branch admits.
+  Future<void> toggleReaction(String cid, String messageId, String emoji) {
+    return _guard('toggleReaction($cid/$messageId)', () async {
+      final uid = await _uid();
+      final ref = _messages(cid).doc(messageId);
+      final current =
+          ((await ref.get().timeout(writeTimeout)).data()?['reactions']
+              as Map<String, dynamic>?)?[uid];
+      await ref.update({
+        'reactions.$uid': current == emoji ? FieldValue.delete() : emoji,
+      }).timeout(writeTimeout);
+    });
+  }
+
+  /// Adds/removes the signed-in user from [cid]'s blockedBy. arrayUnion /
+  /// arrayRemove produce exactly the add-or-remove-self diff the rules
+  /// branch admits, with no read-modify-write race.
+  Future<void> setBlocked(String cid, bool blocked) {
+    return _guard('setBlocked($cid, $blocked)', () async {
+      final uid = await _uid();
+      await _conversations.doc(cid).update({
+        'blockedBy': blocked
+            ? FieldValue.arrayUnion([uid])
+            : FieldValue.arrayRemove([uid]),
+      }).timeout(writeTimeout);
+    });
+  }
+
+  /// Reports the counterpart of [cid]. Same write-only reports/ sink the
+  /// post/video/news reports use — reviewed server-side, never readable
+  /// from clients.
+  Future<void> reportUser(String cid, String reportedUid, String reason) {
+    return _guard('reportUser($cid)', () async {
+      final uid = await _uid();
+      await _db.collection('reports').add({
+        'reportedUid': reportedUid,
+        'cid': cid,
+        'reason': reason,
+        'reporterId': uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      }).timeout(writeTimeout);
+    });
+  }
+
+  /// Reports one message — the user-shaped report plus the offending
+  /// messageId so review can pull the exact doc.
+  Future<void> reportMessage(
+      String cid, String messageId, String reportedUid, String reason) {
+    return _guard('reportMessage($cid/$messageId)', () async {
+      final uid = await _uid();
+      await _db.collection('reports').add({
+        'reportedUid': reportedUid,
+        'cid': cid,
+        'messageId': messageId,
+        'reason': reason,
+        'reporterId': uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      }).timeout(writeTimeout);
+    });
+  }
+
   /// Sends the image at [imagePath] (with an optional [caption]) to [cid]:
   /// compress to a JPEG the `dm_images/` Storage rule is guaranteed to
   /// accept (same contract as posts/stories), upload FIRST, then commit the
