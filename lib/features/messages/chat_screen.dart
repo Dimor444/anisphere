@@ -179,15 +179,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } on TimeoutException {
       if (!mounted) return;
       // The queued write may still land later — the bubble stays pending.
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Still sending — it will go out once you're back online."),
-        duration: Duration(seconds: 3),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ref.tr('stillSending')),
+        duration: const Duration(seconds: 3),
       ));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Couldn't send that message."),
-        duration: Duration(seconds: 2),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ref.tr('sendMessageFailed')),
+        duration: const Duration(seconds: 2),
       ));
     }
   }
@@ -206,15 +206,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await DmService.instance.sendImageMessage(widget.cid, picked.path, caption: caption);
     } on TimeoutException {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Still sending — it will go out once you're back online."),
-        duration: Duration(seconds: 3),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ref.tr('stillSending')),
+        duration: const Duration(seconds: 3),
       ));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Couldn't send that photo."),
-        duration: Duration(seconds: 2),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ref.tr('sendPhotoFailed')),
+        duration: const Duration(seconds: 2),
       ));
     } finally {
       if (mounted) setState(() => _sendingImage = false);
@@ -234,7 +234,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await DmService.instance.setBlocked(widget.cid, blocking);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(blocking ? 'Conversation blocked' : 'Conversation unblocked'),
+        content: Text(ref.tr(blocking ? 'conversationBlocked' : 'conversationUnblocked')),
         duration: const Duration(seconds: 2),
       ));
     } catch (_) {
@@ -325,9 +325,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             const SizedBox(height: 14),
             if (blocked)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                child: Text('Reactions are unavailable while this conversation is blocked.',
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                child: Text(ref.tr('reactionsBlocked'),
                     textAlign: TextAlign.center, style: AppTextStyles.captionMuted),
               )
             else
@@ -360,7 +360,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               const Divider(height: 22),
               ListTile(
                 leading: const Icon(LucideIcons.flag, size: 18, color: AppColors.error),
-                title: Text('Report message',
+                title: Text(ref.tr('reportMessage'),
                     style: AppTextStyles.body.copyWith(color: AppColors.error)),
                 onTap: () {
                   Navigator.pop(sheetCtx);
@@ -404,7 +404,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(mainAxisSize: MainAxisSize.min, children: [
                 Flexible(
-                  child: Text(name.isEmpty ? 'Anime fan' : name,
+                  child: Text(name.isEmpty ? ref.tr('animeFanFallback') : name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.subheading),
@@ -430,7 +430,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   const Icon(LucideIcons.ban, size: 17, color: AppColors.textSecondary),
                   const SizedBox(width: 10),
                   Text(
-                    (me != null && (_convo?.blockedBy.contains(me) ?? false)) ? 'Unblock' : 'Block',
+                    ref.tr((me != null && (_convo?.blockedBy.contains(me) ?? false))
+                        ? 'unblock'
+                        : 'block'),
                     style: AppTextStyles.body,
                   ),
                 ]),
@@ -440,7 +442,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 child: Row(children: [
                   const Icon(LucideIcons.flag, size: 17, color: AppColors.error),
                   const SizedBox(width: 10),
-                  Text('Report user', style: AppTextStyles.body.copyWith(color: AppColors.error)),
+                  Text(ref.tr('reportUser'),
+                      style: AppTextStyles.body.copyWith(color: AppColors.error)),
                 ]),
               ),
             ],
@@ -456,10 +459,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_convoLoaded && _convo == null) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text('This conversation is unavailable.',
+          padding: const EdgeInsets.all(24),
+          child: Text(ref.tr('conversationUnavailable'),
               textAlign: TextAlign.center, style: AppTextStyles.bodyMuted),
         ),
       );
@@ -470,7 +473,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Column(children: [
       Expanded(
         child: messages.isEmpty
-            ? const Center(child: Text('Say hi 👋', style: AppTextStyles.bodyMuted))
+            ? Center(child: Text(ref.tr('sayHi'), style: AppTextStyles.bodyMuted))
             : ListView.builder(
                 controller: _scroll,
                 reverse: true,
@@ -528,7 +531,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               textCapitalization: TextCapitalization.sentences,
               onSubmitted: (_) => _send(),
               decoration:
-                  const InputDecoration(hintText: 'Message…', isDense: true, counterText: ''),
+                  InputDecoration(hintText: ref.tr('messageHint'), isDense: true, counterText: ''),
             ),
           ),
           const SizedBox(width: 8),
@@ -789,11 +792,11 @@ class _PendingDots extends StatelessWidget {
 
 /// Shown in place of the composer while blockedBy is non-empty — both
 /// participants see it; rules deny sends from both sides regardless.
-class _BlockedBanner extends StatelessWidget {
+class _BlockedBanner extends ConsumerWidget {
   const _BlockedBanner();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       top: false,
       child: Container(
@@ -803,12 +806,13 @@ class _BlockedBanner extends StatelessWidget {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(LucideIcons.ban, size: 18, color: AppColors.textMuted),
           const SizedBox(height: 6),
-          Text('This conversation is blocked',
+          Text(ref.tr('conversationIsBlocked'),
+              textAlign: TextAlign.center,
               style: AppTextStyles.body
                   .copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
           const SizedBox(height: 2),
-          const Text("Messages can't be sent or received right now.",
-              style: AppTextStyles.captionMuted),
+          Text(ref.tr('conversationBlockedCaption'),
+              textAlign: TextAlign.center, style: AppTextStyles.captionMuted),
         ]),
       ),
     );

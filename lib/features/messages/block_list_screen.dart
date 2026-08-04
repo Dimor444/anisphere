@@ -29,20 +29,20 @@ class BlockListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final blocked = ref.watch(_blockedProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Block List')),
+      appBar: AppBar(title: Text(ref.tr('blockList'))),
       body: blocked.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const _Empty(
+        error: (_, __) => _Empty(
           icon: LucideIcons.wifiOff,
-          title: 'Block list unavailable',
-          caption: 'Check your connection and try again.',
+          title: ref.tr('blockListError'),
+          caption: ref.tr('checkConnection'),
         ),
         data: (list) {
           if (list.isEmpty) {
-            return const _Empty(
+            return _Empty(
               icon: LucideIcons.ban,
-              title: 'No blocked conversations',
-              caption: 'People you block from a chat will appear here.',
+              title: ref.tr('noBlockedConversations'),
+              caption: ref.tr('noBlockedConversationsCaption'),
             );
           }
           final me = AuthService.instance.uid ?? '';
@@ -101,7 +101,7 @@ class _BlockedTileState extends ConsumerState<_BlockedTile> {
         imageUrl: other?.userAvatar,
         radius: 22,
       ),
-      title: Text(name.isEmpty ? 'Anime fan' : name,
+      title: Text(name.isEmpty ? ref.tr('animeFanFallback') : name,
           maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.subheading),
       subtitle: other == null
           ? null
@@ -109,7 +109,7 @@ class _BlockedTileState extends ConsumerState<_BlockedTile> {
       trailing: TextButton(
         onPressed: _busy ? null : _unblock,
         child: Text(
-          _busy ? 'Unblocking…' : 'Unblock',
+          _busy ? ref.tr('unblocking') : ref.tr('unblock'),
           style: AppTextStyles.body.copyWith(
             color: _busy ? AppColors.textMuted : AppColors.primaryLight,
             fontWeight: FontWeight.w700,

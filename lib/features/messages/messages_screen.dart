@@ -11,6 +11,7 @@ import '../../data/models/dm_conversation.dart';
 import '../../services/auth_service.dart';
 import '../../services/dm_service.dart';
 import '../../shared/providers/identity_provider.dart';
+import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 
@@ -32,23 +33,23 @@ class MessagesScreen extends ConsumerWidget {
     final convos = ref.watch(_conversationsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages'),
+        title: Text(ref.tr('messages')),
         // Compose lands with the people picker in a later phase.
         actions: [IconButton(icon: const Icon(LucideIcons.pencil, size: 20), onPressed: () {})],
       ),
       body: convos.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const _Note(
+        error: (e, _) => _Note(
           icon: LucideIcons.wifiOff,
-          title: 'Messages are unavailable right now.',
-          caption: 'Check your connection and try again.',
+          title: ref.tr('dmListError'),
+          caption: ref.tr('checkConnection'),
         ),
         data: (list) {
           if (list.isEmpty) {
-            return const _Note(
+            return _Note(
               icon: LucideIcons.messageCircle,
-              title: 'No messages yet',
-              caption: 'Conversations you start will show up here.',
+              title: ref.tr('noMessagesYet'),
+              caption: ref.tr('noMessagesYetCaption'),
             );
           }
           final me = AuthService.instance.uid ?? '';
@@ -123,7 +124,7 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
                   Row(children: [
                     Flexible(
                       child: Text(
-                        name.isEmpty ? 'Anime fan' : name,
+                        name.isEmpty ? ref.tr('animeFanFallback') : name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.subheading,
@@ -136,7 +137,9 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
                   ]),
                   const SizedBox(height: 2),
                   Text(
-                    convo.lastMessage.isEmpty ? 'Say hi 👋' : convo.lastMessage,
+                    // The preview itself is user-generated — only the
+                    // empty-thread placeholder is translated.
+                    convo.lastMessage.isEmpty ? ref.tr('sayHi') : convo.lastMessage,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMuted,
