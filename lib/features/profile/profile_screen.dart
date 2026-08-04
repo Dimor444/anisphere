@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart' show User;
@@ -17,6 +18,7 @@ import '../../data/models/user.dart';
 import '../../data/models/user_model.dart';
 import '../../data/sample_data.dart';
 import '../../services/auth_service.dart';
+import '../../services/dm_service.dart';
 import '../../services/feed_service.dart';
 import '../../services/profile_repository.dart';
 import '../../services/streak_service.dart';
@@ -283,9 +285,32 @@ class _ProfileHeader extends ConsumerWidget {
                           : [
                               FollowButton(userId: uid),
                               const SizedBox(width: 10),
-                              _MessageButton(onTap: () {
+                              _MessageButton(onTap: () async {
                                 Haptics.light();
-                                context.push('/messages');
+                                // Deterministic cid: same pair, same thread —
+                                // safe to call every time.
+                                try {
+                                  final cid = await DmService.instance
+                                      .openConversation(uid);
+                                  if (!context.mounted) return;
+                                  context.push('/chat/$cid');
+                                } on TimeoutException {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            "Can't reach the server — check your connection."),
+                                        duration: Duration(seconds: 3)),
+                                  );
+                                } catch (_) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            "Couldn't open the conversation."),
+                                        duration: Duration(seconds: 2)),
+                                  );
+                                }
                               }),
                             ],
                     ),

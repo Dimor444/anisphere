@@ -476,7 +476,7 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 16),
-            Text(ref.tr('whyReport'), style: AppTextStyles.subheading),
+            Text(ref.tr('whyReportVideo'), style: AppTextStyles.subheading),
             const SizedBox(height: 6),
             for (final (code, label) in reasons)
               ListTile(

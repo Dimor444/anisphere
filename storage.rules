@@ -32,6 +32,30 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // DM images: dm_images/{cid}/{fileName}.jpg. The cid is the two
+    // participant uids sorted and joined with '_', so splitting on '_'
+    // yields the participant list — only they may read or upload. Relies on
+    // Firebase-generated uids never containing '_' (true for auth-created
+    // accounts; custom-token uids with underscores would break the check).
+    // Immutable once written: no overwrites, no client deletes. NOTE:
+    // in Storage rules an overwrite of an existing object evaluates as
+    // CREATE (a new generation), not update — proven in the emulator —
+    // so immutability requires `resource == null` on create; update:false
+    // alone only covers metadata changes.
+    // NOT DEPLOYED — storage rules were last released 2026-07-13; this
+    // block needs its own storage deploy before DMs ship.
+    match /dm_images/{cid}/{fileName} {
+      allow read: if request.auth != null
+        && cid.split('_').hasAny([request.auth.uid]);
+      allow create: if request.auth != null
+        && resource == null
+        && cid.split('_').hasAny([request.auth.uid])
+        && request.resource.size < 1 * 1024 * 1024
+        && request.resource.contentType.matches('image/jpeg');
+      allow update: if false;
+      allow delete: if false;
+    }
+
     // Ani Videos: {videoId}.mp4 + {videoId}.jpg thumbnail per upload. Any
     // signed-in user may view; only the owner may upload (videos ≤ 50 MB,
     // thumbnails ≤ 2 MB) or delete their own files.

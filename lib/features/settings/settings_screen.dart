@@ -23,7 +23,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _showStreak = true;
   bool _showRank = true;
   bool _spoilerShield = true;
-  String _dmWho = 'Everyone';
+  /// Stored as a stable code; the label is resolved at render time.
+  String _dmWho = 'everyone';
   String _birthdayVis = 'Friends';
   String _sound = 'Default';
   final Map<String, bool> _notif = {'Follows': true, 'Likes': true, 'New episodes': true, 'Streaks': true, 'Messages': true};
@@ -87,7 +88,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           _section('Privacy'),
           _switchTile('Private account', _private, (v) => setState(() => _private = v)),
-          _choiceTile('Who can DM', _dmWho, ['Everyone', 'Friends'], (v) => setState(() => _dmWho = v)),
+          _choiceTile(ref.tr('whoCanDM'), _dmWho, const ['everyone', 'friends'],
+              (v) => setState(() => _dmWho = v), labelFor: ref.tr),
           _switchTile('Show streak', _showStreak, (v) => setState(() => _showStreak = v)),
           _switchTile('Show True Fan rank', _showRank, (v) => setState(() => _showRank = v)),
           _choiceTile('Birthday visibility', _birthdayVis, ['Public', 'Friends', 'Private'], (v) => setState(() => _birthdayVis = v)),
@@ -119,7 +121,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           }),
 
           _section('More'),
-          _tile(LucideIcons.ban, 'Block List', () {}),
+          _tile(LucideIcons.ban, ref.tr('blockList'), () => context.push('/block-list')),
           _tile(LucideIcons.flag, 'Report a Problem', () {}),
           if (user.isPlusUser)
             _tile(LucideIcons.badgeCheck, 'Apply for Press Pass', () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Press Pass application opened'), duration: Duration(seconds: 1))), trailing: const _PressEligible()),
@@ -200,14 +202,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         activeTrackColor: AppColors.primary,
       );
 
-  Widget _choiceTile(String label, String value, List<String> options, ValueChanged<String> onChanged) => ListTile(
+  /// [labelFor] maps an option's stored value to its display text; omit it
+  /// when the value IS the label (the untranslated tiles).
+  Widget _choiceTile(String label, String value, List<String> options, ValueChanged<String> onChanged,
+          {String Function(String)? labelFor}) =>
+      ListTile(
         title: Text(label, style: AppTextStyles.body),
         trailing: DropdownButton<String>(
           value: value,
           underline: const SizedBox.shrink(),
           dropdownColor: AppColors.surfaceAlt,
           style: AppTextStyles.caption.copyWith(color: AppColors.primaryLight),
-          items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+          items: options
+              .map((o) => DropdownMenuItem(value: o, child: Text(labelFor?.call(o) ?? o)))
+              .toList(),
           onChanged: (v) {
             if (v != null) {
               Haptics.select();

@@ -26,6 +26,7 @@ import '../../features/feed/post_detail_screen.dart';
 import '../../features/stories/story_providers.dart';
 import '../../features/stories/story_viewer_screen.dart';
 import '../../features/fm_radio/fm_radio_screen.dart';
+import '../../features/messages/block_list_screen.dart';
 import '../../features/messages/chat_screen.dart';
 import '../../features/messages/messages_screen.dart';
 import '../../features/my_list/my_list_detail_screen.dart';
@@ -102,7 +103,8 @@ final appRouter = GoRouter(
           anime: s.extra is TrendingAnime ? s.extra as TrendingAnime : null,
         )),
     _top('/messages', (c, s) => const MessagesScreen()),
-    _top('/chat/:id', (c, s) => ChatScreen(conversationId: s.pathParameters['id']!)),
+    _top('/chat/:cid', (c, s) => ChatScreen(cid: s.pathParameters['cid']!)),
+    _top('/block-list', (c, s) => const BlockListScreen()),
     _top('/notifications', (c, s) => const NotificationsScreen()),
     _top('/wallet', (c, s) => WalletScreen(initialTab: s.uri.queryParameters['tab'])),
     _top('/settings', (c, s) => const SettingsScreen()),

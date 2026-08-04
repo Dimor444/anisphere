@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'models/user_model.dart';
 import 'models/anime_model.dart';
 import 'models/post_model.dart';
-import 'models/message_model.dart';
 import 'models/card_model.dart';
 
 /// All demo content for AniSphere. Real anime titles, no lorem ipsum,
@@ -243,53 +242,6 @@ class SampleData {
         const ChartEntry(8, 'Re:Zero', 8.72, 330000, -1),
         const ChartEntry(9, 'Demon Slayer', 8.70, 660000, 0),
         const ChartEntry(10, 'Chainsaw Man', 8.61, 380000, 1),
-      ];
-
-  // ─────────────────────────────────────────── DMs
-  static List<Conversation> get conversations => [
-        Conversation(
-          id: 'c1',
-          user: sakura,
-          lastMessage: 'did you watch the new ep?? 😭',
-          lastTime: _ago(const Duration(minutes: 8)),
-          unread: 2,
-          streak: 23,
-          streakAtRisk: true,
-          isOnline: true,
-          messages: [
-            MessageModel(id: 'm1', isMe: false, text: 'yooo are you online', time: _ago(const Duration(minutes: 18))),
-            MessageModel(id: 'm2', isMe: true, text: 'yeah just finished Frieren ep 18', time: _ago(const Duration(minutes: 16))),
-            MessageModel(id: 'm3', isMe: false, text: 'CRYING. the mirror lotus scene', time: _ago(const Duration(minutes: 15))),
-            MessageModel(id: 'm4', isMe: false, kind: MessageKind.aniVideo, videoTitle: 'Frieren — Mirror Lotus AMV', videoTag: 'Frieren', time: _ago(const Duration(minutes: 14))),
-            MessageModel(id: 'm5', isMe: true, text: 'okay that AMV goes hard 🔥', time: _ago(const Duration(minutes: 12))),
-            MessageModel(id: 'm6', isMe: false, text: 'did you watch the new ep?? 😭', time: _ago(const Duration(minutes: 8)), read: false),
-          ],
-        ),
-        Conversation(
-          id: 'c2',
-          user: ryuu,
-          lastMessage: 'One Piece never misses fr',
-          lastTime: _ago(const Duration(hours: 1)),
-          streak: 15,
-          isOnline: true,
-          messages: [
-            MessageModel(id: 'm7', isMe: false, text: 'Egghead arc cooking', time: _ago(const Duration(hours: 1, minutes: 4))),
-            MessageModel(id: 'm8', isMe: true, text: 'peak fiction honestly', time: _ago(const Duration(hours: 1, minutes: 2))),
-            MessageModel(id: 'm9', isMe: false, text: 'One Piece never misses fr', time: _ago(const Duration(hours: 1))),
-          ],
-        ),
-        Conversation(
-          id: 'c3',
-          user: aoi,
-          lastMessage: 'sent you a card 🎴',
-          lastTime: _ago(const Duration(hours: 4)),
-          streak: 7,
-          unread: 1,
-          messages: [
-            MessageModel(id: 'm10', isMe: false, text: 'pulled a legendary Gojo card!!', time: _ago(const Duration(hours: 4, minutes: 2))),
-            MessageModel(id: 'm11', isMe: false, text: 'sent you a card 🎴', time: _ago(const Duration(hours: 4)), read: false),
-          ],
-        ),
       ];
 
   // ─────────────────────────────────────────── NOTIFICATIONS
