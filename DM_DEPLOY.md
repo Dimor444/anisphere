@@ -9,30 +9,42 @@ Project: `anisphere-36cb0` · region `europe-west1` · branch
 
 ---
 
-## 0. Before you start: the CLI is not currently usable
+## 0. Before you start: two CONDITIONAL workarounds
 
-Two independent problems on this machine. Both must be handled or the deploy
-will fail in confusing ways.
+**Neither step below is part of the normal deploy.** Both are remedies for a
+machine-local fault that comes and goes. Check first; apply only if the check
+fails. Every `HTTPS_PROXY=` prefix appearing in §2 and §3 is conditional on
+(b) — drop it when DNS is healthy.
 
-**(a) CLI auth is broken.** `firebase <anything>` fails with:
+**The check** — if this returns a project table, the CLI is fine and you can
+skip this whole section:
+
+```bash
+firebase projects:list
+```
+
+**(a) CLI auth — only if you see this error.** `firebase <anything>` failing
+with:
 
 > Authentication Error: Your credentials are no longer valid. Please run
 > `firebase login --reauth`
 
-Verified 2026-08-03: the stored refresh token still mints a valid Bearer
-token, but Google rejects it on Cloud-platform APIs with a misleading 401
-`ACCESS_TOKEN_TYPE_UNSUPPORTED`. Fix it first, interactively:
+Seen 2026-08-03: the stored refresh token still minted a valid Bearer token,
+but Google rejected it on Cloud-platform APIs with a misleading 401
+`ACCESS_TOKEN_TYPE_UNSUPPORTED`. The fix is interactive:
 
 ```bash
 firebase login --reauth
 ```
 
-**(b) DNS is half-dead for `*.googleapis.com`.** The system resolver *hangs*
-(does not fail) for a shifting subset of Google API hosts, so the CLI wedges
-or times out. Run everything through the local dig-backed CONNECT proxy on
-`127.0.0.1:3129` (see the `firebase-rules-deploy-workaround` note; the script
-used on 2026-08-03 is reproducible in ~100 lines of python3). Start the proxy,
-confirm it answers, then prefix every command with `HTTPS_PROXY`.
+**(b) DNS for `*.googleapis.com` — only if resolution hangs.** The system
+resolver *hangs* (does not fail) for a shifting subset of Google API hosts,
+notably `firebaserules.googleapis.com` and `cloudfunctions.googleapis.com`,
+so the CLI wedges or times out. When that happens, run everything through the
+local dig-backed CONNECT proxy on `127.0.0.1:3129` (see the
+`firebase-rules-deploy-workaround` note; the script is reproducible in ~100
+lines of python3). Start the proxy, confirm it answers, then prefix every
+command with `HTTPS_PROXY`.
 
 ```bash
 curl -sS -x http://127.0.0.1:3129 -o /dev/null -w "proxy ok: %{http_code}\n" --max-time 20 https://firebaserules.googleapis.com/
@@ -40,6 +52,12 @@ curl -sS -x http://127.0.0.1:3129 -o /dev/null -w "proxy ok: %{http_code}\n" --m
 
 Proxy connects are individually flaky (the broken host set shifts), so retry
 rather than concluding a step failed.
+
+**Record — 2026-08-04:** both `firebaserules.googleapis.com` and
+`cloudfunctions.googleapis.com` resolved normally, the CLI was already
+authenticated, and the production deploy in §2 was run with **no proxy and no
+re-auth**. The fault is intermittent, not fixed, so this section stays
+documented for the next time it returns.
 
 ---
 
@@ -102,18 +120,40 @@ alone would not prevent overwrites. No client deletes.
 
 ## 2. Deploy
 
-Rules and indexes together, then storage. Index builds are asynchronous —
-they can report success and still be `CREATING` for minutes on a large
-collection (both DM indexes start empty, so they should be `READY` almost
-immediately).
+**One artifact per command, verified before the next. Do NOT combine them.**
+An earlier version of this manifest deployed rules and indexes in a single
+invocation; that is superseded. This is an irreversible production change, so
+each step is isolated: when a deploy fails, a single-artifact command tells
+you exactly which artifact failed and leaves the others untouched, and the
+verification gate means a bad ruleset is caught before the next artifact goes
+out. Combining them makes a partial failure ambiguous and harder to unwind.
+
+Index builds are asynchronous — they can report success and still be
+`CREATING` for minutes on a large collection (both DM indexes start empty, so
+they should be `READY` almost immediately, but confirm rather than assume;
+querying a `CREATING` index fails with `FAILED_PRECONDITION` and reads as a
+false deploy failure).
+
+Step 1 — Firestore rules, then verify with §3.1:
 
 ```bash
-HTTPS_PROXY=http://127.0.0.1:3129 firebase deploy --only firestore:rules,firestore:indexes --project anisphere-36cb0 --non-interactive
+firebase deploy --only firestore:rules --project anisphere-36cb0 --non-interactive
 ```
 
+Step 2 — Firestore indexes, then verify with §3.2 and wait for `READY`:
+
 ```bash
-HTTPS_PROXY=http://127.0.0.1:3129 firebase deploy --only storage --project anisphere-36cb0 --non-interactive
+firebase deploy --only firestore:indexes --project anisphere-36cb0 --non-interactive
 ```
+
+Step 3 — Storage rules, then verify with §3.3:
+
+```bash
+firebase deploy --only storage --project anisphere-36cb0 --non-interactive
+```
+
+If any step fails: stop, do not retry blindly, and do not proceed to the next
+artifact.
 
 No Cloud Functions change in this release — the two Watch Party triggers
 (`onRoomMemberJoined` / `onRoomMemberLeft`) are the only functions deployed
