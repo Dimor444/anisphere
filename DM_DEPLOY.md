@@ -1,11 +1,10 @@
 # DM Deploy Manifest
 
-Everything Direct Messages needs in production, in order. **Nothing here has
-been deployed.** All DM work so far (Phases 1–4) was built and verified
-against the local emulator suite only.
+Everything Direct Messages needs in production, in order. **All three
+artifacts are now live** — see the deploy record in §5; the procedure below
+stays as the repeatable recipe for the next release.
 
-Project: `anisphere-36cb0` · region `europe-west1` · branch
-`claude/anisphere-dm-audit-fa1a94`.
+Project: `anisphere-36cb0` · region `europe-west1`.
 
 ---
 
@@ -71,8 +70,12 @@ binary and should go out **before** a build carrying DM UI reaches users.
 Adds a top-level `conversations/{cid}` match plus its `messages/{mid}`
 subcollection. Nothing in any pre-existing block was modified.
 
-- create: 2 participants, caller included, full `hasOnly` key whitelist,
-  server-stamped timestamps, born empty (`lastMessage`, `blockedBy`, `lastReadAt`)
+- create: 2 participants, caller included, **the doc id bound to those two
+  participants** (the cid split on `_` must be exactly two ascending parts,
+  both in `participants` — the server-side twin of `DmConversation.cidFor`,
+  without which the deterministic id is squattable), full `hasOnly` key
+  whitelist, server-stamped timestamps, born empty (`lastMessage`,
+  `blockedBy`, `lastReadAt`)
 - read: participants only
 - update: exactly three branches — send (preview ≤ 120 chars, `updatedAt ==
   request.time`), own-key read receipt, add-or-remove-**self** `blockedBy`
@@ -234,3 +237,39 @@ surfaces against production. Against a **production** build (plain
 If step 1 or 5 fails with a `failed-precondition` error mentioning an index,
 the console error contains a direct creation link — but prefer fixing
 `firestore.indexes.json` and redeploying so the repo stays the source of truth.
+
+---
+
+## 5. Deploy record
+
+Newest first. Each row is what was actually read back from production, not
+what the deploy summary claimed.
+
+### 2026-08-06 — `firestore:rules` only (cid binding)
+
+Closed the cid-squatting hole: `validConversationCreate` now binds the doc
+id to its participants (§1.1). **Rules only** — indexes and storage were not
+redeployed and were confirmed unmoved afterwards.
+
+| | |
+|---|---|
+| ruleset | `04ef2e62-4f15-4947-939a-8358348c7ffd` (release `cloud.firestore`, `2026-08-06T02:42:18Z`) |
+| md5 local = live | `d53bdfcd55c2b7d38e5eb546c0b7f693` (36230 bytes, `diff` clean) |
+| indexes | untouched — 7 total, all `READY` |
+| storage rules | untouched — still ruleset `6a3bcbd9…`, released `2026-08-04` |
+| DNS | `firebaserules.googleapis.com` was hanging again; deploy and read-back ran through the §0(b) proxy. `firestore` / `identitytoolkit` / `securetoken` resolved normally. |
+
+Verified in production with two throwaway guest accounts (the app's own
+`signInAnonymously` path): open at the deterministic cid, one text send,
+counterpart reads thread + preview + message, inbox `array-contains` +
+`orderBy` query returns it, and a squat at a cid that was not the caller's
+pair was **denied** — the one direct proof that the new ruleset is the one
+serving traffic. All of it removed afterwards: the `messages` subcollection
+was enumerated and deleted document by document *before* the parent (a
+parent delete does not touch subcollections), then both guest accounts.
+
+### Earlier
+
+Rules, both DM composite indexes, and `storage.rules` all went out ahead of
+this and were live before 2026-08-06 (storage ruleset released 2026-08-04,
+superseding the 2026-07-13 release §1.3 warns about).
