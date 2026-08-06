@@ -586,12 +586,37 @@ service cloud.firestore {
 
       function validConversationCreate() {
         let d = request.resource.data;
+        // The doc id IS the participant pair — DmConversation.cidFor's
+        // sorted-and-joined uids, enforced here instead of trusted from the
+        // client. Without this binding the id is squattable: anyone could
+        // create conversations/{A_B} with participants [attacker, X] and
+        // lock A and B out of their own thread forever (create denied
+        // because the doc exists, read denied because they are not
+        // participants), with no client-side recovery possible since
+        // cidFor(A, B) has exactly one answer.
+        //
+        // Rules have no sort primitive, so the pair is recovered by
+        // splitting the id and requiring the two parts to be ascending and
+        // both present in participants. With participants.size() == 2 and
+        // the parts distinct (parts[0] < parts[1]), that pins the set
+        // exactly. Ordering the size check first matters: && short-circuits,
+        // so parts[1] is never indexed on a malformed id.
+        //
+        // Assumes uids never contain '_' — true for Firebase-generated
+        // uids, the same assumption storage.rules documents for dm_images.
+        // Custom-token uids with underscores would break this and would
+        // need an explicit id field instead.
+        let parts = cid.split('_');
         return d.keys().hasOnly([
             'participants', 'createdAt', 'updatedAt',
             'lastMessage', 'lastSenderId', 'lastReadAt', 'blockedBy'
           ])
           && request.auth.uid in d.participants
           && d.participants.size() == 2
+          && parts.size() == 2
+          && parts[0] < parts[1]
+          && parts[0] in d.participants
+          && parts[1] in d.participants
           && d.lastMessage == ''
           && d.lastSenderId == ''
           // Born empty: pre-seeding the counterpart's read mark would let a
