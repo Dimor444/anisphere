@@ -286,6 +286,16 @@ class AppStrings {
       'deleteVideo': 'Delete video',
       'videoDeleted': 'Video deleted',
       'reportVideo': 'Report video',
+      // ── This Week (seasonal schedule) ──
+      'thisWeek': 'This Week',
+      'today': 'Today',
+      'epShort': 'Ep',
+      'noEpisodesThisWeek': 'No episodes airing this week.',
+      'weekScheduleError': 'Couldn\'t load this week\'s schedule.\nCheck your connection and try again.',
+      'dayMon': 'Mon', 'dayTue': 'Tue', 'dayWed': 'Wed', 'dayThu': 'Thu',
+      'dayFri': 'Fri', 'daySat': 'Sat', 'daySun': 'Sun',
+      'seasonWinter': 'Winter', 'seasonSpring': 'Spring',
+      'seasonSummer': 'Summer', 'seasonFall': 'Fall',
     },
     'ar': {
       'vote': 'تصويت',
@@ -541,6 +551,16 @@ class AppStrings {
       'deleteVideo': 'حذف الفيديو',
       'videoDeleted': 'تم حذف الفيديو',
       'reportVideo': 'الإبلاغ عن الفيديو',
+      // ── This Week (seasonal schedule) ──
+      'thisWeek': 'هذا الأسبوع',
+      'today': 'اليوم',
+      'epShort': 'ح',
+      'noEpisodesThisWeek': 'لا توجد حلقات تُعرض هذا الأسبوع.',
+      'weekScheduleError': 'تعذّر تحميل جدول هذا الأسبوع.\nتحقّق من اتصالك وحاول مرة أخرى.',
+      'dayMon': 'الاثنين', 'dayTue': 'الثلاثاء', 'dayWed': 'الأربعاء', 'dayThu': 'الخميس',
+      'dayFri': 'الجمعة', 'daySat': 'السبت', 'daySun': 'الأحد',
+      'seasonWinter': 'الشتاء', 'seasonSpring': 'الربيع',
+      'seasonSummer': 'الصيف', 'seasonFall': 'الخريف',
     },
     'ja': {
       'vote': '投票',
@@ -650,6 +670,13 @@ class AppStrings {
       'noVideosYet': 'まだ動画がありません — 最初の投稿者になろう！',
       'videosLoadError': '動画を読み込めませんでした。',
       'deleteVideo': '動画を削除', 'videoDeleted': '動画を削除しました', 'reportVideo': '動画を報告',
+      // ── This Week (seasonal schedule) ──
+      'thisWeek': '今週', 'today': '今日', 'epShort': 'EP',
+      'noEpisodesThisWeek': '今週放送されるエピソードはありません。',
+      'weekScheduleError': '今週の放送スケジュールを読み込めませんでした。\n接続を確認して、もう一度お試しください。',
+      'dayMon': '月', 'dayTue': '火', 'dayWed': '水', 'dayThu': '木',
+      'dayFri': '金', 'daySat': '土', 'daySun': '日',
+      'seasonWinter': '冬', 'seasonSpring': '春', 'seasonSummer': '夏', 'seasonFall': '秋',
     },
     'ko': {
       'vote': '투표',
@@ -759,6 +786,13 @@ class AppStrings {
       'noVideosYet': '아직 동영상이 없어요 — 첫 번째로 올려보세요!',
       'videosLoadError': '동영상을 불러오지 못했습니다.',
       'deleteVideo': '동영상 삭제', 'videoDeleted': '동영상이 삭제되었습니다', 'reportVideo': '동영상 신고',
+      // ── This Week (seasonal schedule) ──
+      'thisWeek': '이번 주', 'today': '오늘', 'epShort': 'EP',
+      'noEpisodesThisWeek': '이번 주에 방영되는 에피소드가 없습니다.',
+      'weekScheduleError': '이번 주 방영 일정을 불러오지 못했습니다.\n연결을 확인한 후 다시 시도해 주세요.',
+      'dayMon': '월', 'dayTue': '화', 'dayWed': '수', 'dayThu': '목',
+      'dayFri': '금', 'daySat': '토', 'daySun': '일',
+      'seasonWinter': '겨울', 'seasonSpring': '봄', 'seasonSummer': '여름', 'seasonFall': '가을',
     },
     'es': {
       'vote': 'Votar',
@@ -868,6 +902,14 @@ class AppStrings {
       'noVideosYet': 'Aún no hay videos — ¡sube el primero!',
       'videosLoadError': 'No se pudieron cargar los videos.',
       'deleteVideo': 'Eliminar video', 'videoDeleted': 'Video eliminado', 'reportVideo': 'Reportar video',
+      // ── This Week (seasonal schedule) ──
+      'thisWeek': 'Esta semana', 'today': 'Hoy', 'epShort': 'Ep',
+      'noEpisodesThisWeek': 'No hay episodios en emisión esta semana.',
+      'weekScheduleError': 'No se pudo cargar la programación de esta semana.\nComprueba tu conexión e inténtalo de nuevo.',
+      'dayMon': 'Lun', 'dayTue': 'Mar', 'dayWed': 'Mié', 'dayThu': 'Jue',
+      'dayFri': 'Vie', 'daySat': 'Sáb', 'daySun': 'Dom',
+      'seasonWinter': 'Invierno', 'seasonSpring': 'Primavera',
+      'seasonSummer': 'Verano', 'seasonFall': 'Otoño',
     },
     'fr': {
       'vote': 'Voter',
@@ -977,6 +1019,14 @@ class AppStrings {
       'noVideosYet': 'Pas encore de vidéos — publie la première !',
       'videosLoadError': 'Impossible de charger les vidéos.',
       'deleteVideo': 'Supprimer la vidéo', 'videoDeleted': 'Vidéo supprimée', 'reportVideo': 'Signaler la vidéo',
+      // ── This Week (seasonal schedule) ──
+      'thisWeek': 'Cette semaine', 'today': 'Aujourd\'hui', 'epShort': 'Ép',
+      'noEpisodesThisWeek': 'Aucun épisode diffusé cette semaine.',
+      'weekScheduleError': 'Impossible de charger le programme de cette semaine.\nVérifiez votre connexion et réessayez.',
+      'dayMon': 'Lun', 'dayTue': 'Mar', 'dayWed': 'Mer', 'dayThu': 'Jeu',
+      'dayFri': 'Ven', 'daySat': 'Sam', 'daySun': 'Dim',
+      'seasonWinter': 'Hiver', 'seasonSpring': 'Printemps',
+      'seasonSummer': 'Été', 'seasonFall': 'Automne',
     },
     'tr': {
       'vote': 'Oy ver',
@@ -1086,6 +1136,14 @@ class AppStrings {
       'noVideosYet': 'Henüz video yok — ilkini sen yükle!',
       'videosLoadError': 'Videolar yüklenemedi.',
       'deleteVideo': 'Videoyu sil', 'videoDeleted': 'Video silindi', 'reportVideo': 'Videoyu bildir',
+      // ── This Week (seasonal schedule) ──
+      'thisWeek': 'Bu hafta', 'today': 'Bugün', 'epShort': 'Böl',
+      'noEpisodesThisWeek': 'Bu hafta yayınlanan bölüm yok.',
+      'weekScheduleError': 'Bu haftanın yayın takvimi yüklenemedi.\nBağlantını kontrol edip tekrar dene.',
+      'dayMon': 'Pzt', 'dayTue': 'Sal', 'dayWed': 'Çar', 'dayThu': 'Per',
+      'dayFri': 'Cum', 'daySat': 'Cmt', 'daySun': 'Paz',
+      'seasonWinter': 'Kış', 'seasonSpring': 'İlkbahar',
+      'seasonSummer': 'Yaz', 'seasonFall': 'Sonbahar',
     },
     'id': {
       'vote': 'Vote',
@@ -1195,6 +1253,14 @@ class AppStrings {
       'noVideosYet': 'Belum ada video — jadilah yang pertama mengunggah!',
       'videosLoadError': 'Gagal memuat video.',
       'deleteVideo': 'Hapus video', 'videoDeleted': 'Video dihapus', 'reportVideo': 'Laporkan video',
+      // ── This Week (seasonal schedule) ──
+      'thisWeek': 'Minggu ini', 'today': 'Hari ini', 'epShort': 'Eps',
+      'noEpisodesThisWeek': 'Tidak ada episode yang tayang minggu ini.',
+      'weekScheduleError': 'Tidak dapat memuat jadwal minggu ini.\nPeriksa koneksimu dan coba lagi.',
+      'dayMon': 'Sen', 'dayTue': 'Sel', 'dayWed': 'Rab', 'dayThu': 'Kam',
+      'dayFri': 'Jum', 'daySat': 'Sab', 'daySun': 'Min',
+      'seasonWinter': 'Musim Dingin', 'seasonSpring': 'Musim Semi',
+      'seasonSummer': 'Musim Panas', 'seasonFall': 'Musim Gugur',
     },
   };
 

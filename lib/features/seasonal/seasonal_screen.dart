@@ -13,33 +13,48 @@ import '../../core/utils/anilist_season.dart';
 import '../../core/utils/haptics.dart';
 import '../../services/seasonal_service.dart';
 import '../../services/trending_service.dart';
+import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/pressable.dart';
 import 'seasonal_provider.dart';
 
-/// Seasonal — the current season's airing schedule, live from AniList,
-/// grouped by local weekday with today highlighted.
+/// This Week — the next 7 days of broadcasts, live from AniList's airing
+/// schedule, grouped by local weekday with today highlighted.
+///
+/// The season is a subtitle, not a filter: filtering on `season`/`seasonYear`
+/// excluded every long-running series, because those fields describe when a
+/// show PREMIERED, not what is airing now.
 class SeasonalScreen extends ConsumerWidget {
   const SeasonalScreen({super.key});
 
-  static const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  /// Weekday (DateTime.monday=1 … sunday=7) → translation key.
+  static const _dayKeys = ['dayMon', 'dayTue', 'dayWed', 'dayThu', 'dayFri', 'daySat', 'daySun'];
+
+  static String dayLabel(WidgetRef ref, int weekday) => ref.tr(_dayKeys[weekday - 1]);
+
+  static String seasonLabel(WidgetRef ref, String season) => switch (season) {
+        'WINTER' => ref.tr('seasonWinter'),
+        'SPRING' => ref.tr('seasonSpring'),
+        'SUMMER' => ref.tr('seasonSummer'),
+        _ => ref.tr('seasonFall'),
+      };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final schedule = ref.watch(seasonalScheduleProvider);
+    final schedule = ref.watch(weeklyScheduleProvider);
     final s = aniListSeasonOf(DateTime.now());
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Seasonal'),
+        title: Text(ref.tr('thisWeek')),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(30),
           child: Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 0, 10),
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 0, 10),
               child: Text(
-                '${seasonEmoji(s.season)} ${seasonDisplayName(s.season)} ${s.year}',
+                '${seasonEmoji(s.season)} ${seasonLabel(ref, s.season)} ${s.year}',
                 style: AppTextStyles.bodyMuted,
               ),
             ),
@@ -48,11 +63,11 @@ class SeasonalScreen extends ConsumerWidget {
       ),
       body: schedule.when(
         loading: () => const _SeasonalSkeleton(),
-        error: (_, __) => _SeasonalError(onRetry: () => ref.invalidate(seasonalScheduleProvider)),
+        error: (_, __) => _SeasonalError(onRetry: () => ref.invalidate(weeklyScheduleProvider)),
         data: (sched) => sched.isEmpty
             ? const _SeasonalEmpty()
             : RefreshIndicator(
-                onRefresh: () => ref.refresh(seasonalScheduleProvider.future),
+                onRefresh: () => ref.refresh(weeklyScheduleProvider.future),
                 color: AppColors.primaryLight,
                 backgroundColor: AppColors.surfaceAlt,
                 child: _DaySections(schedule: sched),
@@ -62,14 +77,14 @@ class SeasonalScreen extends ConsumerWidget {
   }
 }
 
-/// Vertical Mon–Sun sections: a day pill, then that day's shows as a
-/// horizontal rail. Only days with airing episodes are rendered.
-class _DaySections extends StatelessWidget {
-  final SeasonalSchedule schedule;
+/// Vertical Mon–Sun sections: a day pill, then that day's airings as a
+/// horizontal rail. Only days with episodes are rendered.
+class _DaySections extends ConsumerWidget {
+  final WeeklySchedule schedule;
   const _DaySections({required this.schedule});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final today = DateTime.now().weekday;
     final days = [
       for (var d = DateTime.monday; d <= DateTime.sunday; d++)
@@ -83,12 +98,13 @@ class _DaySections extends StatelessWidget {
       itemBuilder: (_, i) {
         final day = days[i];
         final isToday = day == today;
-        final anime = schedule.byWeekday[day]!;
+        final airings = schedule.byWeekday[day]!;
+        final label = SeasonalScreen.dayLabel(ref, day);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+              padding: const EdgeInsetsDirectional.fromSTEB(14, 6, 14, 10),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -97,7 +113,7 @@ class _DaySections extends StatelessWidget {
                   border: Border.all(color: isToday ? AppColors.primary : AppColors.border),
                 ),
                 child: Text(
-                  isToday ? '${SeasonalScreen._days[day - 1]} · Today' : SeasonalScreen._days[day - 1],
+                  isToday ? '$label · ${ref.tr('today')}' : label,
                   style: AppTextStyles.subheading.copyWith(color: isToday ? Colors.white : AppColors.textPrimary),
                 ),
               ),
@@ -107,9 +123,11 @@ class _DaySections extends StatelessWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                itemCount: anime.length,
+                itemCount: airings.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (_, j) => _SeasonalCard(anime: anime[j]),
+                // One card PER AIRING: a show broadcasting twice this week
+                // has two entries and appears under both days.
+                itemBuilder: (_, j) => _AiringCard(airing: airings[j]),
               ),
             ),
             const SizedBox(height: 14),
@@ -120,14 +138,13 @@ class _DaySections extends StatelessWidget {
   }
 }
 
-class _SeasonalCard extends StatelessWidget {
-  final SeasonalAnime anime;
-  const _SeasonalCard({required this.anime});
+class _AiringCard extends ConsumerWidget {
+  final AiringEntry airing;
+  const _AiringCard({required this.airing});
 
   @override
-  Widget build(BuildContext context) {
-    // Cards only render from weekday groups, so nextAiringAt is never null here.
-    final time = DateFormat('HH:mm').format(anime.nextAiringAt!.toLocal());
+  Widget build(BuildContext context, WidgetRef ref) {
+    final time = DateFormat('HH:mm').format(airing.airingAt.toLocal());
 
     return Pressable(
       onTap: () {
@@ -136,11 +153,11 @@ class _SeasonalCard extends StatelessWidget {
         // instantly; the detail screen fetches the full record by id.
         // Never route through '/anime/:id' (keyed to local sample data).
         context.push(
-          '/trending/anime/${anime.id}',
+          '/trending/anime/${airing.mediaId}',
           extra: TrendingAnime(
-            id: anime.id,
-            title: anime.title,
-            coverUrl: anime.coverUrl,
+            id: airing.mediaId,
+            title: airing.title,
+            coverUrl: airing.coverUrl,
             description: '',
             genres: const [],
             status: '',
@@ -155,14 +172,14 @@ class _SeasonalCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              anime.coverUrl.isEmpty
-                  ? DecoratedBox(decoration: BoxDecoration(gradient: AppGradients.forSeed(anime.title)))
+              airing.coverUrl.isEmpty
+                  ? DecoratedBox(decoration: BoxDecoration(gradient: AppGradients.forSeed(airing.title)))
                   : CachedNetworkImage(
-                      imageUrl: anime.coverUrl,
+                      imageUrl: airing.coverUrl,
                       fit: BoxFit.cover,
                       placeholder: (_, __) => Container(color: AppColors.surfaceAlt),
                       errorWidget: (_, __, ___) =>
-                          DecoratedBox(decoration: BoxDecoration(gradient: AppGradients.forSeed(anime.title))),
+                          DecoratedBox(decoration: BoxDecoration(gradient: AppGradients.forSeed(airing.title))),
                     ),
               const Positioned.fill(
                 child: DecoratedBox(
@@ -187,9 +204,10 @@ class _SeasonalCard extends StatelessWidget {
                       GestureDetector(onTap: () => Haptics.light(), child: const Icon(LucideIcons.bell, size: 16, color: Colors.white)),
                     ]),
                     const Spacer(),
-                    Text(anime.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.label.copyWith(color: Colors.white)),
+                    Text(airing.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.label.copyWith(color: Colors.white)),
                     const SizedBox(height: 4),
-                    Text('Ep ${anime.nextEpisode} · $time', style: AppTextStyles.caption.copyWith(color: Colors.white70)),
+                    Text('${ref.tr('epShort')} ${airing.episode} · $time',
+                        style: AppTextStyles.caption.copyWith(color: Colors.white70)),
                   ],
                 ),
               ),
@@ -218,7 +236,7 @@ class _SeasonalSkeleton extends StatelessWidget {
             Container(
               width: 90,
               height: 36,
-              margin: const EdgeInsets.only(bottom: 10),
+              margin: const EdgeInsetsDirectional.only(bottom: 10),
               decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
             ),
             SizedBox(
@@ -228,7 +246,7 @@ class _SeasonalSkeleton extends StatelessWidget {
                   for (var c = 0; c < 3; c++)
                     Container(
                       width: 150,
-                      margin: const EdgeInsets.only(right: 10),
+                      margin: const EdgeInsetsDirectional.only(end: 10),
                       decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14)),
                     ),
                 ],
@@ -242,12 +260,12 @@ class _SeasonalSkeleton extends StatelessWidget {
   }
 }
 
-class _SeasonalError extends StatelessWidget {
+class _SeasonalError extends ConsumerWidget {
   final VoidCallback onRetry;
   const _SeasonalError({required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -256,13 +274,13 @@ class _SeasonalError extends StatelessWidget {
           children: [
             const Icon(LucideIcons.cloudOff, size: 44, color: AppColors.textMuted),
             const SizedBox(height: 14),
-            const Text(
-              "Couldn't load the seasonal schedule.\nCheck your connection and try again.",
+            Text(
+              ref.tr('weekScheduleError'),
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMuted,
             ),
             const SizedBox(height: 18),
-            GradientButton(label: 'Retry', expand: false, onPressed: onRetry),
+            GradientButton(label: ref.tr('retry'), expand: false, onPressed: onRetry),
           ],
         ),
       ),
@@ -270,20 +288,20 @@ class _SeasonalError extends StatelessWidget {
   }
 }
 
-class _SeasonalEmpty extends StatelessWidget {
+class _SeasonalEmpty extends ConsumerWidget {
   const _SeasonalEmpty();
 
   @override
-  Widget build(BuildContext context) {
-    return const Center(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(28),
+        padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.calendarOff, size: 44, color: AppColors.textMuted),
-            SizedBox(height: 14),
-            Text('No episodes airing this week.', style: AppTextStyles.bodyMuted),
+            const Icon(LucideIcons.calendarOff, size: 44, color: AppColors.textMuted),
+            const SizedBox(height: 14),
+            Text(ref.tr('noEpisodesThisWeek'), style: AppTextStyles.bodyMuted),
           ],
         ),
       ),
