@@ -16,6 +16,18 @@ class AppStrings {
 
   static const Map<String, Map<String, String>> values = {
     'en': {
+      // Observatory — real-data rebuild. No plurals: t() has no plural
+      // support, so the count is always rendered separately from its label.
+      'observatoryCommunity': 'Community',
+      'observatoryMembers': 'Members',
+      'observatoryPostsToday': 'Posts today',
+      'observatoryUtcNote': 'Posts counted since 00:00 UTC today.',
+      'observatoryGlobalTitle': 'Global popularity',
+      'observatoryGlobalNote': 'Worldwide totals from AniList — no country breakdown.',
+      'observatoryOnLists': 'on AniList lists',
+      'observatoryStatsError': 'Couldn\u0027t load community numbers.',
+      'observatoryPopularError': 'Couldn\u0027t load global popularity.',
+      'observatoryPopularEmpty': 'No popularity data right now.',
       'vote': 'Vote',
       'communityVoteTitle': 'Today\'s Community Vote',
       'castVote': 'Cast a Vote',
@@ -298,6 +310,18 @@ class AppStrings {
       'seasonSummer': 'Summer', 'seasonFall': 'Fall',
     },
     'ar': {
+      // Observatory — real-data rebuild. No plurals: t() has no plural
+      // support, so the count is always rendered separately from its label.
+      'observatoryCommunity': 'المجتمع',
+      'observatoryMembers': 'الأعضاء',
+      'observatoryPostsToday': 'منشورات اليوم',
+      'observatoryUtcNote': 'تُحتسب المنشورات منذ الساعة 00:00 بتوقيت UTC اليوم.',
+      'observatoryGlobalTitle': 'الشهرة عالميًا',
+      'observatoryGlobalNote': 'إجماليات عالمية من AniList — بدون تفصيل حسب الدولة.',
+      'observatoryOnLists': 'في قوائم AniList',
+      'observatoryStatsError': 'تعذّر تحميل أرقام المجتمع.',
+      'observatoryPopularError': 'تعذّر تحميل الشهرة العالمية.',
+      'observatoryPopularEmpty': 'لا توجد بيانات شهرة حاليًا.',
       'vote': 'تصويت',
       'communityVoteTitle': 'تصويت المجتمع اليوم',
       'castVote': 'صوّت الآن',
@@ -563,6 +587,18 @@ class AppStrings {
       'seasonSummer': 'الصيف', 'seasonFall': 'الخريف',
     },
     'ja': {
+      // Observatory — real-data rebuild. No plurals: t() has no plural
+      // support, so the count is always rendered separately from its label.
+      'observatoryCommunity': 'コミュニティ',
+      'observatoryMembers': 'メンバー',
+      'observatoryPostsToday': '今日の投稿',
+      'observatoryUtcNote': '本日 00:00 UTC 以降の投稿数です。',
+      'observatoryGlobalTitle': '世界の人気',
+      'observatoryGlobalNote': 'AniList の全世界合計 — 国別の内訳はありません。',
+      'observatoryOnLists': 'AniList のリストに登録',
+      'observatoryStatsError': 'コミュニティの数値を読み込めませんでした。',
+      'observatoryPopularError': '世界の人気を読み込めませんでした。',
+      'observatoryPopularEmpty': '現在、人気データはありません。',
       'vote': '投票',
       'communityVoteTitle': '今日のコミュニティ投票',
       'castVote': '投票する',
@@ -679,6 +715,18 @@ class AppStrings {
       'seasonWinter': '冬', 'seasonSpring': '春', 'seasonSummer': '夏', 'seasonFall': '秋',
     },
     'ko': {
+      // Observatory — real-data rebuild. No plurals: t() has no plural
+      // support, so the count is always rendered separately from its label.
+      'observatoryCommunity': '커뮤니티',
+      'observatoryMembers': '멤버',
+      'observatoryPostsToday': '오늘의 게시물',
+      'observatoryUtcNote': '오늘 00:00 UTC 이후의 게시물 수입니다.',
+      'observatoryGlobalTitle': '전 세계 인기',
+      'observatoryGlobalNote': 'AniList의 전 세계 합계 — 국가별 분류는 없습니다.',
+      'observatoryOnLists': 'AniList 목록에 등록',
+      'observatoryStatsError': '커뮤니티 수치를 불러오지 못했습니다.',
+      'observatoryPopularError': '전 세계 인기를 불러오지 못했습니다.',
+      'observatoryPopularEmpty': '현재 인기 데이터가 없습니다.',
       'vote': '투표',
       'communityVoteTitle': '오늘의 커뮤니티 투표',
       'castVote': '투표하기',
@@ -795,6 +843,18 @@ class AppStrings {
       'seasonWinter': '겨울', 'seasonSpring': '봄', 'seasonSummer': '여름', 'seasonFall': '가을',
     },
     'es': {
+      // Observatory — real-data rebuild. No plurals: t() has no plural
+      // support, so the count is always rendered separately from its label.
+      'observatoryCommunity': 'Comunidad',
+      'observatoryMembers': 'Miembros',
+      'observatoryPostsToday': 'Publicaciones de hoy',
+      'observatoryUtcNote': 'Publicaciones contadas desde las 00:00 UTC de hoy.',
+      'observatoryGlobalTitle': 'Popularidad global',
+      'observatoryGlobalNote': 'Totales mundiales de AniList: sin desglose por país.',
+      'observatoryOnLists': 'en listas de AniList',
+      'observatoryStatsError': 'No se pudieron cargar los datos de la comunidad.',
+      'observatoryPopularError': 'No se pudo cargar la popularidad global.',
+      'observatoryPopularEmpty': 'No hay datos de popularidad ahora mismo.',
       'vote': 'Votar',
       'communityVoteTitle': 'Voto comunitario de hoy',
       'castVote': 'Emitir un voto',
@@ -912,6 +972,18 @@ class AppStrings {
       'seasonSummer': 'Verano', 'seasonFall': 'Otoño',
     },
     'fr': {
+      // Observatory — real-data rebuild. No plurals: t() has no plural
+      // support, so the count is always rendered separately from its label.
+      'observatoryCommunity': 'Communauté',
+      'observatoryMembers': 'Membres',
+      'observatoryPostsToday': 'Publications du jour',
+      'observatoryUtcNote': 'Publications comptées depuis 00h00 UTC aujourd\u0027hui.',
+      'observatoryGlobalTitle': 'Popularité mondiale',
+      'observatoryGlobalNote': 'Totaux mondiaux d\u0027AniList — aucune répartition par pays.',
+      'observatoryOnLists': 'dans les listes AniList',
+      'observatoryStatsError': 'Impossible de charger les chiffres de la communauté.',
+      'observatoryPopularError': 'Impossible de charger la popularité mondiale.',
+      'observatoryPopularEmpty': 'Aucune donnée de popularité pour le moment.',
       'vote': 'Voter',
       'communityVoteTitle': 'Vote communautaire du jour',
       'castVote': 'Voter maintenant',
@@ -1029,6 +1101,18 @@ class AppStrings {
       'seasonSummer': 'Été', 'seasonFall': 'Automne',
     },
     'tr': {
+      // Observatory — real-data rebuild. No plurals: t() has no plural
+      // support, so the count is always rendered separately from its label.
+      'observatoryCommunity': 'Topluluk',
+      'observatoryMembers': 'Üyeler',
+      'observatoryPostsToday': 'Bugünkü gönderiler',
+      'observatoryUtcNote': 'Gönderiler bugün 00.00 UTC\u0027den itibaren sayılır.',
+      'observatoryGlobalTitle': 'Küresel popülerlik',
+      'observatoryGlobalNote': 'AniList\u0027ten dünya geneli toplamlar — ülke bazlı dağılım yok.',
+      'observatoryOnLists': 'AniList listelerinde',
+      'observatoryStatsError': 'Topluluk sayıları yüklenemedi.',
+      'observatoryPopularError': 'Küresel popülerlik yüklenemedi.',
+      'observatoryPopularEmpty': 'Şu anda popülerlik verisi yok.',
       'vote': 'Oy ver',
       'communityVoteTitle': 'Bugünün Topluluk Oylaması',
       'castVote': 'Oy kullan',
@@ -1146,6 +1230,18 @@ class AppStrings {
       'seasonSummer': 'Yaz', 'seasonFall': 'Sonbahar',
     },
     'id': {
+      // Observatory — real-data rebuild. No plurals: t() has no plural
+      // support, so the count is always rendered separately from its label.
+      'observatoryCommunity': 'Komunitas',
+      'observatoryMembers': 'Anggota',
+      'observatoryPostsToday': 'Postingan hari ini',
+      'observatoryUtcNote': 'Postingan dihitung sejak pukul 00.00 UTC hari ini.',
+      'observatoryGlobalTitle': 'Popularitas global',
+      'observatoryGlobalNote': 'Total seluruh dunia dari AniList — tanpa rincian per negara.',
+      'observatoryOnLists': 'di daftar AniList',
+      'observatoryStatsError': 'Tidak dapat memuat angka komunitas.',
+      'observatoryPopularError': 'Tidak dapat memuat popularitas global.',
+      'observatoryPopularEmpty': 'Belum ada data popularitas saat ini.',
       'vote': 'Vote',
       'communityVoteTitle': 'Vote Komunitas Hari Ini',
       'castVote': 'Kirim vote',
