@@ -11,6 +11,9 @@ import '../providers/language_provider.dart';
 void showLanguageSheet(BuildContext context) {
   showModalBottomSheet(
     context: context,
+    // Without this the sheet is capped at 9/16 of the screen, which is less
+    // than the language list needs on every device we support.
+    isScrollControlled: true,
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -25,33 +28,50 @@ class _LanguageSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final current = ref.watch(languageProvider).code;
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 14),
-          Text(ref.tr('selectLanguage'), style: AppTextStyles.heading),
-          const SizedBox(height: 8),
-          ...AppStrings.languages.map((l) {
-            final selected = l.code == current;
-            return ListTile(
-              leading: Text(l.flag, style: const TextStyle(fontSize: 24)),
-              title: Text(l.name, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600)),
-              subtitle: l.isRTL ? const Text('RTL', style: AppTextStyles.captionMuted) : null,
-              trailing: selected
-                  ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-                  : null,
-              onTap: () {
-                Haptics.select();
-                ref.read(languageProvider.notifier).setLanguage(l.code);
-                Navigator.pop(context);
-              },
-            );
-          }),
-          const SizedBox(height: 12),
-        ],
+    // Leave the sheet short of full height so the scrim stays tappable to
+    // dismiss, and so it still reads as a sheet rather than a page.
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.85;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 14),
+            Text(ref.tr('selectLanguage'), style: AppTextStyles.heading),
+            const SizedBox(height: 8),
+            // Flexible + shrinkWrap: the list takes only the height it needs
+            // when it fits, so the sheet still hugs its content, and scrolls
+            // instead of overflowing when it does not — which is the case at
+            // large text sizes and on short devices.
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children: AppStrings.languages.map((l) {
+                  final selected = l.code == current;
+                  return ListTile(
+                    leading: Text(l.flag, style: const TextStyle(fontSize: 24)),
+                    title: Text(l.name, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600)),
+                    subtitle: l.isRTL ? const Text('RTL', style: AppTextStyles.captionMuted) : null,
+                    trailing: selected
+                        ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                        : null,
+                    onTap: () {
+                      Haptics.select();
+                      ref.read(languageProvider.notifier).setLanguage(l.code);
+                      Navigator.pop(context);
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
       ),
     );
   }
