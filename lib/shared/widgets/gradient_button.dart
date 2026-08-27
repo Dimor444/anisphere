@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
 import 'pressable.dart';
 
@@ -48,13 +49,13 @@ class GradientButton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icon != null) ...[
-                Icon(icon, color: Colors.white, size: fontSize + 3),
+                Icon(icon, color: AppColors.onBrand, size: fontSize + 3),
                 const SizedBox(width: 8),
               ],
               Text(
                 label,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.onBrand,
                   fontWeight: FontWeight.w700,
                   fontSize: fontSize,
                 ),

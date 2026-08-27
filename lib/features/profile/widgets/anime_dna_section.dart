@@ -183,8 +183,10 @@ class _AnimeDnaSectionState extends ConsumerState<AnimeDnaSection> {
                     decoration: BoxDecoration(
                         gradient: AppGradients.forSeed(g), borderRadius: BorderRadius.circular(20)),
                     child: Text(g,
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                        style: TextStyle(
+                            color: AppGradients.onGradient(AppGradients.pairForSeed(g)),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
                   ))
               .toList(),
         ),

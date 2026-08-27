@@ -75,7 +75,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     child: Stack(
                       children: [
-                        const Center(child: Text('∞', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900))),
+                        Center(child: Text('∞', style: TextStyle(color: AppGradients.onGradient(AppGradients.palette[i]), fontSize: 26, fontWeight: FontWeight.w900))),
                         if (locked) const Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.all(Radius.circular(14))), child: Center(child: Icon(LucideIcons.lock, color: Colors.white, size: 16)))),
                       ],
                     ),

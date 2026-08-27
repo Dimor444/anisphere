@@ -320,7 +320,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           gradient: AppGradients.forSeed(q.question),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(q.question, textAlign: TextAlign.center, style: const TextStyle(fontSize: 52, height: 1.3)),
+        child: Text(q.question,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 52,
+                height: 1.3,
+                color: AppGradients.onGradient(AppGradients.pairForSeed(q.question)))),
       );
     }
     return Center(

@@ -118,7 +118,7 @@ class _UserAvatarState extends State<UserAvatar>
                           style: TextStyle(
                             fontSize: r * 0.7,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: AppGradients.onGradient(pair),
                           ),
                         ),
                 ),

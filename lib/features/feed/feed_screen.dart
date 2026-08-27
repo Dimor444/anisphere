@@ -356,7 +356,7 @@ class _BellButton extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: const BoxDecoration(color: AppColors.secondary, shape: BoxShape.circle),
-            child: const Text('3', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800, height: 1)),
+            child: const Text('3', style: TextStyle(color: AppColors.onBrand, fontSize: 8, fontWeight: FontWeight.w800, height: 1)),
           ),
         ),
       ],

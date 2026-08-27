@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../theme/brand.dart';
 import 'app_colors.dart';
@@ -104,4 +106,49 @@ class AppGradients {
     return palette[hash % palette.length];
   }
 
+  // ── Readable foreground ──────────────────────────────────────────────
+  //
+  // The palette is warm and light, so a single hardcoded foreground cannot
+  // work: white fails on the ambers, near-black fails on the deep teals.
+  // These pick per-fill instead, so every caller gets the legible one
+  // without hardcoding a colour.
+
+  /// Relative luminance per WCAG 2.1. Channels are already 0..1 here, which
+  /// is the same value the spec's `c / 255` produces.
+  static double _luminance(Color c) {
+    double channel(double s) =>
+        s <= 0.03928 ? s / 12.92 : math.pow((s + 0.055) / 1.055, 2.4).toDouble();
+    return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+  }
+
+  /// Foreground that reads on a solid [bg].
+  ///
+  /// The 0.35 threshold is deliberately above the 0.179 midpoint that
+  /// maximises the *worse* of the two contrasts. Sitting higher keeps white
+  /// on mid-tone fills, where white is the safer of two imperfect options
+  /// and matches the rest of the dark UI.
+  static Color onFill(Color bg) =>
+      _luminance(bg) > 0.35 ? AppColors.onBrand : Colors.white;
+
+  /// Foreground for a gradient. Text spans the whole fill rather than sitting
+  /// on one stop, so this averages the stops' luminance instead of testing
+  /// either end. Falls back to white on an empty list.
+  ///
+  /// FRAGILITY — every [palette] pair currently clears WCAG AA (>= 4.5) for
+  /// the foreground picked here, but two sit right on the edge:
+  ///
+  ///   pair 1  amber → orange     (#F59E0B/#F97316)  mean 0.382
+  ///   pair 9  cyan → deep cyan   (#22D3EE/#0891B2)  mean 0.383
+  ///
+  /// Both are only ~0.03 ABOVE the 0.35 threshold, so they pick onBrand and
+  /// pass. Lighten either one enough to cross back under 0.35 and it silently
+  /// flips to white, landing at 2.15 and 1.81 respectively — a failure with no
+  /// compile-time signal. If you touch those two stops, re-run the contrast
+  /// check before shipping. Every other pair has >= 0.06 of margin.
+  static Color onGradient(List<Color> colors) {
+    if (colors.isEmpty) return Colors.white;
+    final mean =
+        colors.map(_luminance).reduce((a, b) => a + b) / colors.length;
+    return mean > 0.35 ? AppColors.onBrand : Colors.white;
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/app_colors.dart';
 import '../../data/models/user_model.dart';
 
 /// Small gradient pill showing a user's level, e.g. "Otaku Elite 👑".
@@ -23,7 +24,7 @@ class LevelBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: compact ? 11 : 11.5,
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: AppColors.onBrand,
         ),
       ),
     );

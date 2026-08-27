@@ -573,7 +573,7 @@ class _ClubsTab extends StatelessWidget {
                       margin: const EdgeInsets.only(right: 10),
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(gradient: AppGradients.forSeed(c.$2), borderRadius: BorderRadius.circular(16)),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(c.$1, style: const TextStyle(fontSize: 28)), const SizedBox(height: 4), Text(c.$2, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))]),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(c.$1, style: const TextStyle(fontSize: 28)), const SizedBox(height: 4), Text(c.$2, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: AppGradients.onGradient(AppGradients.pairForSeed(c.$2)), fontSize: 10, fontWeight: FontWeight.w700))]),
                     ),
                   )),
               GestureDetector(
