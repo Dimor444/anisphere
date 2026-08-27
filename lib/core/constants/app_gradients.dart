@@ -61,7 +61,7 @@ class AppGradients {
   static const LinearGradient pageBg = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF1A0D3D), AppColors.background, Color(0xFF1A0428)],
+    colors: [Color(0xFF0A2415), AppColors.background, Color(0xFF06200F)],
     stops: [0.0, 0.55, 1.0],
   );
 
@@ -71,18 +71,18 @@ class AppGradients {
   /// A curated set of two-color gradients used to give each anime / avatar a
   /// distinct, vivid identity. Picked deterministically from a seed string.
   static const List<List<Color>> palette = [
-    [Color(0xFF2B4EF5), Color(0xFF8B2CF5)], // blue → violet
-    [Color(0xFF5B3DF5), Color(0xFFC026D3)], // indigo → magenta
-    [Color(0xFF3B82F6), Color(0xFF5B3DF5)], // sky → indigo
-    [Color(0xFF8B2CF5), Color(0xFFEC4899)], // violet → pink
-    [Color(0xFF2B4EF5), Color(0xFF5B3DF5)], // blue → indigo
-    [Color(0xFF7C3AED), Color(0xFFC026D3)], // purple → magenta
-    [Color(0xFF6366F1), Color(0xFF8B2CF5)], // indigo → violet
-    [Color(0xFF5B3DF5), Color(0xFF22D3EE)], // indigo → cyan pop
-    [Color(0xFFA855F7), Color(0xFFC026D3)], // orchid → magenta
-    [Color(0xFF2B4EF5), Color(0xFFC026D3)], // blue → magenta (full)
-    [Color(0xFF4F46E5), Color(0xFF9333EA)], // indigo → purple
-    [Color(0xFF8B2CF5), Color(0xFFC026D3)], // violet → magenta
+    [Color(0xFFF59E0B), Color(0xFFF97316)], // amber → orange
+    [Color(0xFFBE123C), Color(0xFFE11D48)], // deep rose → rose
+    [Color(0xFF0F766E), Color(0xFF115E56)], // pine teal → dark pine
+    [Color(0xFFFBBF24), Color(0xFFF59E0B)], // gold → amber
+    [Color(0xFFC2410C), Color(0xFFB03A08)], // rust → deep rust
+    [Color(0xFF2DD4BF), Color(0xFF14B8A6)], // aqua → teal
+    [Color(0xFFBE185D), Color(0xFFDB2777)], // wine pink → deep pink
+    [Color(0xFFFCD34D), Color(0xFFF59E0B)], // sand → amber
+    [Color(0xFF22D3EE), Color(0xFF0891B2)], // cyan → deep cyan
+    [Color(0xFFFDA4AF), Color(0xFFFB7185)], // blush → coral
+    [Color(0xFFFBBF24), Color(0xFFEA580C)], // gold → tangerine
+    [Color(0xFF5EEAD4), Color(0xFF0D9488)], // mint → deep teal
   ];
 
   /// Deterministic gradient for a given key (anime title, username, etc.).
@@ -103,4 +103,5 @@ class AppGradients {
     }
     return palette[hash % palette.length];
   }
+
 }

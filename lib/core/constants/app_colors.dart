@@ -15,11 +15,16 @@ class AppColors {
   static const Color surfaceAlt = AniSphereBrand.bgElevated; // elevated surface
 
   // Brand
-  static const Color primary = AniSphereBrand.indigo; // brand indigo
-  static const Color primaryLight = Color(0xFFB794F6); // light violet (active states)
-  static const Color primaryDark = Color(0xFF3B27B8); // deep indigo
+  static const Color primary = AniSphereBrand.indigo; // brand emerald
+  static const Color primaryLight = Color(0xFF7FD9A8); // light emerald (active states)
+  static const Color primaryDark = Color(0xFF0A5C3C); // deep emerald
   static const Color secondary = AniSphereBrand.magenta; // gradient end
   static const Color accent = AniSphereBrand.blue; // gradient start (blue lobe)
+  /// Foreground for content sitting ON a brand gradient/fill. The emerald
+  /// family is light enough that white no longer contrasts against most of
+  /// it — this near-black reads instead. Only valid over the LIGHT end of
+  /// the brand ramp; it does not read on dark or translucent surfaces.
+  static const Color onBrand = Color(0xFF04160C);
 
   // Currencies
   static const Color aniGold = Color(0xFFF59E0B); // AniGold
@@ -40,7 +45,7 @@ class AppColors {
   static const Color textMuted = Color(0xFF6B7280);
 
   // Lines / accents
-  static const Color border = Color(0xFF2A2350); // subtle indigo-tinted border
+  static const Color border = Color(0xFF1F3A2C); // subtle green-tinted border
   static const Color verified = Color(0xFF1D9BF0); // verification blue
 
   // Aura glow colors (per level)

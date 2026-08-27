@@ -43,21 +43,26 @@ class AniSphereLogo extends StatelessWidget {
   }
 
   // SVG faithful to the logo: infinity ribbon (left lobe = C-shape + A peak, right lobe = oval)
+  //
+  // NOTE: the stop-colors below DUPLICATE AniSphereBrand.logoGradient rather
+  // than referencing it (flutter_svg parses a raw string, so the Dart tokens
+  // cannot be interpolated as-is). Both must be updated together — a brand
+  // token swap does NOT reach this glyph on its own.
   static const String _logoSvg = '''
 <svg viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="lg" x1="0" y1="0" x2="240" y2="130" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#2B4EF5"/>
-      <stop offset="38%"  stop-color="#5B3DF5"/>
-      <stop offset="70%"  stop-color="#8B2CF5"/>
-      <stop offset="100%" stop-color="#C026D3"/>
+      <stop offset="0%"   stop-color="#137A52"/>
+      <stop offset="38%"  stop-color="#1DB367"/>
+      <stop offset="70%"  stop-color="#25C270"/>
+      <stop offset="100%" stop-color="#34D17F"/>
     </linearGradient>
     <filter id="glow">
       <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <filter id="shadow">
-      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#5B3DF5" flood-opacity="0.4"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#1DB367" flood-opacity="0.4"/>
     </filter>
   </defs>
 
