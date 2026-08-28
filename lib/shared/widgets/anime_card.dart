@@ -44,9 +44,9 @@ class AnimeCard extends StatelessWidget {
             color: selected ? AppColors.primary : Colors.transparent,
             width: 2.4,
           ),
-          boxShadow: selected
-              ? [BoxShadow(color: AppColors.primary.withOpacity(0.5), blurRadius: 18)]
-              : [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
+          // Selection is carried by the border above; the neutral black
+          // elevation shadow stays.
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14),

@@ -9,15 +9,19 @@ import 'app_colors.dart';
 class AppGradients {
   AppGradients._();
 
-  /// The signature logo gradient: blue → indigo → violet → magenta.
+  /// The signature brand fill — now FLAT (#1DB367 at every stop).
+  ///
+  /// Deliberately still a 4-stop LinearGradient: type and stop count are
+  /// preserved so the 44 call sites that pass or index into it keep working,
+  /// and every consumer renders flat without being touched individually.
   static const LinearGradient brand = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      AniSphereBrand.blue,
       AniSphereBrand.indigo,
-      AniSphereBrand.violet,
-      AniSphereBrand.magenta,
+      AniSphereBrand.indigo,
+      AniSphereBrand.indigo,
+      AniSphereBrand.indigo,
     ],
     stops: [0.0, 0.38, 0.70, 1.0],
   );
@@ -25,14 +29,16 @@ class AppGradients {
   static const LinearGradient brandTri = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
-    colors: [AniSphereBrand.blue, AniSphereBrand.violet, AniSphereBrand.magenta],
+    // FLAT — 3 stops kept.
+    colors: [AniSphereBrand.indigo, AniSphereBrand.indigo, AniSphereBrand.indigo],
     stops: [0.0, 0.55, 1.0],
   );
 
   static const LinearGradient purpleCyan = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [AppColors.primary, AppColors.accent],
+    // FLAT — 2 stops kept.
+    colors: [AppColors.primary, AppColors.primary],
   );
 
   static const LinearGradient purpleDeep = LinearGradient(
@@ -127,8 +133,14 @@ class AppGradients {
   /// maximises the *worse* of the two contrasts. Sitting higher keeps white
   /// on mid-tone fills, where white is the safer of two imperfect options
   /// and matches the rest of the dark UI.
-  static Color onFill(Color bg) =>
-      _luminance(bg) > 0.35 ? AppColors.onBrand : Colors.white;
+  static Color onFill(Color bg) {
+    // The brand's own colour is special-cased rather than nudging the
+    // threshold, which is correct for all 12 palette pairs. #1DB367 has a
+    // luminance of 0.3348 — 0.0152 BELOW the cutoff — so the generic rule
+    // would pick white at 2.73 (fail) when onBrand gives 6.84 (pass).
+    if (bg.toARGB32() == AppColors.primary.toARGB32()) return AppColors.onBrand;
+    return _luminance(bg) > 0.35 ? AppColors.onBrand : Colors.white;
+  }
 
   /// Foreground for a gradient. Text spans the whole fill rather than sitting
   /// on one stop, so this averages the stops' luminance instead of testing
@@ -145,6 +157,13 @@ class AppGradients {
   /// flips to white, landing at 2.15 and 1.81 respectively — a failure with no
   /// compile-time signal. If you touch those two stops, re-run the contrast
   /// check before shipping. Every other pair has >= 0.06 of margin.
+  ///
+  /// A third case sits on the WRONG side of the line already: the flat brand
+  /// AppColors.primary (#1DB367) has luminance 0.3348, just under 0.35, so the
+  /// generic rule would pick white at 2.73. [onFill] special-cases it back to
+  /// onBrand (6.84). [onGradient] does NOT — a gradient whose stops average out
+  /// near the brand colour will still pick white. No caller does that today
+  /// (all five pass palette pairs), but it is the trap to watch.
   static Color onGradient(List<Color> colors) {
     if (colors.isEmpty) return Colors.white;
     final mean =

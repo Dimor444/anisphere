@@ -464,7 +464,6 @@ class _RoomCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: gradient,
         borderRadius: radius,
-        boxShadow: [BoxShadow(color: gradient.colors.last.withOpacity(0.3), blurRadius: 16)],
       ),
       child: ClipRRect(
         borderRadius: radius,

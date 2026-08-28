@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
 import '../../services/auth_service.dart';
 import '../../services/follow_service.dart';
@@ -117,9 +116,6 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
                   gradient: AppGradients.brand,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(color: AppColors.primary.withOpacity(0.5), blurRadius: 16, offset: const Offset(0, 4)),
-                  ],
                 ),
                 alignment: Alignment.center,
                 child: const Text('🤖', style: TextStyle(fontSize: 22)),

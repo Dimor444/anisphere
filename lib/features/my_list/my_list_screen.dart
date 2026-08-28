@@ -383,10 +383,9 @@ class _EmptyState extends ConsumerWidget {
         Container(
           width: 72,
           height: 72,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: AppGradients.brand,
             shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 24)],
           ),
           child: const Icon(LucideIcons.listPlus, color: Colors.white, size: 30),
         ),

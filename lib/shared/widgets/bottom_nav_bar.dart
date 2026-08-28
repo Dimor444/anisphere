@@ -96,9 +96,6 @@ class AniBottomNav extends ConsumerWidget {
             decoration: BoxDecoration(
               gradient: AppGradients.brand,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(color: AppColors.primary.withOpacity(0.5), blurRadius: 16, offset: const Offset(0, 4)),
-              ],
             ),
             child: const Icon(LucideIcons.plus, color: Colors.white, size: 26),
           ),

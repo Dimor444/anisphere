@@ -15,19 +15,9 @@ class AniSphereLogo extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
+        SizedBox(
           width: size,
           height: size,
-          decoration: BoxDecoration(
-            // Glow scales with the mark so small (e.g. app-bar) logos don't bleed.
-            boxShadow: [
-              BoxShadow(
-                color: AniSphereBrand.violet.withOpacity(0.45),
-                blurRadius: size * 0.30,
-                spreadRadius: size * 0.05,
-              ),
-            ],
-          ),
           child: SvgPicture.string(
             _logoSvg,
             width: size,
@@ -52,27 +42,24 @@ class AniSphereLogo extends StatelessWidget {
 <svg viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="lg" x1="0" y1="0" x2="240" y2="130" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#137A52"/>
+      <stop offset="0%"   stop-color="#1DB367"/>
       <stop offset="38%"  stop-color="#1DB367"/>
-      <stop offset="70%"  stop-color="#25C270"/>
-      <stop offset="100%" stop-color="#34D17F"/>
+      <stop offset="70%"  stop-color="#1DB367"/>
+      <stop offset="100%" stop-color="#1DB367"/>
     </linearGradient>
     <filter id="glow">
       <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="shadow">
-      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#1DB367" flood-opacity="0.4"/>
-    </filter>
   </defs>
 
   <!-- Left lobe of ∞ (C-shape) -->
   <path d="M 120 65 C 105 30, 55 20, 35 52 C 15 84, 28 124, 68 130 C 90 135, 110 118, 120 100"
-        stroke="url(#lg)" stroke-width="22" stroke-linecap="round" fill="none" filter="url(#shadow)"/>
+        stroke="url(#lg)" stroke-width="22" stroke-linecap="round" fill="none"/>
 
   <!-- Right lobe of ∞ (oval loop) -->
   <path d="M 120 100 C 132 80, 150 65, 170 63 C 202 60, 222 84, 216 112 C 210 138, 186 150, 162 142 C 140 134, 124 114, 120 100"
-        stroke="url(#lg)" stroke-width="22" stroke-linecap="round" fill="none" filter="url(#shadow)"/>
+        stroke="url(#lg)" stroke-width="22" stroke-linecap="round" fill="none"/>
 
   <!-- A peak (spike riding the junction) -->
   <path d="M 82 108 L 120 32 L 158 108"

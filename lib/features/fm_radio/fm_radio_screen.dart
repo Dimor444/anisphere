@@ -68,7 +68,6 @@ class _FmRadioScreenState extends State<FmRadioScreen> with TickerProviderStateM
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: const RadialGradient(colors: [Color(0xFF1C1F35), Colors.black], radius: 0.9),
-                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 40)],
                       border: Border.all(color: AppColors.border, width: 2),
                     ),
                     child: Center(

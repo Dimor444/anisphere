@@ -37,7 +37,7 @@ class CardCollectionScreen extends StatelessWidget {
           Row(children: [
             Expanded(child: _packCard(context, 'Standard', '50🟡', [AppColors.primary, AppColors.primaryDark])),
             const SizedBox(width: 12),
-            Expanded(child: _packCard(context, 'Premium', '120🟡', [AppColors.aniGold, const Color(0xFFB45309)])),
+            Expanded(child: _packCard(context, 'Premium', '120🟡', [AppColors.aniGold, const Color(0xFFB45309)], glow: true)),
           ]),
           const SizedBox(height: 18),
           const Text('My Cards', style: AppTextStyles.subheading),
@@ -54,12 +54,16 @@ class CardCollectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _packCard(BuildContext context, String name, String price, List<Color> g) {
+  /// [glow] adds a coloured halo. Reserved for packs whose gradient is a
+  /// RARITY colour (gold), where the glow is deliberate. Brand-coloured
+  /// packs pass false — the brand no longer glows anywhere.
+  Widget _packCard(BuildContext context, String name, String price, List<Color> g,
+      {bool glow = false}) {
     return GestureDetector(
       onTap: () => _openPack(context),
       child: Container(
         height: 150,
-        decoration: BoxDecoration(gradient: LinearGradient(colors: g, begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(18), boxShadow: [BoxShadow(color: g.last.withOpacity(0.4), blurRadius: 16)]),
+        decoration: BoxDecoration(gradient: LinearGradient(colors: g, begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(18), boxShadow: glow ? [BoxShadow(color: g.last.withOpacity(0.4), blurRadius: 16)] : null),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           const Text('📦', style: TextStyle(fontSize: 44)),
           const SizedBox(height: 8),

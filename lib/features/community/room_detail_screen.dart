@@ -72,9 +72,6 @@ class RoomDetailScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: AppGradients.purpleCyan,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(color: AppGradients.purpleCyan.colors.last.withOpacity(0.3), blurRadius: 16),
-                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

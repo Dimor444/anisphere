@@ -185,7 +185,6 @@ class _OnbPage extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: data.gradient,
                 borderRadius: BorderRadius.circular(28),
-                boxShadow: [BoxShadow(color: data.gradient.colors.last.withOpacity(0.4), blurRadius: 40)],
               ),
               alignment: Alignment.center,
               child: data.imagePath != null

@@ -868,10 +868,9 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
                 key: ValueKey(label),
                 width: 160,
                 height: 160,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: AppGradients.brand,
                   shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.5), blurRadius: 36)],
                 ),
                 alignment: Alignment.center,
                 child: Text(

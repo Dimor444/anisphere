@@ -22,7 +22,6 @@ Future<void> showAniPlusPaywall(BuildContext context, String feature) {
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
-          boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.25), blurRadius: 30)],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

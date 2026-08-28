@@ -15,9 +15,6 @@ class LevelBadge extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: level.gradient),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: level.gradient.last.withOpacity(0.4), blurRadius: 8),
-        ],
       ),
       child: Text(
         compact ? level.emoji : level.title,

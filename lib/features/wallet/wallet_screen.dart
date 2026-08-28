@@ -404,7 +404,6 @@ class _PlusTabState extends ConsumerState<_PlusTab> {
             gradient: LinearGradient(colors: [AppColors.primary.withOpacity(0.25), AppColors.secondary.withOpacity(0.15)]),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppColors.primary, width: 1.4),
-            boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 30)],
           ),
           child: Column(
             children: [

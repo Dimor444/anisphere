@@ -37,7 +37,9 @@ class AniSphereBrand {
   static const LinearGradient logoGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [blue, indigo, violet, magenta],
+    // FLAT: same colour at every stop. Type and stop count preserved so the
+    // call sites that index into this keep working; consumers render flat.
+    colors: [indigo, indigo, indigo, indigo],
     stops: [0.0, 0.38, 0.70, 1.0],
   );
 
@@ -48,25 +50,17 @@ class AniSphereBrand {
     stops: [0.0, 0.55, 1.0],
   );
 
+  /// NEUTRALISED — the brand no longer glows. Kept (fully transparent at both
+  /// stops) rather than deleted so `AppGradients.glow` stays a valid symbol.
   static const RadialGradient glowGradient = RadialGradient(
-    colors: [Color(0x6625C270), Colors.transparent],
+    colors: [Colors.transparent, Colors.transparent],
     radius: 0.8,
   );
 
   // ── Shadows ───────────────────────────────────────────────────────────
-  static final List<BoxShadow> cardShadow = [
-    BoxShadow(
-      color: const Color(0xFF1DB367).withOpacity(0.18),
-      blurRadius: 24,
-      offset: const Offset(0, 8),
-    ),
-  ];
+  // NEUTRALISED — the brand no longer glows. Kept as empty lists so any
+  // existing spread stays valid and simply contributes nothing.
+  static final List<BoxShadow> cardShadow = <BoxShadow>[];
 
-  static final List<BoxShadow> logoGlow = [
-    BoxShadow(
-      color: const Color(0xFF25C270).withOpacity(0.45),
-      blurRadius: 40,
-      spreadRadius: 8,
-    ),
-  ];
+  static final List<BoxShadow> logoGlow = <BoxShadow>[];
 }

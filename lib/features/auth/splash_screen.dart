@@ -135,12 +135,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                         decoration: BoxDecoration(
                           gradient: AppGradients.brand,
                           borderRadius: BorderRadius.circular(3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AniSphereBrand.indigo.withOpacity(0.7),
-                              blurRadius: 6,
-                            ),
-                          ],
                         ),
                       ),
                     ),

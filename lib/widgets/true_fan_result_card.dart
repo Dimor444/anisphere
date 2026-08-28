@@ -47,8 +47,10 @@ class TrueFanResultCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: AppGradients.purpleCyan,
         borderRadius: BorderRadius.circular(26),
+        // Neutral lift — deliberately black, not brand-tinted, so the card
+        // separates from the background without a coloured haze.
         boxShadow: [
-          BoxShadow(color: AppColors.primary.withOpacity(0.35), blurRadius: 34, offset: const Offset(0, 12)),
+          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8)),
         ],
       ),
       padding: const EdgeInsets.all(2.5),
