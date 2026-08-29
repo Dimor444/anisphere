@@ -124,7 +124,7 @@ class PlusChip extends StatelessWidget {
         gradient: AppGradients.brand,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: const Text('💎 Plus', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w700)),
+      child: Text('💎 Plus', style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontSize: 9.5, fontWeight: FontWeight.w700)),
     );
   }
 }

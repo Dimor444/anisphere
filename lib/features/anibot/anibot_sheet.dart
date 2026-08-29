@@ -222,7 +222,7 @@ class _AniBotSheetState extends State<_AniBotSheet> {
                   gradient: AppGradients.brand,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(LucideIcons.send, color: Colors.white, size: 20),
+                child: Icon(LucideIcons.send, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 20),
               ),
             ),
           ],

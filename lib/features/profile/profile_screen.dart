@@ -245,6 +245,9 @@ class _ProfileHeader extends ConsumerWidget {
                       Positioned(
                           right: -20,
                           top: -10,
+                          // Decorative watermark, not readable text — deliberately excluded
+                          // from the contrast pass. Do not "fix" to onBrand: at 8% opacity
+                          // this is a faint light mark by design; a dark one reads as a smudge.
                           child: Text('∞',
                               style: TextStyle(fontSize: 180, color: Colors.white.withOpacity(0.08)))),
                     ],
@@ -565,8 +568,8 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
             child: Row(children: [
               const Text('🎌', style: TextStyle(fontSize: 28)),
               const SizedBox(width: 12),
-              Expanded(child: Text('My 2025 Wrapped', style: AppTextStyles.subheading.copyWith(color: Colors.white))),
-              const Icon(LucideIcons.chevronRight, color: Colors.white),
+              Expanded(child: Text('My 2025 Wrapped', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first)))),
+              Icon(LucideIcons.chevronRight, color: AppGradients.onFill(AppGradients.brandTri.colors.first)),
             ]),
           ),
         ),

@@ -80,24 +80,24 @@ class RoomDetailScreen extends StatelessWidget {
                       const Text('🍿', style: TextStyle(fontSize: 28)),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(room.title, style: AppTextStyles.heading.copyWith(color: Colors.white)),
+                        child: Text(room.title, style: AppTextStyles.heading.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first))),
                       ),
                       if (room.isLive) _liveDot(),
                     ]),
                     if (room.episodeNumber != null) ...[
                       const SizedBox(height: 4),
                       Text('Episode ${room.episodeNumber}',
-                          style: AppTextStyles.caption.copyWith(color: Colors.white70)),
+                          style: AppTextStyles.caption.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first))),
                     ],
                     const SizedBox(height: 16),
                     Row(children: [
-                      const Icon(LucideIcons.users, size: 16, color: Colors.white70),
+                      Icon(LucideIcons.users, size: 16, color: AppGradients.onFill(AppGradients.purpleCyan.colors.first)),
                       const SizedBox(width: 6),
                       // memberCount is server-owned — this reflects the trigger's
                       // view, so it settles a beat after a join lands.
                       Text(
                         room.memberCount == 1 ? '1 watching' : '${room.memberCount} watching',
-                        style: AppTextStyles.body.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                        style: AppTextStyles.body.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first), fontWeight: FontWeight.w700),
                       ),
                     ]),
                   ],

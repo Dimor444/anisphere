@@ -188,7 +188,7 @@ class _TrendingCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(gradient: AppGradients.brand, borderRadius: BorderRadius.circular(8)),
-                  child: Text('#$rank', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                  child: Text('#$rank', style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontSize: 11, fontWeight: FontWeight.w800)),
                 ),
               ),
               Positioned(
@@ -213,13 +213,13 @@ class _TrendingCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(gradient: AppGradients.brand, borderRadius: BorderRadius.circular(8)),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(LucideIcons.user, color: Colors.white, size: 11),
+                          Icon(LucideIcons.user, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 11),
                           const SizedBox(width: 2),
                           Text(
                             userScore! == userScore!.roundToDouble()
                                 ? '${userScore!.toInt()}'
                                 : userScore!.toStringAsFixed(1),
-                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                            style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontSize: 11, fontWeight: FontWeight.w700),
                           ),
                         ]),
                       ),
@@ -298,12 +298,12 @@ class _TrendingError extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(gradient: AppGradients.brand, borderRadius: BorderRadius.circular(14)),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(LucideIcons.refreshCw, size: 16, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text('Retry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                    Icon(LucideIcons.refreshCw, size: 16, color: AppGradients.onFill(AppGradients.brand.colors.first)),
+                    const SizedBox(width: 8),
+                    Text('Retry', style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),

@@ -128,7 +128,7 @@ class _AnimeChallengeCardState extends State<AnimeChallengeCard> {
                   child: Container(
                     padding: const EdgeInsets.all(3),
                     decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                    child: const Icon(Icons.check_rounded, color: Colors.white, size: 15),
+                    child: Icon(Icons.check_rounded, color: AppGradients.onFill(AppColors.primary), size: 15),
                   ),
                 ),
 

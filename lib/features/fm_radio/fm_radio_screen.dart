@@ -95,7 +95,7 @@ class _FmRadioScreenState extends State<FmRadioScreen> with TickerProviderStateM
                   const SizedBox(width: 16),
                   GestureDetector(
                     onTap: _toggle,
-                    child: Container(width: 64, height: 64, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: Icon(_playing ? LucideIcons.pause : LucideIcons.play, color: Colors.white, size: 28)),
+                    child: Container(width: 64, height: 64, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: Icon(_playing ? LucideIcons.pause : LucideIcons.play, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 28)),
                   ),
                   const SizedBox(width: 16),
                   IconButton(iconSize: 30, icon: const Icon(LucideIcons.skipForward), onPressed: () => setState(() => _track = (_track + 1) % _queue.length)),

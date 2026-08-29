@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../data/models/anime_model.dart';
 import 'anime_cover_image.dart';
 import 'pressable.dart';
+import '../../core/constants/app_gradients.dart';
 
 /// Gradient anime "poster" card. Used in feeds, grids, rails and selectors.
 class AnimeCard extends StatelessWidget {
@@ -128,7 +129,7 @@ class AnimeCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(3),
                     decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                    child: const Icon(Icons.check_rounded, color: Colors.white, size: 15),
+                    child: Icon(Icons.check_rounded, color: AppGradients.onFill(AppColors.primary), size: 15),
                   ),
                 ),
             ],

@@ -6,6 +6,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/sample_data.dart';
 import '../../shared/widgets/user_avatar.dart';
+import '../../core/constants/app_gradients.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -90,7 +91,7 @@ class _NotifTile extends StatelessWidget {
           if (item.type == NotifType.follow)
             GestureDetector(
               onTap: () => Haptics.light(),
-              child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7), decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)), child: const Text('Follow Back', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12))),
+              child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7), decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)), child: Text('Follow Back', style: TextStyle(color: AppGradients.onFill(AppColors.primary), fontWeight: FontWeight.w700, fontSize: 12))),
             ),
         ],
       ),

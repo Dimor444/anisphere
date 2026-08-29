@@ -876,7 +876,7 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppGradients.onFill(AppGradients.brand.colors.first),
                     fontSize: _countdown! > 0 ? 64 : 40,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1041,9 +1041,9 @@ class _LeagueTab extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(gradient: AppGradients.brandTri, borderRadius: BorderRadius.circular(18)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Spring Season', style: AppTextStyles.heading.copyWith(color: Colors.white)),
+            Text('Spring Season', style: AppTextStyles.heading.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first))),
             const SizedBox(height: 4),
-            Text('Ends in 12d 4h', style: AppTextStyles.bodyMuted.copyWith(color: Colors.white70)),
+            Text('Ends in 12d 4h', style: AppTextStyles.bodyMuted.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first))),
           ]),
         ),
         const SizedBox(height: 16),
@@ -1166,13 +1166,13 @@ class _EventsTab extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(gradient: AppGradients.purpleCyan, borderRadius: BorderRadius.circular(18)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [const Text('🐉', style: TextStyle(fontSize: 24)), const SizedBox(width: 10), Text('Community Raid', style: AppTextStyles.subheading.copyWith(color: Colors.white)), const Spacer(), Text('2d 6h left', style: AppTextStyles.caption.copyWith(color: Colors.white70))]),
+            Row(children: [const Text('🐉', style: TextStyle(fontSize: 24)), const SizedBox(width: 10), Text('Community Raid', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first))), const Spacer(), Text('2d 6h left', style: AppTextStyles.caption.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first)))]),
             const SizedBox(height: 12),
-            Text('Watch 1M episodes together', style: AppTextStyles.body.copyWith(color: Colors.white)),
+            Text('Watch 1M episodes together', style: AppTextStyles.body.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first))),
             const SizedBox(height: 8),
             ClipRRect(borderRadius: BorderRadius.circular(5), child: const LinearProgressIndicator(value: 0.68, minHeight: 10, backgroundColor: Colors.black26, valueColor: AlwaysStoppedAnimation(Colors.white))),
             const SizedBox(height: 6),
-            Text('684,201 / 1,000,000', style: AppTextStyles.caption.copyWith(color: Colors.white70)),
+            Text('684,201 / 1,000,000', style: AppTextStyles.caption.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first))),
           ]),
         ),
         const SectionHeader(title: 'Upcoming Events', padding: EdgeInsets.only(top: 16, bottom: 10)),

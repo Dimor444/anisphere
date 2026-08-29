@@ -218,7 +218,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 gradient: AppGradients.brandTri,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.plus, color: Colors.white, size: 26),
+              child: Icon(LucideIcons.plus, color: AppGradients.onFill(AppGradients.brandTri.colors.first), size: 26),
             ),
           ),
         ),

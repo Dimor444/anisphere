@@ -541,7 +541,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               width: 44,
               height: 44,
               decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle),
-              child: const Icon(LucideIcons.send, color: Colors.white, size: 19),
+              child: Icon(LucideIcons.send, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 19),
             ),
           ),
         ]),

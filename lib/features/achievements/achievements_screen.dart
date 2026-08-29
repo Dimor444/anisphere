@@ -31,8 +31,8 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
               child: Row(children: [
                 const Text('🏆', style: TextStyle(fontSize: 30)),
                 const SizedBox(width: 12),
-                Expanded(child: Text('$unlocked / ${SampleData.achievements.length} unlocked', style: AppTextStyles.subheading.copyWith(color: Colors.white))),
-                Text('${((unlocked / SampleData.achievements.length) * 100).round()}%', style: AppTextStyles.numbersLg(color: Colors.white)),
+                Expanded(child: Text('$unlocked / ${SampleData.achievements.length} unlocked', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first)))),
+                Text('${((unlocked / SampleData.achievements.length) * 100).round()}%', style: AppTextStyles.numbersLg(color: AppGradients.onFill(AppGradients.brandTri.colors.first))),
               ]),
             ),
           ),

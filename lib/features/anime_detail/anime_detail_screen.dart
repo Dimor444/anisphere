@@ -251,7 +251,7 @@ class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
                     gradient: AppGradients.brand,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Text('🔮 Predict my rating', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+                  child: Text('🔮 Predict my rating', style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontWeight: FontWeight.w600, fontSize: 12)),
                 ),
               ),
             ],

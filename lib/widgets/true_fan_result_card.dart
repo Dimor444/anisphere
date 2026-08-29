@@ -201,7 +201,16 @@ class TrueFanResultCard extends StatelessWidget {
       ),
       child: Text(
         '🏆  $_tier',
-        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1),
+        // Derived from the fill itself, so the label follows if the brand
+        // colour changes. onFill (not onGradient) is required here: the brand
+        // is a FLAT #1DB367 whose luminance sits just under the 0.35 cutoff,
+        // and only onFill special-cases it back to onBrand.
+        style: TextStyle(
+          color: AppGradients.onFill(AppGradients.brand.colors.first),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1,
+        ),
       ),
     );
   }

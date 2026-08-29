@@ -201,7 +201,7 @@ class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsB
                           gradient: AppGradients.brand,
                           borderRadius: BorderRadius.circular(9),
                         ),
-                        child: const Icon(LucideIcons.plus, color: Colors.white, size: 18),
+                        child: Icon(LucideIcons.plus, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 18),
                       ),
                     ),
                   ],

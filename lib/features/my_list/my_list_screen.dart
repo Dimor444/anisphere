@@ -387,7 +387,7 @@ class _EmptyState extends ConsumerWidget {
             gradient: AppGradients.brand,
             shape: BoxShape.circle,
           ),
-          child: const Icon(LucideIcons.listPlus, color: Colors.white, size: 30),
+          child: Icon(LucideIcons.listPlus, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 30),
         ),
         const SizedBox(height: 16),
         Text(ref.tr('emptyListTitle'), style: AppTextStyles.subheading),
@@ -428,7 +428,7 @@ class _ErrorState extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(gradient: AppGradients.brand, borderRadius: BorderRadius.circular(14)),
-              child: Text(ref.tr('retry'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              child: Text(ref.tr('retry'), style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontWeight: FontWeight.w700)),
             ),
           ),
         ]),

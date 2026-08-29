@@ -114,7 +114,7 @@ class _EarnTab extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(gradient: AppGradients.purpleCyan, borderRadius: BorderRadius.circular(16)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Invite friends = 50🟡 each', style: AppTextStyles.subheading.copyWith(color: Colors.white)),
+            Text('Invite friends = 50🟡 each', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first))),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -128,7 +128,7 @@ class _EarnTab extends StatelessWidget {
               ]),
             ),
             const SizedBox(height: 12),
-            Text('3 / 10 invited — next milestone: 200🟡', style: AppTextStyles.caption.copyWith(color: Colors.white70)),
+            Text('3 / 10 invited — next milestone: 200🟡', style: AppTextStyles.caption.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first))),
             const SizedBox(height: 6),
             ClipRRect(borderRadius: BorderRadius.circular(4), child: const LinearProgressIndicator(value: 0.3, minHeight: 7, backgroundColor: Colors.black26, valueColor: AlwaysStoppedAnimation(Colors.white))),
           ]),
@@ -193,7 +193,7 @@ class _LuckySpinState extends ConsumerState<_LuckySpin> with SingleTickerProvide
             children: [
               Transform.rotate(angle: _angle, child: CustomPaint(size: const Size(190, 190), painter: _WheelPainter(_prizes))),
               const Positioned(top: 0, child: Icon(LucideIcons.triangle, color: AppColors.secondary, size: 26)),
-              Container(width: 44, height: 44, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: const Icon(LucideIcons.sparkles, color: Colors.white, size: 20)),
+              Container(width: 44, height: 44, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: Icon(LucideIcons.sparkles, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 20)),
             ],
           ),
         ),
@@ -275,8 +275,8 @@ class _SpendTab extends ConsumerWidget {
             child: Row(children: [
               const Text('🎴', style: TextStyle(fontSize: 28)),
               const SizedBox(width: 12),
-              Expanded(child: Text('Gacha / Card Collection', style: AppTextStyles.subheading.copyWith(color: Colors.white))),
-              const Icon(LucideIcons.chevronRight, color: Colors.white),
+              Expanded(child: Text('Gacha / Card Collection', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first)))),
+              Icon(LucideIcons.chevronRight, color: AppGradients.onFill(AppGradients.brandTri.colors.first)),
             ]),
           ),
         ),
@@ -442,7 +442,7 @@ class _PlusTabState extends ConsumerState<_PlusTab> {
                 Row(children: [
                   Expanded(child: TextField(controller: _code, textCapitalization: TextCapitalization.characters, decoration: const InputDecoration(hintText: 'ANISPHERE', isDense: true))),
                   const SizedBox(width: 8),
-                  GestureDetector(onTap: _applyCode, child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), decoration: BoxDecoration(gradient: AppGradients.brand, borderRadius: BorderRadius.circular(12)), child: const Text('Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)))),
+                  GestureDetector(onTap: _applyCode, child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), decoration: BoxDecoration(gradient: AppGradients.brand, borderRadius: BorderRadius.circular(12)), child: Text('Apply', style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontWeight: FontWeight.w700)))),
                 ]),
                 if (_discount != null) Padding(padding: const EdgeInsets.only(top: 8), child: _codeChip('✓ $_discount% off', AppColors.success)),
                 if (_codeError != null) Padding(padding: const EdgeInsets.only(top: 8), child: _codeChip('✗ $_codeError', AppColors.error)),
@@ -464,7 +464,7 @@ class _PlusTabState extends ConsumerState<_PlusTab> {
         ...SampleData.plusFeatures.map((f) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(children: [
-                Container(width: 22, height: 22, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: const Icon(LucideIcons.check, size: 13, color: Colors.white)),
+                Container(width: 22, height: 22, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: Icon(LucideIcons.check, size: 13, color: AppGradients.onFill(AppGradients.brand.colors.first))),
                 const SizedBox(width: 12),
                 Expanded(child: Text(f, style: AppTextStyles.body)),
               ]),

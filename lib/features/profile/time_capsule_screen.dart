@@ -75,7 +75,7 @@ class _TimeCapsuleScreenState extends State<TimeCapsuleScreen> {
             child: Row(children: [
               const Text('⏳', style: TextStyle(fontSize: 30)),
               const SizedBox(width: 12),
-              Expanded(child: Text('Write a message to your future self. We\'ll deliver it on the date you choose.', style: AppTextStyles.body.copyWith(color: Colors.white))),
+              Expanded(child: Text('Write a message to your future self. We\'ll deliver it on the date you choose.', style: AppTextStyles.body.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first)))),
             ]),
           ),
           const SizedBox(height: 18),

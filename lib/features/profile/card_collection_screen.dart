@@ -27,8 +27,8 @@ class CardCollectionScreen extends StatelessWidget {
             child: Row(children: [
               const Text('🎴', style: TextStyle(fontSize: 30)),
               const SizedBox(width: 12),
-              Expanded(child: Text('$owned / ${cards.length} collected', style: AppTextStyles.subheading.copyWith(color: Colors.white))),
-              Text('${((owned / cards.length) * 100).round()}%', style: AppTextStyles.numbersLg(color: Colors.white)),
+              Expanded(child: Text('$owned / ${cards.length} collected', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first)))),
+              Text('${((owned / cards.length) * 100).round()}%', style: AppTextStyles.numbersLg(color: AppGradients.onFill(AppGradients.brandTri.colors.first))),
             ]),
           ),
           const SizedBox(height: 16),
@@ -190,7 +190,7 @@ class _FlipRevealState extends State<_FlipReveal> with SingleTickerProviderState
           transform: Matrix4.identity()..setEntry(3, 2, 0.0015)..rotateY(angle),
           child: showFront
               ? Transform(alignment: Alignment.center, transform: Matrix4.identity()..rotateY(math.pi), child: _CardFace(card: widget.card))
-              : Container(decoration: BoxDecoration(gradient: AppGradients.brand, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white24, width: 2)), child: const Center(child: Text('∞', style: TextStyle(color: Colors.white, fontSize: 60, fontWeight: FontWeight.w900)))),
+              : Container(decoration: BoxDecoration(gradient: AppGradients.brand, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white24, width: 2)), child: Center(child: Text('∞', style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontSize: 60, fontWeight: FontWeight.w900)))),
         );
       },
     );
