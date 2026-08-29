@@ -17,6 +17,16 @@ import 'gradient_button.dart';
 import 'user_avatar.dart';
 import 'verified_badge.dart';
 
+/// AniScan is hidden from the drawer until it has a server-side proxy.
+///
+/// The screen calls the Anthropic API directly from Dart with a placeholder
+/// key (see aniscan_screen.dart), so every request 401s. The route is left
+/// registered in app_router.dart so development can still reach `/aniscan`
+/// by direct navigation — only the user-facing entry point is hidden.
+///
+/// Flip this to true once the call goes through a Cloud Function.
+const bool kAniScanEnabled = false;
+
 class AppDrawer extends ConsumerWidget {
   const AppDrawer({super.key});
 
@@ -96,7 +106,8 @@ class AppDrawer extends ConsumerWidget {
                   _tile(LucideIcons.globe, '🌍 ${ref.tr('observatory')}', () => go('/observatory')),
                   _tile(LucideIcons.radio, '🎵 ${ref.tr('fmRadio')}', () => go('/fm-radio')),
                   _tile(LucideIcons.layers, '🎴 ${ref.tr('cardCollection')}', () => go('/cards')),
-                  _tile(LucideIcons.scanLine, '🔍 AniScan', () => go('/aniscan')),
+                  if (kAniScanEnabled)
+                    _tile(LucideIcons.scanLine, '🔍 AniScan', () => go('/aniscan')),
                   _tile(LucideIcons.settings, '⚙️ ${ref.tr('settings')}', () => go('/settings')),
                 ],
               ),
