@@ -46,6 +46,14 @@ class _AniScanScreenState extends State<AniScanScreen> {
         Uri.parse('https://api.anthropic.com/v1/messages'),
         headers: {
           'Content-Type': 'application/json',
+          // DO NOT fill this in. An API key placed here ships inside the app
+          // binary and is extractable from any installed build — putting a
+          // real key on this line leaks it to every user.
+          //
+          // This whole call is to be replaced by a Cloud Function proxy that
+          // holds the key server-side; the client should call that, not
+          // api.anthropic.com. Until then AniScan 401s by design, and its
+          // drawer entry is hidden behind kAniScanEnabled in app_drawer.dart.
           'x-api-key': 'YOUR_API_KEY_HERE',
           'anthropic-version': '2023-06-01',
         },
