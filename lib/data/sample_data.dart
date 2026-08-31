@@ -17,7 +17,7 @@ class SampleData {
     bio: 'Chasing every season since 2014 ✨ | Frieren changed me | JJK apologist',
     level: UserLevel.otakuElite,
     isVerified: true,
-    isPlusUser: true,
+    isPlusUser: false,
     watchedAnime: 347,
     episodes: 4821,
     hours: 1203,

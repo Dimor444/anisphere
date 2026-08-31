@@ -5,7 +5,6 @@ import '../../core/constants/app_gradients.dart';
 import '../../services/auth_service.dart';
 import '../../services/follow_service.dart';
 import '../../services/streak_service.dart';
-import '../../shared/providers/user_provider.dart';
 import '../profile/claim_username_sheet.dart';
 import '../../shared/widgets/app_drawer.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
@@ -43,14 +42,10 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
         .catchError((Object e) {
       debugPrint('[MainShell] startup profile chain failed: $e');
     });
-    // Keep the mirrored isPlus flag current — community-vote rules read it.
-    ref.listenManual(userProvider, (prev, next) {
-      if (prev?.isPlusUser != next.isPlusUser) {
-        FollowService.instance
-            .updatePlus(next.isPlusUser)
-            .catchError((Object e) => debugPrint('[MainShell] updatePlus failed: $e'));
-      }
-    });
+    // The isPlus mirror is gone: isPlus is server-owned now (firestore.rules
+    // forbids the client from writing it), so this listener could only ever
+    // fail. Whatever grants AniPlus in future must write users/{uid}.isPlus
+    // from a trusted context, not from here.
   }
 
   /// Backfill gate: accounts without a claimed @handle pick one before

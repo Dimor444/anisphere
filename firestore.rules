@@ -92,8 +92,10 @@ service cloud.firestore {
           && (!('lastActiveDay' in r) || d.lastActiveDay > r.lastActiveDay);
       }
 
-      // Verification is granted server-side only: create must omit isVerified
-      // or set it false, and update can never touch it.
+      // isVerified and isPlus are granted SERVER-SIDE ONLY: create must omit
+      // them or set them false, and update can never touch them. isPlus stays
+      // in the create whitelist because ensureProfile always writes the field
+      // — it is pinned to false here rather than forbidden outright.
       allow read: if signedIn();
       allow create: if signedIn() && request.auth.uid == userId
         && request.resource.data.keys().hasOnly([
@@ -104,6 +106,8 @@ service cloud.firestore {
         ])
         && (!('isVerified' in request.resource.data)
           || request.resource.data.isVerified == false)
+        && (!('isPlus' in request.resource.data)
+          || request.resource.data.isPlus == false)
         && request.resource.data.followerCount == 0
         && request.resource.data.followingCount == 0
         && request.resource.data.postsCount == 0
@@ -125,7 +129,7 @@ service cloud.firestore {
       allow update: if signedIn()
         && ((request.auth.uid == userId
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                'userName', 'userNameLower', 'displayName', 'userAvatar', 'bio', 'isPlus', 'isPrivate', 'countryCode',
+                'userName', 'userNameLower', 'displayName', 'userAvatar', 'bio', 'isPrivate', 'countryCode',
                 'dnaPinned', 'firstAnimeId'
               ])
               && validUserNameChange()

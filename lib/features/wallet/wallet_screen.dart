@@ -448,14 +448,21 @@ class _PlusTabState extends ConsumerState<_PlusTab> {
                 if (_codeError != null) Padding(padding: const EdgeInsets.only(top: 8), child: _codeChip('✗ $_codeError', AppColors.error)),
               ],
               const SizedBox(height: 16),
+              // AniPlus cannot be granted from the client. isPlus is server-owned
+              // (firestore.rules pins it false on create and forbids it on update),
+              // and no payment integration exists yet — so this announces that
+              // rather than flipping a local flag and feigning a purchase.
               GradientButton(
-                label: isPlus ? 'You\'re on AniPlus 💎' : 'Subscribe Now',
-                icon: isPlus ? LucideIcons.check : LucideIcons.sparkles,
-                onPressed: () {
-                  Haptics.medium();
-                  ref.read(userProvider.notifier).togglePlus();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.read(isPlusProvider) ? 'Welcome to AniPlus! 💎' : 'AniPlus cancelled'), duration: const Duration(seconds: 1)));
-                },
+                label: isPlus ? 'You\'re on AniPlus 💎' : 'Coming Soon',
+                icon: isPlus ? LucideIcons.check : LucideIcons.clock,
+                onPressed: isPlus
+                    ? null
+                    : () {
+                        Haptics.light();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('AniPlus subscriptions are not available yet.')),
+                        );
+                      },
               ),
             ],
           ),
