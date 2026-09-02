@@ -34,6 +34,14 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
   VideoPlayerController? _preview;
   int _durationSeconds = 0;
 
+  /// Allocated once for the chosen clip and REUSED by every retry.
+  ///
+  /// The server charges an upload grant per distinct videoId, so minting a
+  /// fresh one per attempt would let three failed retries exhaust a guest's
+  /// whole daily quota. Cleared whenever the clip itself changes — a
+  /// different video is a different upload and must cost its own grant.
+  String? _videoId;
+
   AnimeSearchResult? _anime;
   bool _spoiler = false;
 
@@ -74,6 +82,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
         _file = picked;
         _preview = ctrl;
         _durationSeconds = ctrl.value.duration.inSeconds;
+        _videoId = null; // new clip → new grant
       });
       if (_tooLong) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('videoTooLong'))));
@@ -100,9 +109,13 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       _progress = 0;
     });
     final postedLabel = ref.tr('videoPosted');
+    // Allocated on the first attempt only; every retry below re-enters this
+    // method and finds the id already set, so it reuses the same grant.
+    final videoId = _videoId ??= AniVideoService.instance.newVideoId();
     try {
       await AniVideoService.instance.uploadVideo(
         videoFile: File(_file!.path),
+        videoId: videoId,
         durationSeconds: _durationSeconds,
         caption: _caption.text,
         anilistId: _anime != null && _anime!.anilistId > 0 ? _anime!.anilistId : null,
@@ -119,22 +132,32 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       context.go('/ani-videos');
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('$postedLabel 🎉'), duration: const Duration(seconds: 2)));
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _uploading = false);
+      // Out of quota is not a transport failure: retrying cannot succeed, so
+      // the server's own cap text is shown and the retry action is withheld.
+      final capped = e is UploadCapExceededException ? e : null;
       showDialog<void>(
         context: context,
         builder: (dCtx) => AlertDialog(
           title: Text(ref.tr('videoUploadFailed')),
+          content: capped == null ? null : Text(capped.message, style: AppTextStyles.body),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(ref.tr('cancel'))),
             TextButton(
-              onPressed: () {
-                Navigator.pop(dCtx);
-                _submit();
-              },
-              child: Text(ref.tr('retry')),
+              onPressed: () => Navigator.pop(dCtx),
+              // A cap is acknowledged, not cancelled — "Cancel" alongside no
+              // other action reads as if dismissing undoes something.
+              child: Text(ref.tr(capped == null ? 'cancel' : 'ok')),
             ),
+            if (capped == null)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dCtx);
+                  _submit();
+                },
+                child: Text(ref.tr('retry')),
+              ),
           ],
         ),
       );
@@ -333,6 +356,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                             _file = null;
                             _preview = null;
                             _durationSeconds = 0;
+                            _videoId = null; // clip dropped → grant not reused
                           });
                         },
                   child: Container(

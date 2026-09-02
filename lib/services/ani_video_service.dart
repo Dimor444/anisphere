@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../data/models/ani_video.dart';
@@ -10,19 +12,114 @@ import '../data/models/post.dart';
 import 'auth_service.dart';
 import 'follow_service.dart';
 
+/// The server refused the upload because the caller is out of quota.
+///
+/// Distinct from a transport failure on purpose: retrying cannot help, so the
+/// UI shows the server's own cap text instead of the generic "try again"
+/// dialog. [message] is authored by the Cloud Function and is English-only.
+class UploadCapExceededException implements Exception {
+  const UploadCapExceededException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// A server-issued permit for one upload: where to PUT each file, the exact
+/// Content-Type each signature was computed over, and the public base the
+/// read urls are composed from.
+///
+/// Nothing here is chosen by the client. The keys, the content types and the
+/// expiry are all the function's decision, so the client cannot widen its own
+/// grant by editing a url.
+class _UploadGrant {
+  const _UploadGrant({
+    required this.publicBase,
+    required this.videoUploadUrl,
+    required this.videoKey,
+    required this.videoContentType,
+    required this.thumbUploadUrl,
+    required this.thumbKey,
+    required this.thumbContentType,
+  });
+
+  /// Callable results arrive as `Map<Object?, Object?>` on iOS rather than
+  /// `Map<String, dynamic>`, so every level is re-wrapped rather than cast.
+  factory _UploadGrant.fromCallable(Object? data) {
+    final root = Map<String, dynamic>.from(data! as Map);
+    final video = Map<String, dynamic>.from(root['video'] as Map);
+    final thumb = Map<String, dynamic>.from(root['thumbnail'] as Map);
+    return _UploadGrant(
+      publicBase: root['publicBase'] as String,
+      videoUploadUrl: video['uploadUrl'] as String,
+      videoKey: video['key'] as String,
+      videoContentType: video['contentType'] as String,
+      thumbUploadUrl: thumb['uploadUrl'] as String,
+      thumbKey: thumb['key'] as String,
+      thumbContentType: thumb['contentType'] as String,
+    );
+  }
+
+  final String publicBase;
+  final String videoUploadUrl;
+  final String videoKey;
+  final String videoContentType;
+  final String thumbUploadUrl;
+  final String thumbKey;
+  final String thumbContentType;
+
+  String get videoUrl => '$publicBase/$videoKey';
+  String get thumbnailUrl => '$publicBase/$thumbKey';
+}
+
+/// A PUT whose body is streamed from a [Stream], with the byte counter
+/// advancing at transmission pace.
+///
+/// [http.BaseRequest] is subclassed rather than using [http.StreamedRequest]
+/// because the client PULLS from the stream returned by [finalize]: the
+/// counter therefore ticks as bytes go to the socket, and backpressure is the
+/// socket's. Pushing into a StreamedRequest's sink instead counts bytes as
+/// they are BUFFERED, which for a 50 MB clip races the bar to 100% while the
+/// network is still working — and deadlocks outright if `send` is awaited
+/// before the sink is fed.
+class _StreamedPut extends http.BaseRequest {
+  _StreamedPut(Uri url, this._body, int length) : super('PUT', url) {
+    contentLength = length;
+  }
+
+  final Stream<List<int>> _body;
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return http.ByteStream(_body);
+  }
+}
+
 /// Ani Videos (short vertical video feed), backed by the top-level
 /// `ani_videos` collection with `comments` and `likes` subcollections per
 /// video — the same shape as FeedService's `posts`.
 ///
-/// Video files live in Storage at `ani_videos/{userId}/{videoId}.mp4` with a
-/// first-frame JPEG thumbnail next to them ({videoId}.jpg). Identity comes
-/// from [AuthService.initAuth]; all writes go through [_guard] so failures
-/// are logged and rethrown for the UI to surface.
+/// Video BYTES live in Cloudflare R2, not Firebase Storage: the client asks
+/// [requestVideoUploadUrl] for presigned PUT urls, uploads straight to R2, and
+/// composes the read url from the `publicBase` the function hands back. The
+/// object keys still read `ani_videos/{userId}/{videoId}.(mp4|jpg)`, so the
+/// layout is unchanged — only the host is. Everything else (documents,
+/// counters, comments, likes) stays in Firestore.
+///
+/// Identity comes from [AuthService.initAuth]; all writes go through [_guard]
+/// so failures are logged and rethrown for the UI to surface.
 class AniVideoService {
   AniVideoService._();
   static final AniVideoService instance = AniVideoService._();
 
   static const int pageSize = 10;
+
+  /// Region the presigner is deployed to. `FirebaseFunctions.instance`
+  /// defaults to us-central1, where this function does not exist — an
+  /// unregioned call fails NOT_FOUND rather than falling back.
+  static const String _functionsRegion = 'europe-west1';
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
   CollectionReference<Map<String, dynamic>> get _videos => _db.collection('ani_videos');
@@ -69,13 +166,81 @@ class AniVideoService {
 
   // ── Upload ─────────────────────────────────────────────────────────────
 
-  /// Upload [videoFile] + first-frame thumbnail to Storage, then create the
-  /// Firestore doc. [durationSeconds] must be measured by the caller (via a
+  /// Allocates the document id an upload will use, writing nothing.
+  ///
+  /// Hoisted out of [uploadVideo] so a retry can pass the SAME id back in.
+  /// Every distinct id costs a server-side upload grant, so minting a fresh
+  /// one per attempt would let three failed retries burn a guest's entire day.
+  String newVideoId() => _videos.doc().id;
+
+  /// Asks the server for presigned R2 PUT urls for [videoId].
+  ///
+  /// This is the gate: the function validates the id, resolves the caller's
+  /// tier, enforces the per-tier caps and records the grant before any url
+  /// exists. A refusal for quota is translated into
+  /// [UploadCapExceededException] so the UI can say why instead of offering a
+  /// retry that cannot succeed.
+  Future<_UploadGrant> _requestUploadUrls(String videoId) async {
+    try {
+      final result = await FirebaseFunctions.instanceFor(region: _functionsRegion)
+          .httpsCallable('requestVideoUploadUrl')
+          .call<Object?>({'videoId': videoId});
+      return _UploadGrant.fromCallable(result.data);
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'resource-exhausted') {
+        throw UploadCapExceededException(e.message ?? 'Upload limit reached.');
+      }
+      rethrow;
+    }
+  }
+
+  /// PUTs [body] to a presigned url.
+  ///
+  /// [contentType] is sent verbatim because it is part of the SigV4 signature
+  /// — R2 rejects the request outright if the header does not match what was
+  /// signed. Note the body is always bytes, never a String: package:http
+  /// appends `; charset=utf-8` to the content type of a String body, which
+  /// would silently invalidate that signature.
+  Future<void> _put(
+    String url,
+    Stream<List<int>> body,
+    int length,
+    String contentType, {
+    void Function(double progress)? onProgress,
+  }) async {
+    final client = http.Client();
+    try {
+      var sent = 0;
+      final counted = body.map((chunk) {
+        sent += chunk.length;
+        if (length > 0) onProgress?.call(sent / length);
+        return chunk;
+      });
+      final request = _StreamedPut(Uri.parse(url), counted, length)
+        ..headers['content-type'] = contentType;
+
+      final response = await client.send(request);
+      // Drain regardless: an undrained error body leaks the connection.
+      final text = await response.stream.bytesToString();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw http.ClientException('R2 PUT failed ${response.statusCode}: $text', request.url);
+      }
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Upload [videoFile] + first-frame thumbnail to R2, then create the
+  /// Firestore doc. [videoId] comes from [newVideoId] and MUST be reused
+  /// across retries of the same clip — see that method.
+  ///
+  /// [durationSeconds] must be measured by the caller (via a
   /// VideoPlayerController) and is re-checked here; >60s throws [ArgumentError]
   /// before any bytes move. [onProgress] reports 0..1 for the video bytes.
-  /// Returns the new video id.
+  /// Returns the video id.
   Future<String> uploadVideo({
     required File videoFile,
+    required String videoId,
     required int durationSeconds,
     required String caption,
     int? anilistId,
@@ -94,19 +259,20 @@ class AniVideoService {
           : trimmed;
 
       final uid = await _uid();
-      final doc = _videos.doc();
-      final videoRef = FirebaseStorage.instance.ref('ani_videos/$uid/${doc.id}.mp4');
+      final doc = _videos.doc(videoId);
 
-      final task = videoRef.putFile(videoFile, SettableMetadata(contentType: 'video/mp4'));
-      final sub = task.snapshotEvents.listen((s) {
-        if (s.totalBytes > 0) onProgress?.call(s.bytesTransferred / s.totalBytes);
-      });
-      try {
-        await task;
-      } finally {
-        await sub.cancel();
-      }
-      final videoUrl = await videoRef.getDownloadURL();
+      // The gate. Nothing has been uploaded yet and nothing will be if the
+      // caller is over quota — this throws before a single byte moves.
+      final grant = await _requestUploadUrls(videoId);
+
+      await _put(
+        grant.videoUploadUrl,
+        videoFile.openRead(),
+        await videoFile.length(),
+        grant.videoContentType,
+        onProgress: onProgress,
+      );
+      final videoUrl = grant.videoUrl;
 
       // Thumbnail is best-effort: a video without one still renders (the
       // player's first frame covers it) — don't fail the whole upload.
@@ -119,9 +285,15 @@ class AniVideoService {
           quality: 75,
         );
         if (bytes != null) {
-          final thumbRef = FirebaseStorage.instance.ref('ani_videos/$uid/${doc.id}.jpg');
-          await thumbRef.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-          thumbnailUrl = await thumbRef.getDownloadURL();
+          // No onProgress: the bar belongs to the clip, and a thumbnail
+          // finishing would otherwise snap it backwards.
+          await _put(
+            grant.thumbUploadUrl,
+            Stream<List<int>>.value(bytes),
+            bytes.length,
+            grant.thumbContentType,
+          );
+          thumbnailUrl = grant.thumbnailUrl;
         }
       } catch (e) {
         debugPrint('[AniVideoService] thumbnail failed (continuing): $e');
