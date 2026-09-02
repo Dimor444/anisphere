@@ -330,6 +330,19 @@ service cloud.firestore {
       }
     }
 
+    // Upload grants — the server's ledger of issued R2 presigned urls, one
+    // doc per {uid}_{videoId}. This is the quota the requestVideoUploadUrl
+    // function counts, so a client that could write here could mint itself
+    // unlimited uploads, and one that could read here would learn other
+    // users' object keys. Closed to clients in BOTH directions; the Cloud
+    // Function reaches it through the Admin SDK, which bypasses rules
+    // entirely. Redundant with the default-deny at the bottom of this file,
+    // and stated anyway — a collection this load-bearing should say no out
+    // loud rather than rely on the absence of a rule.
+    match /upload_grants/{grantId} {
+      allow read, write: if false;
+    }
+
     // Curated news — admin-managed (Console / Admin SDK bypasses rules).
     // Clients read and may only bump the tallies: views +1, saves ±1.
     match /news/{newsId} {
