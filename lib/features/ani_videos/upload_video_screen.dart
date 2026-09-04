@@ -81,7 +81,14 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       setState(() {
         _file = picked;
         _preview = ctrl;
-        _durationSeconds = ctrl.value.duration.inSeconds;
+        // Round UP, never truncate. `inSeconds` floors, so a 120.9s clip
+        // reported 120 and sailed through every layer that checks <= 120 —
+        // the picker cap, the button gate, the service guard and the rule.
+        // Ceiling makes the limit mean what it says; the cost is that a clip
+        // a millisecond over reads as 121 and is refused, which is the side
+        // to err on.
+        _durationSeconds =
+            (ctrl.value.duration.inMilliseconds / Duration.millisecondsPerSecond).ceil();
         _videoId = null; // new clip → new grant
       });
       if (_tooLong) {

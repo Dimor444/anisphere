@@ -81,9 +81,20 @@ const R2_PUBLIC_BASE = 'https://pub-d6e4c414f2c04681bbafc54bd2375308.r2.dev';
 const R2_ACCESS_KEY_ID = defineSecret('R2_ACCESS_KEY_ID');
 const R2_SECRET_ACCESS_KEY = defineSecret('R2_SECRET_ACCESS_KEY');
 
-// Presigned PUTs are short-lived: long enough for a 50 MB upload on a poor
+// Presigned PUTs are short-lived: long enough for a large upload on a poor
 // connection, short enough that a leaked URL is not a standing write grant.
 const UPLOAD_URL_TTL_SECONDS = 600;
+
+// Hard ceiling on a clip's bytes, mirrored by AniVideoData.maxUploadBytes.
+//
+// This is the ONLY size limit that exists. Firebase Storage's rule capped
+// video at 50 MB and went away with the migration; R2 enforces nothing on its
+// own, and a 62.75 MB file has already reached production through the gap.
+// The client checks the length before asking for a url, but a client check is
+// a suggestion — the number below is signed into the presigned PUT, so R2
+// itself refuses a body of any other size.
+const MAX_UPLOAD_BYTES = 150 * 1024 * 1024;
+const MAX_UPLOAD_MB = 150;
 
 // Server-only ledger of issued upload grants, one document per signed pair.
 // Nothing client-side may read or write it (firestore.rules denies the whole
@@ -177,6 +188,22 @@ exports.requestVideoUploadUrl = onCall(
       throw new HttpsError('invalid-argument', 'videoId must be a 20-character Firestore id.');
     }
 
+    // Integer check before the range check: a float, a numeric string or a
+    // NaN would otherwise slip past `>` and get signed into the url.
+    const contentLength = request.data.contentLength;
+    if (!Number.isInteger(contentLength) || contentLength <= 0) {
+      throw new HttpsError('invalid-argument', 'contentLength must be a positive integer.');
+    }
+    if (contentLength > MAX_UPLOAD_BYTES) {
+      // out-of-range rather than invalid-argument: the client maps this (like
+      // resource-exhausted) to a readable limit message with no retry offered.
+      throw new HttpsError(
+        'out-of-range',
+        `Video is too large (${Math.round(contentLength / 1024 / 1024)} MB). ` +
+          `The limit is ${MAX_UPLOAD_MB} MB.`,
+      );
+    }
+
     const userDoc = await db.collection('users').doc(uid).get();
     const tier = tierOf(request.auth, userDoc);
     const caps = TIER_CAPS[tier];
@@ -209,24 +236,44 @@ exports.requestVideoUploadUrl = onCall(
     }
 
     // R2 is S3-compatible but has no regions; 'auto' is what it expects.
+    //
+    // requestChecksumCalculation is pinned because the SDK's default
+    // ('WHEN_SUPPORTED') adds x-amz-checksum-crc32 to a presigned PUT — and
+    // with no body present at signing time, that checksum is of ZERO bytes.
+    // It rides inside the signature, so a client cannot strip it. Uploads work
+    // today only because R2 declines to validate it; that is a dependency on
+    // someone else's leniency, not a design. 'WHEN_REQUIRED' omits it.
     const s3 = new S3Client({
       region: 'auto',
       endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      requestChecksumCalculation: 'WHEN_REQUIRED',
       credentials: {
         accessKeyId: R2_ACCESS_KEY_ID.value(),
         secretAccessKey: R2_SECRET_ACCESS_KEY.value(),
       },
     });
 
-    // ContentType is part of the signature, so the client MUST send exactly
-    // this Content-Type header on the PUT or R2 rejects it as a mismatch. It
-    // is also what the object serves back on read, and video_player infers the
-    // container from that response header — an unlabelled object plays as
-    // nothing.
-    const sign = (key, contentType) =>
+    // ContentType is what the object serves back on read, and video_player
+    // infers the container from that response header — an unlabelled object
+    // plays as nothing. Note it is NOT signed: presigning a PutObject leaves
+    // X-Amz-SignedHeaders as `host` alone, so the stored type is whatever the
+    // client sends. It must still be sent, but it is not enforced.
+    //
+    // ContentLength IS signed — supplying it puts `content-length` into
+    // X-Amz-SignedHeaders and changes the signature, so R2 rejects a PUT
+    // whose declared length differs. That is what turns the size cap from a
+    // client-side suggestion into something the storage layer enforces. It is
+    // signed for the clip only: the thumbnail is generated after this call,
+    // so its length cannot be known here.
+    const sign = (key, contentType, length) =>
       getSignedUrl(
         s3,
-        new PutObjectCommand({ Bucket: R2_BUCKET, Key: key, ContentType: contentType }),
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: key,
+          ContentType: contentType,
+          ...(length == null ? {} : { ContentLength: length }),
+        }),
         { expiresIn: UPLOAD_URL_TTL_SECONDS },
       );
 
@@ -235,8 +282,8 @@ exports.requestVideoUploadUrl = onCall(
     const videoKey = `ani_videos/${uid}/${videoId}.mp4`;
     const thumbnailKey = `ani_videos/${uid}/${videoId}.jpg`;
     const [videoUrl, thumbnailUrl] = await Promise.all([
-      sign(videoKey, 'video/mp4'),
-      sign(thumbnailKey, 'image/jpeg'),
+      sign(videoKey, 'video/mp4', contentLength),
+      sign(thumbnailKey, 'image/jpeg', null),
     ]);
 
     // The ledger entry lands BEFORE the caller sees a url, and it is awaited:
@@ -271,7 +318,15 @@ exports.requestVideoUploadUrl = onCall(
       // carrying a second copy of the bucket's public hostname.
       publicBase: R2_PUBLIC_BASE,
       expiresInSeconds: UPLOAD_URL_TTL_SECONDS,
-      video: { key: videoKey, uploadUrl: videoUrl, contentType: 'video/mp4' },
+      // contentLength is echoed back so the client PUTs the value that was
+      // actually signed rather than re-measuring the file and risking a
+      // different number.
+      video: {
+        key: videoKey,
+        uploadUrl: videoUrl,
+        contentType: 'video/mp4',
+        contentLength,
+      },
       thumbnail: { key: thumbnailKey, uploadUrl: thumbnailUrl, contentType: 'image/jpeg' },
       usage: { tier, total, today, maxTotal: caps.total, maxPerDay: caps.perDay },
     };

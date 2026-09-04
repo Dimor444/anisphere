@@ -12,11 +12,12 @@ import '../data/models/post.dart';
 import 'auth_service.dart';
 import 'follow_service.dart';
 
-/// The server refused the upload because the caller is out of quota.
+/// The upload was refused by a limit — the caller's quota, or the file size.
 ///
 /// Distinct from a transport failure on purpose: retrying cannot help, so the
-/// UI shows the server's own cap text instead of the generic "try again"
-/// dialog. [message] is authored by the Cloud Function and is English-only.
+/// UI shows this text instead of the generic "try again" dialog. [message] is
+/// authored by the Cloud Function or by the local size check, and is
+/// English-only in both cases.
 class UploadCapExceededException implements Exception {
   const UploadCapExceededException(this.message);
 
@@ -39,6 +40,7 @@ class _UploadGrant {
     required this.videoUploadUrl,
     required this.videoKey,
     required this.videoContentType,
+    required this.videoContentLength,
     required this.thumbUploadUrl,
     required this.thumbKey,
     required this.thumbContentType,
@@ -55,6 +57,7 @@ class _UploadGrant {
       videoUploadUrl: video['uploadUrl'] as String,
       videoKey: video['key'] as String,
       videoContentType: video['contentType'] as String,
+      videoContentLength: (video['contentLength'] as num).toInt(),
       thumbUploadUrl: thumb['uploadUrl'] as String,
       thumbKey: thumb['key'] as String,
       thumbContentType: thumb['contentType'] as String,
@@ -65,6 +68,12 @@ class _UploadGrant {
   final String videoUploadUrl;
   final String videoKey;
   final String videoContentType;
+
+  /// The byte count the server signed into [videoUploadUrl]. The PUT must
+  /// declare exactly this or R2 rejects it, so it is echoed back rather than
+  /// re-measured on the client.
+  final int videoContentLength;
+
   final String thumbUploadUrl;
   final String thumbKey;
   final String thumbContentType;
@@ -180,14 +189,16 @@ class AniVideoService {
   /// exists. A refusal for quota is translated into
   /// [UploadCapExceededException] so the UI can say why instead of offering a
   /// retry that cannot succeed.
-  Future<_UploadGrant> _requestUploadUrls(String videoId) async {
+  Future<_UploadGrant> _requestUploadUrls(String videoId, int contentLength) async {
     try {
       final result = await FirebaseFunctions.instanceFor(region: _functionsRegion)
           .httpsCallable('requestVideoUploadUrl')
-          .call<Object?>({'videoId': videoId});
+          .call<Object?>({'videoId': videoId, 'contentLength': contentLength});
       return _UploadGrant.fromCallable(result.data);
     } on FirebaseFunctionsException catch (e) {
-      if (e.code == 'resource-exhausted') {
+      // Both are limits the user has to act on, not transient faults:
+      // resource-exhausted is the quota, out-of-range is the size cap.
+      if (e.code == 'resource-exhausted' || e.code == 'out-of-range') {
         throw UploadCapExceededException(e.message ?? 'Upload limit reached.');
       }
       rethrow;
@@ -196,11 +207,20 @@ class AniVideoService {
 
   /// PUTs [body] to a presigned url.
   ///
-  /// [contentType] is sent verbatim because it is part of the SigV4 signature
-  /// — R2 rejects the request outright if the header does not match what was
-  /// signed. Note the body is always bytes, never a String: package:http
-  /// appends `; charset=utf-8` to the content type of a String body, which
-  /// would silently invalidate that signature.
+  /// [length] becomes the request's `Content-Length`. For the clip that value
+  /// is inside the SigV4 signature (`X-Amz-SignedHeaders: content-length;host`
+  /// — verified against the presigner), so R2 refuses a body of any other
+  /// size. Setting `contentLength` on the request is what makes package:http
+  /// emit the header, which is why the body is a Stream with an explicit
+  /// length rather than a buffered list.
+  ///
+  /// [contentType] is sent verbatim: it is the type R2 stores and serves back,
+  /// and video_player infers the container from it. It is NOT signed — a
+  /// presigned PutObject lists only `host` unless a header like content-length
+  /// is added — so this header is required for playback, not for the
+  /// signature. The body is still always bytes, never a String: package:http
+  /// appends `; charset=utf-8` to a String body's content type, which would
+  /// change the stored type.
   Future<void> _put(
     String url,
     Stream<List<int>> body,
@@ -261,14 +281,27 @@ class AniVideoService {
       final uid = await _uid();
       final doc = _videos.doc(videoId);
 
+      // Measured once and used for everything downstream: the local check,
+      // the value sent to the server, and — via the grant's echo — the
+      // Content-Length on the wire. One number, no chance of a mismatch.
+      final contentLength = await videoFile.length();
+      if (contentLength > AniVideoData.maxUploadBytes) {
+        final mb = (contentLength / (1024 * 1024)).toStringAsFixed(1);
+        throw UploadCapExceededException(
+          'This video is $mb MB. The limit is ${AniVideoData.maxUploadMb} MB.',
+        );
+      }
+
       // The gate. Nothing has been uploaded yet and nothing will be if the
-      // caller is over quota — this throws before a single byte moves.
-      final grant = await _requestUploadUrls(videoId);
+      // caller is over quota or over the size cap — this throws before a
+      // single byte moves.
+      final grant = await _requestUploadUrls(videoId, contentLength);
 
       await _put(
         grant.videoUploadUrl,
         videoFile.openRead(),
-        await videoFile.length(),
+        // The SIGNED length, not a fresh measurement — see the field's doc.
+        grant.videoContentLength,
         grant.videoContentType,
         onProgress: onProgress,
       );

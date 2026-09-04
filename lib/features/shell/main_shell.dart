@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants/app_gradients.dart';
 import '../../services/auth_service.dart';
 import '../../services/follow_service.dart';
 import '../../services/streak_service.dart';
 import '../profile/claim_username_sheet.dart';
 import '../../shared/widgets/app_drawer.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
-import '../../shared/widgets/pressable.dart';
-import '../anibot/anibot_sheet.dart';
 import '../create/create_screen.dart';
 
-/// Root scaffold for the tabbed app: body + bottom nav + drawer + AniBot FAB.
+/// Root scaffold for the tabbed app: body + bottom nav + drawer.
 class MainShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
   const MainShell({super.key, required this.navigationShell});
@@ -98,25 +95,18 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
       body: Stack(
         children: [
           navigationShell,
-          // AniBot — bottom-left, available on every main screen.
-          Positioned(
-            left: 14,
-            bottom: 14,
-            child: Pressable(
-              onTap: () => showAniBotSheet(context),
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: AppGradients.brand,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
-                ),
-                alignment: Alignment.center,
-                child: const Text('🤖', style: TextStyle(fontSize: 22)),
-              ),
-            ),
-          ),
+          // The AniBot button stood here, bottom-left on every main screen.
+          // Removed because the replies were a hardcoded keyword matcher, and
+          // they asserted a taste profile the app had never read — telling a
+          // user "based on your taste (Frieren, Vinland Saga, HxH)" when
+          // nothing had looked at their list. A confidently wrong assistant is
+          // worse than no assistant.
+          //
+          // lib/features/anibot/ is deliberately KEPT: the sheet, composer and
+          // message tree are sound and get reused the moment there is a real
+          // recommendations backend reading actual user data. Only the entry
+          // point is gone, so restoring it means re-adding a button, not
+          // rebuilding a feature. The Stack stays for the same reason.
         ],
       ),
       bottomNavigationBar: AniBottomNav(

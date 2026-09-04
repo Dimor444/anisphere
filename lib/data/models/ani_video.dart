@@ -31,7 +31,17 @@ class AniVideoData {
   final bool isSpoiler;
 
   static const int maxCaptionLength = 200;
-  static const int maxDurationSeconds = 60;
+  static const int maxDurationSeconds = 120;
+
+  /// Hard ceiling on the clip's bytes, mirrored by the Cloud Function.
+  ///
+  /// Doubling the duration doubled the bytes, and the migration to R2 dropped
+  /// the only size limit that existed: the old Firebase Storage rule capped
+  /// video at 50 MB, and R2 enforces nothing of its own. The client checks
+  /// this before asking for a url; the server signs the exact length into the
+  /// presigned PUT so R2 rejects a body of any other size.
+  static const int maxUploadBytes = 150 * 1024 * 1024;
+  static const int maxUploadMb = 150;
 
   const AniVideoData({
     required this.id,
