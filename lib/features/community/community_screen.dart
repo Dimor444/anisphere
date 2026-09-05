@@ -38,7 +38,7 @@ class CommunityScreen extends ConsumerWidget {
                     Row(children: [Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)), const SizedBox(width: 6), Text('12,408 online', style: AppTextStyles.caption.copyWith(color: AppColors.success))]),
                   ]),
                 ),
-                const TabBar(tabs: [Tab(text: '🏘️ Rooms'), Tab(text: '🎌 Clubs')]),
+                const TabBar(tabs: [Tab(text: 'Rooms'), Tab(text: 'Clubs')]),
                 const Expanded(child: TabBarView(children: [_RoomsTab(), _ClubsTab()])),
               ],
             ),

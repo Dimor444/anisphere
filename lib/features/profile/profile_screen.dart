@@ -176,7 +176,7 @@ class _ProfileBody extends ConsumerWidget {
                           tabAlignment: TabAlignment.start,
                           tabs: [
                             Tab(text: 'Posts'), Tab(text: 'Reviews'), Tab(text: 'Lists'),
-                            Tab(text: 'Ani Videos'), Tab(text: 'Fan Art'), Tab(text: '📊 Stats'),
+                            Tab(text: 'Ani Videos'), Tab(text: 'Fan Art'), Tab(text: 'Stats'),
                           ],
                         )
                       : TabBar(tabs: [

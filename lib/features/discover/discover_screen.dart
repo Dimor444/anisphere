@@ -130,13 +130,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
               tabAlignment: TabAlignment.start,
               tabs: [
                 const Tab(text: 'For You'),
-                Tab(text: '👥 ${ref.tr('people')}'),
+                Tab(text: ref.tr('people')),
                 const Tab(text: 'Trending'),
-                const Tab(text: '📰 News'),
-                const Tab(text: '💫 AniMatch'),
-                const Tab(text: '📊 Chart'),
+                const Tab(text: 'News'),
+                const Tab(text: 'AniMatch'),
+                const Tab(text: 'Chart'),
                 Tab(child: _VoteTabLabel(label: ref.tr('vote'))),
-                const Tab(text: '🔍 Search'),
+                const Tab(text: 'Search'),
               ],
             ),
             Expanded(
@@ -216,7 +216,7 @@ class _ForYouTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Find Friends With Same Taste 💫', style: AppTextStyles.subheading),
+                const Text('Find Friends With Same Taste', style: AppTextStyles.subheading),
                 const SizedBox(height: 6),
                 const Text('We found 23 users with 90%+ taste match.', style: AppTextStyles.bodyMuted),
                 const SizedBox(height: 12),
@@ -256,7 +256,7 @@ class _TimeZoneFeedState extends State<_TimeZoneFeed> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(title: '🌍 Time Zone Feed'),
+        const SectionHeader(title: 'Time Zone Feed'),
         SizedBox(
           height: 38,
           child: ListView(
@@ -482,7 +482,7 @@ class _AniMatchTab extends StatefulWidget {
 
 class _AniMatchTabState extends State<_AniMatchTab> {
   int _filter = 0;
-  final _filters = ['80%+', '90%+', '95%+', '🌍 Worldwide'];
+  final _filters = ['80%+', '90%+', '95%+', 'Worldwide'];
   @override
   Widget build(BuildContext context) {
     final threshold = [80, 90, 95, 0][_filter];
@@ -492,7 +492,7 @@ class _AniMatchTabState extends State<_AniMatchTab> {
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
-          child: Text('Find Your Anime Soulmate 💫', style: AppTextStyles.heading),
+          child: Text('Find Your Anime Soulmate', style: AppTextStyles.heading),
         ),
         SizedBox(
           height: 44,
@@ -553,7 +553,7 @@ class _MatchCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(gradient: AppGradients.gem, borderRadius: BorderRadius.circular(12)),
-                child: Text('🎯 ${match.percent}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+                child: Text('${match.percent}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
               ),
             ],
           ),
@@ -1120,7 +1120,7 @@ class _PeopleTabState extends ConsumerState<_PeopleTab> {
         return ListView(
           padding: const EdgeInsets.only(top: 4, bottom: 90),
           children: [
-            SectionHeader(title: '✨ ${ref.tr('suggestedForYou')}'),
+            SectionHeader(title: ref.tr('suggestedForYou')),
             ...users.map((u) => UserTile(
                   key: ValueKey(u.id),
                   user: u,
@@ -1158,7 +1158,7 @@ class _PeopleTabState extends ConsumerState<_PeopleTab> {
   }
 }
 
-/// "🗳️ Vote" tab label with a gentle nudge dot while today is unvoted.
+/// "Vote" tab label with a gentle nudge dot while today is unvoted.
 class _VoteTabLabel extends StatefulWidget {
   final String label;
   const _VoteTabLabel({required this.label});
@@ -1180,7 +1180,7 @@ class _VoteTabLabelState extends State<_VoteTabLabel> {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('🗳️ ${widget.label}'),
+            Text(widget.label),
             if (unvoted && snap.hasData) ...[
               const SizedBox(width: 5),
               Container(

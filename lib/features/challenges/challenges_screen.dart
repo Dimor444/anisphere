@@ -92,7 +92,7 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            tabs: [Tab(text: 'Games'), Tab(text: '🎯 True Fan'), Tab(text: '⚔️ League'), Tab(text: '🎯 Events')],
+            tabs: [Tab(text: 'Games'), Tab(text: 'True Fan'), Tab(text: 'League'), Tab(text: 'Events')],
           ),
         ),
         body: Column(
