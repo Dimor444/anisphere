@@ -56,18 +56,22 @@ service firebase.storage {
       allow delete: if false;
     }
 
-    // Ani Videos: {videoId}.mp4 + {videoId}.jpg thumbnail per upload. Any
-    // signed-in user may view; only the owner may upload (videos ≤ 50 MB,
-    // thumbnails ≤ 2 MB) or delete their own files.
+    // Ani Videos: LEGACY, READ-ONLY. Video bytes live in Cloudflare R2 now —
+    // the client gets a presigned PUT from requestVideoUploadUrl, which is
+    // where the tier caps, the grant ledger and the signed 150 MB size limit
+    // are enforced. While this path still accepted writes, every one of those
+    // controls could be skipped by a custom client simply uploading here
+    // instead, so writes are closed rather than merely unused.
+    //
+    // Read stays open ONLY because two ani_videos documents from earlier
+    // testing still carry Firebase Storage download urls; closing read would
+    // break their playback. Once the pre-launch data wipe clears those
+    // documents, this entire block can be deleted — nothing writes here and
+    // nothing new ever will.
     match /ani_videos/{userId}/{fileName} {
       allow read: if request.auth != null;
-      allow create, update: if request.auth != null
-        && request.auth.uid == userId
-        && ((request.resource.contentType.matches('video/.*')
-              && request.resource.size < 50 * 1024 * 1024)
-          || (request.resource.contentType.matches('image/.*')
-              && request.resource.size < 2 * 1024 * 1024));
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if false;
+      allow delete: if false;
     }
   }
 }

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_thumbnail/video_thumbnail.dart';
@@ -365,19 +364,29 @@ class AniVideoService {
     });
   }
 
+  /// Deletes the video: R2 objects first, then the Firestore document.
+  ///
+  /// The order is the whole point, and it is the reverse of what this used to
+  /// do. Deleting the document first and sweeping storage afterwards meant any
+  /// failure past the first step orphaned the bytes permanently — the keys
+  /// exist only in the document, and the document was already gone, so nothing
+  /// remembered what to clean up. Objects-first inverts the failure: if the
+  /// document delete fails the bytes are gone but the video is still listed,
+  /// which is visible, retryable, and converges (the callable re-checks
+  /// ownership against the still-present document, and an S3 delete of an
+  /// absent key succeeds).
+  ///
+  /// Neither step is best-effort any more. The callable throws on refusal —
+  /// not the author, no such video — and that propagates instead of being
+  /// swallowed, because silently reporting a delete that did not happen is
+  /// how the orphans got there.
   Future<void> deleteVideo(String videoId) {
     return _guard('deleteVideo($videoId)', () async {
-      final uid = await _uid();
+      // Server-side: the client has no R2 credentials and must never have any.
+      await FirebaseFunctions.instanceFor(region: _functionsRegion)
+          .httpsCallable('deleteVideoObjects')
+          .call<Object?>({'videoId': videoId});
       await _videos.doc(videoId).delete();
-      // Storage cleanup is best-effort — rules only let the owner delete, and
-      // an orphaned file must not resurrect the already-deleted doc's error.
-      for (final ext in const ['mp4', 'jpg']) {
-        try {
-          await FirebaseStorage.instance.ref('ani_videos/$uid/$videoId.$ext').delete();
-        } catch (e) {
-          debugPrint('[AniVideoService] storage cleanup $videoId.$ext: $e');
-        }
-      }
     });
   }
 

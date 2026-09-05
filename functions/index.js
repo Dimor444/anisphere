@@ -14,7 +14,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 initializeApp();
@@ -330,5 +330,78 @@ exports.requestVideoUploadUrl = onCall(
       thumbnail: { key: thumbnailKey, uploadUrl: thumbnailUrl, contentType: 'image/jpeg' },
       usage: { tier, total, today, maxTotal: caps.total, maxPerDay: caps.perDay },
     };
+  },
+);
+
+/**
+ * Deletes one Ani Video's objects (clip + thumbnail) from R2.
+ *
+ * Deletion has to be server-side for the same reason uploads are: the R2
+ * credentials must never reach a client. There is no presigned equivalent
+ * worth issuing here — a presigned DELETE is a bearer token for destroying an
+ * object, and the ownership question is exactly what a client cannot be
+ * trusted to answer.
+ *
+ * Ownership is checked against the ani_videos document BEFORE anything is
+ * removed, so the caller must both own the video and have it still exist. A
+ * missing document is refused rather than treated as success: the client
+ * deletes objects first and the document second (see AniVideoService
+ * .deleteVideo), so in the legitimate flow the document is always still there.
+ *
+ * The upload_grants row is deliberately left alone. Quota is spent when bytes
+ * are written, and deleting the bytes does not un-write them — the same
+ * decision recorded on requestVideoUploadUrl.
+ */
+exports.deleteVideoObjects = onCall(
+  {
+    region: 'europe-west1',
+    secrets: [R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY],
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in to delete a video.');
+    }
+    const uid = request.auth.uid;
+
+    const videoId = request.data && request.data.videoId;
+    if (typeof videoId !== 'string' || !FIRESTORE_ID.test(videoId)) {
+      throw new HttpsError('invalid-argument', 'videoId must be a 20-character Firestore id.');
+    }
+
+    const doc = await db.collection('ani_videos').doc(videoId).get();
+    if (!doc.exists) {
+      throw new HttpsError('not-found', 'No such video.');
+    }
+    if (doc.get('userId') !== uid) {
+      throw new HttpsError('permission-denied', 'Only the author may delete this video.');
+    }
+
+    // Same client config as the presigner above — see there for why
+    // requestChecksumCalculation is pinned. (A single-object delete carries no
+    // payload to checksum; it is set here so the two never drift.)
+    const s3 = new S3Client({
+      region: 'auto',
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID.value(),
+        secretAccessKey: R2_SECRET_ACCESS_KEY.value(),
+      },
+    });
+
+    // uid, not doc.userId — they are equal by the check above, and using the
+    // verified caller keeps the key derivation tied to the identity that was
+    // actually authorised.
+    const videoKey = `ani_videos/${uid}/${videoId}.mp4`;
+    const thumbnailKey = `ani_videos/${uid}/${videoId}.jpg`;
+
+    // S3 delete is idempotent — removing an absent key succeeds — so a retry
+    // after a partial failure is safe and converges.
+    await Promise.all([
+      s3.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: videoKey })),
+      s3.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: thumbnailKey })),
+    ]);
+
+    return { videoId, deleted: [videoKey, thumbnailKey] };
   },
 );
