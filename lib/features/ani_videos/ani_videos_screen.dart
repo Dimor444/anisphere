@@ -182,7 +182,7 @@ class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsB
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(left: 6),
-                      child: Text('🎬 ${ref.tr('aniVideos')}',
+                      child: Text(ref.tr('aniVideos'),
                           style: AppTextStyles.subheading.copyWith(color: Colors.white)),
                     ),
                     const Spacer(),
