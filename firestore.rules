@@ -330,6 +330,22 @@ service cloud.firestore {
       }
     }
 
+    // Anime metadata cache — genres, titles, covers and other slow-moving
+    // AniList fields, written ONLY by the fetchAnimeMeta Cloud Function via
+    // the Admin SDK.
+    //
+    // Unlike almost everything else in this file, these documents are SHARED:
+    // one row is read by every user who opens that anime. A client able to
+    // write here would not corrupt its own profile, it would poison the
+    // genres, titles and cover urls the whole app renders — and because the
+    // cache exists precisely so the app keeps working while AniList is
+    // unreachable, nothing upstream would correct it. Hence read-only to
+    // clients, with no owner-write exception to argue about later.
+    match /anime_meta/{animeId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // Upload grants — the server's ledger of issued R2 presigned urls, one
     // doc per {uid}_{videoId}. This is the quota the requestVideoUploadUrl
     // function counts, so a client that could write here could mint itself

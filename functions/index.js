@@ -405,3 +405,224 @@ exports.deleteVideoObjects = onCall(
     return { videoId, deleted: [videoKey, thumbnailKey] };
   },
 );
+
+// ── Anime metadata cache (anime_meta/{anilistId}) ──────────────────────────
+
+// Shared, server-owned metadata so the app stops needing AniList reachable at
+// render time. Today it is not: AniList returns a global 403 —
+// "The AniList API has been temporarily disabled due to severe stability
+// issues" — and every screen that resolves an anime by id degrades or empties.
+//
+// Only PERMANENT and SLOW fields live here. averageScore, popularity,
+// favourites and nextAiringEpisode are deliberately absent: Chart and
+// Observatory exist to show those numbers moving, so a cached copy would not
+// be stale data, it would be wrong data presented as a ranking.
+const ANIME_META = 'anime_meta';
+
+// 30 days. Everything stored here is either immutable (id, titles, genres,
+// seasonYear, format, countryOfOrigin, isAdult) or changes on the scale of a
+// broadcast season (description, episodes, status).
+const ANIME_META_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+// AniList caps Page.perPage at 50, so one call is at most one upstream
+// request. This is also the per-call id cap — the two are the same number on
+// purpose, so a caller can never force fan-out.
+const ANIME_META_MAX_IDS = 50;
+
+const ANILIST_ENDPOINT = 'https://graphql.anilist.co';
+const ANILIST_TIMEOUT_MS = 10000;
+
+// Requests exactly the stored fields and nothing else — asking for
+// averageScore here would invite someone to persist it later.
+const ANILIST_META_QUERY = `
+query (\$ids: [Int]) {
+  Page(perPage: ${ANIME_META_MAX_IDS}) {
+    media(id_in: \$ids, type: ANIME) {
+      id
+      title { english romaji native }
+      coverImage { large extraLarge color }
+      genres
+      seasonYear
+      format
+      countryOfOrigin
+      isAdult
+      description(asHtml: false)
+      episodes
+      status
+    }
+  }
+}`;
+
+/** One AniList media node → the stored document body (no fetchedAt). */
+function metaFromMedia(m) {
+  const title = m.title || {};
+  const cover = m.coverImage || {};
+  return {
+    anilistId: m.id,
+    titleEnglish: title.english ?? null,
+    titleRomaji: title.romaji ?? null,
+    titleNative: title.native ?? null,
+    coverLarge: cover.large ?? null,
+    coverExtraLarge: cover.extraLarge ?? null,
+    coverColor: cover.color ?? null,
+    genres: Array.isArray(m.genres) ? m.genres : [],
+    seasonYear: m.seasonYear ?? null,
+    format: m.format ?? null,
+    countryOfOrigin: m.countryOfOrigin ?? null,
+    isAdult: m.isAdult === true,
+    description: m.description ?? null,
+    episodes: m.episodes ?? null,
+    status: m.status ?? null,
+  };
+}
+
+/**
+ * Fetches [ids] from AniList. Returns an array of media nodes, or NULL when
+ * the upstream could not be reached or answered with anything unusable.
+ *
+ * Never throws. That is the whole point: the caller's job is to serve what it
+ * already has, and an exception here would turn a degraded read into a failed
+ * one. Every failure mode — 403, 5xx, timeout, socket error, malformed body,
+ * GraphQL `errors` — collapses to the same null.
+ *
+ * Deliberately a SINGLE attempt with no retry. The current failure is a
+ * deliberate shutdown on AniList's side, not a blip: retrying inside the
+ * callable would just hold the client open for the timeout twice over and
+ * hammer an API whose owners have asked for quiet. The next call retries
+ * naturally, and by then the cache may already have been filled by someone
+ * else's request.
+ */
+async function fetchAniListMeta(ids) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ANILIST_TIMEOUT_MS);
+  try {
+    const res = await fetch(ANILIST_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ query: ANILIST_META_QUERY, variables: { ids } }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.warn(`[animeMeta] AniList HTTP ${res.status} for ${ids.length} id(s)`);
+      return null;
+    }
+    const body = await res.json();
+    if (body.errors) {
+      console.warn(`[animeMeta] AniList GraphQL error: ${JSON.stringify(body.errors).slice(0, 300)}`);
+      return null;
+    }
+    const media = body?.data?.Page?.media;
+    return Array.isArray(media) ? media : null;
+  } catch (e) {
+    // Includes AbortError from the timeout and any DNS/socket failure.
+    console.warn(`[animeMeta] AniList unreachable: ${e && e.message}`);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Resolves anime metadata for up to [ANIME_META_MAX_IDS] AniList ids, serving
+ * Firestore first and filling gaps from AniList.
+ *
+ * Cache-first, and degrading by design. The response separates what it could
+ * answer from what it could not:
+ *
+ *   meta        — id -> document, for everything available (fresh OR stale)
+ *   unavailable — ids with no cached copy AND no successful fetch
+ *   stale       — ids served from cache past the TTL because the refresh failed
+ *   upstream    — 'ok' | 'skipped' | 'unreachable'
+ *
+ * A caller NEVER gets an exception because AniList is down. Stale data is
+ * returned in preference to nothing: a two-month-old genre list is correct,
+ * and genres do not move. Only genuine argument errors throw.
+ *
+ * No server-side rate limiter, deliberately — see the note on the export.
+ */
+exports.fetchAnimeMeta = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in to read anime metadata.');
+    }
+
+    const raw = request.data && request.data.anilistIds;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      throw new HttpsError('invalid-argument', 'anilistIds must be a non-empty array.');
+    }
+    // Dedupe BEFORE the cap so a caller asking for the same id 60 times is
+    // answered rather than refused.
+    const ids = [...new Set(raw)];
+    for (const id of ids) {
+      if (!Number.isInteger(id) || id <= 0) {
+        throw new HttpsError('invalid-argument', 'Every anilistId must be a positive integer.');
+      }
+    }
+    if (ids.length > ANIME_META_MAX_IDS) {
+      throw new HttpsError(
+        'invalid-argument',
+        `At most ${ANIME_META_MAX_IDS} ids per call (got ${ids.length}).`,
+      );
+    }
+
+    // ── 1. Cache first ────────────────────────────────────────────────────
+    const col = db.collection(ANIME_META);
+    const snaps = await db.getAll(...ids.map((id) => col.doc(String(id))));
+
+    const now = Date.now();
+    const meta = {};
+    const stale = [];
+    const needFetch = [];
+
+    snaps.forEach((snap, i) => {
+      const id = ids[i];
+      if (!snap.exists) {
+        needFetch.push(id);
+        return;
+      }
+      const data = snap.data();
+      const fetchedAt = data.fetchedAt;
+      const at = fetchedAt && typeof fetchedAt.toMillis === 'function' ? fetchedAt.toMillis() : 0;
+      // Serialize the timestamp: a raw Firestore Timestamp crosses the
+      // callable boundary as {_seconds,_nanoseconds}, which is nobody's idea
+      // of a contract.
+      meta[id] = { ...data, fetchedAt: at };
+      if (now - at > ANIME_META_TTL_MS) {
+        stale.push(id);
+        needFetch.push(id);
+      }
+    });
+
+    if (needFetch.length === 0) {
+      return { meta, unavailable: [], stale: [], upstream: 'skipped' };
+    }
+
+    // ── 2. Fill the gaps, tolerating an upstream that is simply gone ──────
+    const media = await fetchAniListMeta(needFetch);
+    if (media === null) {
+      // AniList unreachable. Serve what we have; say plainly what we could
+      // not answer. `stale` entries are already present in `meta`.
+      const unavailable = needFetch.filter((id) => meta[id] === undefined);
+      return { meta, unavailable, stale, upstream: 'unreachable' };
+    }
+
+    const batch = db.batch();
+    for (const m of media) {
+      if (!m || !Number.isInteger(m.id)) continue;
+      const body = metaFromMedia(m);
+      batch.set(col.doc(String(m.id)), { ...body, fetchedAt: FieldValue.serverTimestamp() });
+      // Returned with the request time rather than the pending sentinel —
+      // serverTimestamp() resolves only on commit and would serialize as null.
+      meta[m.id] = { ...body, fetchedAt: now };
+      const wasStale = stale.indexOf(m.id);
+      if (wasStale !== -1) stale.splice(wasStale, 1);
+    }
+    await batch.commit();
+
+    // An id AniList simply does not know (deleted or wrong id) stays
+    // unavailable rather than being cached as an empty document.
+    const unavailable = needFetch.filter((id) => meta[id] === undefined);
+    return { meta, unavailable, stale, upstream: 'ok' };
+  },
+);
