@@ -31,6 +31,28 @@ import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 import '../../services/trending_service.dart';
 
+/// For You and AniMatch are hidden until they read real data.
+///
+/// Both are presentation over `SampleData`. For You hardcodes "Because you
+/// watched Frieren" and "We found 23 users with 90%+ taste match" as string
+/// literals, and renders sample friends with invented follower counts (up to
+/// 18,400) against a production graph of 11 users. AniMatch has no matching
+/// algorithm at all: its percentages are constructor arguments in
+/// `SampleData.matches` — `AniMatch(sakura, 94, [...])` — with no comparison
+/// of any kind behind them. Three buttons across the two tabs are `() {}`
+/// no-ops: For You's "Open AniMatch", and AniMatch's "Follow" and "Message".
+///
+/// Making them true needs two things that do not exist yet: a shared
+/// `anime_meta` store for genres (Firestore holds anilist ids only, so
+/// similarity has no input), and a server-side matching function — one user's
+/// `myList` is owner-only readable, so no client can compare two people's
+/// taste. The sections are kept, not deleted, so flipping this to true is all
+/// that is needed once both land.
+const bool kSocialDiscoveryEnabled = false;
+
+/// Discover's tabs in render order — the full set, before gating.
+enum _DiscoverTab { forYou, people, trending, news, aniMatch, chart, vote, search }
+
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
 
@@ -40,9 +62,30 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
     with SingleTickerProviderStateMixin {
-  static const _searchTabIndex = 7;
+  /// The tabs actually rendered, in order — the ONE source for the controller
+  /// length, the landing index and the Search index. These were three separate
+  /// hardcoded numbers (`length: 8`, `_searchTabIndex = 7`, and the implicit
+  /// initialIndex 0), which silently disagree the moment a tab is hidden.
+  static final List<_DiscoverTab> _tabs = [
+    for (final t in _DiscoverTab.values)
+      if (kSocialDiscoveryEnabled ||
+          (t != _DiscoverTab.forYou && t != _DiscoverTab.aniMatch))
+        t,
+  ];
 
-  late final TabController _tab = TabController(length: 8, vsync: this);
+  /// Typing in the header field jumps here — derived, never hardcoded.
+  static final int _searchTabIndex = _tabs.indexOf(_DiscoverTab.search);
+
+  /// Landing tab: For You while social discovery is on, otherwise Trending —
+  /// the first tab that shows real data to any user with no prerequisites.
+  static final int _initialTabIndex = _tabs.indexOf(
+      kSocialDiscoveryEnabled ? _DiscoverTab.forYou : _DiscoverTab.trending);
+
+  late final TabController _tab = TabController(
+    length: _tabs.length,
+    initialIndex: _initialTabIndex,
+    vsync: this,
+  );
   final TextEditingController _search = TextEditingController();
 
   /// Live header-field query — the Search tab listens and debounces.
@@ -124,34 +167,18 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
                 ],
               ),
             ),
+            // Labels and views both map over _tabs, so a hidden tab drops its
+            // header and its page together — they cannot fall out of step.
             TabBar(
               controller: _tab,
               isScrollable: true,
               tabAlignment: TabAlignment.start,
-              tabs: [
-                const Tab(text: 'For You'),
-                Tab(text: ref.tr('people')),
-                const Tab(text: 'Trending'),
-                const Tab(text: 'News'),
-                const Tab(text: 'AniMatch'),
-                const Tab(text: 'Chart'),
-                Tab(child: _VoteTabLabel(label: ref.tr('vote'))),
-                const Tab(text: 'Search'),
-              ],
+              tabs: [for (final t in _tabs) _tabLabel(t)],
             ),
             Expanded(
               child: TabBarView(
                 controller: _tab,
-                children: [
-                  const _ForYouTab(),
-                  const _PeopleTab(),
-                  const _TrendingTab(),
-                  const NewsFeed(),
-                  const _AniMatchTab(),
-                  const _ChartTab(),
-                  const CommunityVoteBody(),
-                  _SearchTab(query: _query, submits: _submitTick, onPick: _pick),
-                ],
+                children: [for (final t in _tabs) _tabView(t)],
               ),
             ),
           ],
@@ -159,6 +186,32 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
       ),
     );
   }
+
+  /// Header for one tab. Exhaustive over the enum, so a new tab is a compile
+  /// error here rather than a silent gap.
+  Widget _tabLabel(_DiscoverTab t) => switch (t) {
+        _DiscoverTab.forYou => const Tab(text: 'For You'),
+        _DiscoverTab.people => Tab(text: ref.tr('people')),
+        _DiscoverTab.trending => const Tab(text: 'Trending'),
+        _DiscoverTab.news => const Tab(text: 'News'),
+        _DiscoverTab.aniMatch => const Tab(text: 'AniMatch'),
+        _DiscoverTab.chart => const Tab(text: 'Chart'),
+        _DiscoverTab.vote => Tab(child: _VoteTabLabel(label: ref.tr('vote'))),
+        _DiscoverTab.search => const Tab(text: 'Search'),
+      };
+
+  /// Page for one tab, in the same order as [_tabLabel].
+  Widget _tabView(_DiscoverTab t) => switch (t) {
+        _DiscoverTab.forYou => const _ForYouTab(),
+        _DiscoverTab.people => const _PeopleTab(),
+        _DiscoverTab.trending => const _TrendingTab(),
+        _DiscoverTab.news => const NewsFeed(),
+        _DiscoverTab.aniMatch => const _AniMatchTab(),
+        _DiscoverTab.chart => const _ChartTab(),
+        _DiscoverTab.vote => const CommunityVoteBody(),
+        _DiscoverTab.search =>
+          _SearchTab(query: _query, submits: _submitTick, onPick: _pick),
+      };
 }
 
 // ───────────────────────── For You
