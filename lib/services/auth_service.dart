@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// App identity. The email/password UI is not wired to FirebaseAuth yet, so a
 /// guest (anonymous) session is the working identity path — [initAuth] is the
@@ -156,8 +157,42 @@ class AuthService {
   /// Explicit guest sign-in (the "Continue as Guest" button).
   Future<User> signInAnonymously() => initAuth();
 
+  /// User-scoped SharedPreferences keys wiped on sign-out.
+  ///
+  /// These are per-ACCOUNT, not per-device: left behind, the next person to
+  /// sign in on this handset inherits the previous user's search history,
+  /// their remaining daily challenge attempts, and their unclaimed AniGold.
+  ///
+  /// Deliberately NOT listed: `app_language` is a device preference the user
+  /// set for the handset, not for the account, and `trending_cache_*` is
+  /// global anime data that belongs to nobody.
+  static const List<String> _userScopedPrefKeys = [
+    'search_history_v2',
+    'search_history_v1', // legacy key, still read by SearchHistory
+    'challenge_attempts_count',
+    'challenge_attempts_date',
+    'pending_anigold',
+  ];
+
+  /// Ends the session and clears the local state that belonged to it.
+  ///
+  /// The prefs wipe runs FIRST and its failure is swallowed. Both are
+  /// deliberate: a wipe that throws must never leave the session alive, which
+  /// is the outcome if the sign-out sits behind it. The residual risk runs the
+  /// other way — if `_auth.signOut()` itself throws, the keys are already gone
+  /// while the session survives — and that is the correct side to fail on,
+  /// since a signed-in user losing their own search history is a nuisance
+  /// where a signed-out-looking user keeping a live session is a leak.
   Future<void> signOut() async {
     _pending = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      for (final key in _userScopedPrefKeys) {
+        await prefs.remove(key);
+      }
+    } catch (e) {
+      debugPrint('[AuthService] prefs wipe on sign-out failed (continuing): $e');
+    }
     await _auth.signOut();
   }
 }

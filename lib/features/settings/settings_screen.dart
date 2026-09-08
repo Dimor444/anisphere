@@ -1,15 +1,14 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
+import '../../services/auth_service.dart';
+import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
-import '../../shared/providers/user_provider.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -19,6 +18,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  // NOTE: every field below is screen-local and resets when this route is
+  // popped — nothing reads them and nothing persists them. They are kept
+  // pending a decision on what each should actually write; see the audit.
   bool _private = false;
   bool _showStreak = true;
   bool _showRank = true;
@@ -26,65 +28,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Stored as a stable code; the label is resolved at render time.
   String _dmWho = 'everyone';
   String _birthdayVis = 'Friends';
-  String _sound = 'Default';
-  final Map<String, bool> _notif = {'Follows': true, 'Likes': true, 'New episodes': true, 'Streaks': true, 'Messages': true};
-  int _appIcon = 0;
+
+  /// Guards the logout button while the sign-out is in flight.
+  bool _loggingOut = false;
+
+  /// Ends the Firebase session, then leaves.
+  ///
+  /// The order is the fix. This used to navigate to /onboarding and nothing
+  /// else, so the session stayed fully authenticated: currentUser intact, the
+  /// credential still in the keychain, every rule still seeing the uid. The
+  /// screen said "Logout" and the backend disagreed.
+  ///
+  /// A failed sign-out must NOT navigate. Leaving the screen on a failure
+  /// would reproduce exactly the old bug — the user believes they are out
+  /// while the session lives on — so the error is surfaced and they stay put.
+  Future<void> _logout() async {
+    if (_loggingOut) return;
+    Haptics.medium();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text("You'll need to sign in again to get back to your account."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.tr('cancel'))),
+          TextButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('Log out')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _loggingOut = true);
+    try {
+      await AuthService.instance.signOut();
+    } catch (e) {
+      debugPrint('[Settings] sign-out failed: $e');
+      if (!mounted) return;
+      setState(() => _loggingOut = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't log out — you are still signed in. Try again.")),
+      );
+      return; // Deliberately no navigation: the session is still live.
+    }
+    if (!mounted) return;
+    context.go('/onboarding');
+  }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(userProvider);
+    // The LIVE users/{uid} doc, not the SampleData mirror. isPlus is
+    // server-managed (nothing client-side can grant it), so this reads false
+    // for everyone today — but it reads the real field, so the gate starts
+    // working the moment a subscription can set it.
+    final isPlus = myIdentity(ref)?.isPlus ?? false;
     final lang = ref.watch(languageProvider).code;
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 30),
         children: [
-          _section('Account'),
-          _tile(LucideIcons.user, 'Edit Profile', () {}),
-          _tile(LucideIcons.lock, 'Change Password', () {}),
-          _tile(LucideIcons.link, 'Linked Accounts', () {}),
-
-          _section('Appearance 💎'),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text('App Icon', style: AppTextStyles.captionMuted),
-          ),
-          SizedBox(
-            height: 76,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              children: List.generate(5, (i) {
-                final locked = i > 0 && !user.isPlusUser;
-                return GestureDetector(
-                  onTap: () {
-                    if (locked) {
-                      showAniPlusPaywall(context, 'Custom App Icons');
-                    } else {
-                      Haptics.light();
-                      setState(() => _appIcon = i);
-                    }
-                  },
-                  child: Container(
-                    width: 60,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      gradient: AppGradients.palette[i].length >= 2 ? LinearGradient(colors: AppGradients.palette[i]) : AppGradients.brand,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: _appIcon == i ? Colors.white : Colors.transparent, width: 2),
-                    ),
-                    child: Stack(
-                      children: [
-                        Center(child: Text('∞', style: TextStyle(color: AppGradients.onGradient(AppGradients.palette[i]), fontSize: 26, fontWeight: FontWeight.w900))),
-                        if (locked) const Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.all(Radius.circular(14))), child: Center(child: Icon(LucideIcons.lock, color: Colors.white, size: 16)))),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-          _tile(LucideIcons.palette, 'Profile Theme', () => user.isPlusUser ? null : showAniPlusPaywall(context, 'Profile Themes'), trailing: user.isPlusUser ? null : const Icon(LucideIcons.lock, size: 14, color: AppColors.aniGold)),
+          // The Account and Appearance sections stood here. Every row in them
+          // was inert: Edit Profile / Change Password / Linked Accounts were
+          // `() {}`, the App Icon swatches moved a selection border and
+          // changed no icon, and Profile Theme could not be opened by anyone
+          // — its handler evaluated to null for a Plus user and showed the
+          // paywall for everyone else, so no branch reached a theme picker.
+          // A chevron that does nothing is worse than an absent row.
 
           _section('Privacy'),
           _switchTile('Private account', _private, (v) => setState(() => _private = v)),
@@ -94,16 +104,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _switchTile('Show True Fan rank', _showRank, (v) => setState(() => _showRank = v)),
           _choiceTile('Birthday visibility', _birthdayVis, ['Public', 'Friends', 'Private'], (v) => setState(() => _birthdayVis = v)),
           _switchTile('Spoiler Shield 💎', _spoilerShield, (v) {
-            if (!user.isPlusUser) {
+            if (!isPlus) {
               showAniPlusPaywall(context, 'Spoiler Shield');
             } else {
               setState(() => _spoilerShield = v);
             }
           }),
 
-          _section('Notifications'),
-          ..._notif.keys.map((k) => _switchTile(k, _notif[k]!, (v) => setState(() => _notif[k] = v))),
-          _tile(LucideIcons.music, 'Notification Sound', _pickSound, trailing: Text(_sound, style: AppTextStyles.captionMuted)),
+          // The Notifications section stood here: five toggles and a sound
+          // picker with an animated waveform. firebase_messaging is not a
+          // dependency — there is no push system for any of it to configure,
+          // so the switches told users a preference had been recorded when
+          // nothing existed to record it against.
 
           _section('Language'),
           ...AppStrings.languages.map((l) {
@@ -122,59 +134,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           _section('More'),
           _tile(LucideIcons.ban, ref.tr('blockList'), () => context.push('/block-list')),
-          _tile(LucideIcons.flag, 'Report a Problem', () {}),
-          if (user.isPlusUser)
-            _tile(LucideIcons.badgeCheck, 'Apply for Press Pass', () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Press Pass application opened'), duration: Duration(seconds: 1))), trailing: const _PressEligible()),
-          _tile(LucideIcons.info, 'About', () {}),
-          _tile(LucideIcons.fileText, 'Terms & Privacy', () {}),
+          // Report a Problem, About and Terms & Privacy were all `() {}`, and
+          // Apply for Press Pass showed a snackbar claiming an application had
+          // "opened" while submitting nothing — under a hardcoded "Eligible"
+          // badge with no check behind it.
           const SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: GestureDetector(
-              onTap: () {
-                Haptics.medium();
-                context.go('/onboarding');
-              },
+              onTap: _loggingOut ? null : _logout,
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: AppColors.error.withOpacity(0.12), borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.error.withOpacity(0.4))),
-                child: Text('Logout', style: AppTextStyles.subheading.copyWith(color: AppColors.error)),
+                child: _loggingOut
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error),
+                      )
+                    : Text('Logout', style: AppTextStyles.subheading.copyWith(color: AppColors.error)),
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _pickSound() {
-    Haptics.light();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 14),
-            const _Waveform(),
-            const SizedBox(height: 8),
-            ...['Default', 'Power Up', 'Sword Clash', 'Magic Spell', 'Fireball'].map((s) => ListTile(
-                  leading: const Icon(LucideIcons.volume2, color: AppColors.primaryLight, size: 20),
-                  title: Text(s, style: AppTextStyles.body),
-                  trailing: _sound == s ? const Icon(Icons.check, color: AppColors.primary) : null,
-                  onTap: () {
-                    Haptics.select();
-                    setState(() => _sound = s);
-                    Navigator.pop(ctx);
-                  },
-                )),
-            const SizedBox(height: 10),
-          ],
-        ),
       ),
     );
   }
@@ -224,62 +208,4 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           },
         ),
       );
-}
-
-class _PressEligible extends StatelessWidget {
-  const _PressEligible();
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: AppColors.success.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-      child: const Text('Eligible', style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w700)),
-    );
-  }
-}
-
-class _Waveform extends StatefulWidget {
-  const _Waveform();
-  @override
-  State<_Waveform> createState() => _WaveformState();
-}
-
-class _WaveformState extends State<_Waveform> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat();
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: AnimatedBuilder(
-        animation: _c,
-        builder: (_, __) => CustomPaint(size: const Size(double.infinity, 50), painter: _WavePainter(_c.value)),
-      ),
-    );
-  }
-}
-
-class _WavePainter extends CustomPainter {
-  final double t;
-  _WavePainter(this.t);
-  @override
-  void paint(Canvas canvas, Size size) {
-    const bars = 28;
-    final w = size.width / bars;
-    for (var i = 0; i < bars; i++) {
-      final h = (math.sin((i / bars * 2 * math.pi) + t * 2 * math.pi).abs() * 0.8 + 0.2) * size.height;
-      final paint = Paint()
-        ..shader = const LinearGradient(colors: [AppColors.primary, AppColors.accent], begin: Alignment.bottomCenter, end: Alignment.topCenter).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-      final rect = RRect.fromRectAndRadius(Rect.fromLTWH(i * w + w * 0.2, (size.height - h) / 2, w * 0.6, h), const Radius.circular(3));
-      canvas.drawRRect(rect, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _WavePainter old) => old.t != t;
 }
