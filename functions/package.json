@@ -3,7 +3,7 @@
   "description": "Cloud Functions for AniSphere — server-owned counters and other writes clients must not make directly.",
   "main": "index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "serve": "firebase emulators:start --only functions,firestore",
