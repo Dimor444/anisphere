@@ -4,6 +4,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Thrown by [AuthService.initAuth] when the user DELIBERATELY signed out and
+/// has not chosen an identity since.
+///
+/// Deliberately not a [FirebaseAuthException]: this is not a Firebase failure,
+/// and borrowing that code space would let it match
+/// [AuthService.deadCredentialCodes] and be mistaken for a dead credential —
+/// which recovers by minting a guest, the exact behaviour this prevents.
+class SignedOutException implements Exception {
+  const SignedOutException();
+  @override
+  String toString() =>
+      'SignedOutException: signed out deliberately; no identity until the '
+      'user picks one (sign in, or Continue as Guest).';
+}
+
 /// App identity. The email/password UI is not wired to FirebaseAuth yet, so a
 /// guest (anonymous) session is the working identity path — [initAuth] is the
 /// single entry point every Firebase-backed feature goes through, and when
@@ -22,6 +37,46 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   Future<User>? _pending;
+
+  /// Set by [signOut], cleared only by [signInAsGuest] (and, when real
+  /// providers land, by a real sign-in). While it is true [initAuth] refuses
+  /// instead of minting.
+  ///
+  /// `null` means "not read from disk yet" — distinct from `false`, so
+  /// [_isSignedOut] knows whether it still owes a read.
+  bool? _signedOut;
+
+  static const String _signedOutKey = 'auth_deliberate_signout_v1';
+
+  /// Reads the flag, hydrating from disk at most once.
+  ///
+  /// Fails CLOSED on a read error: a device that cannot answer is treated as
+  /// signed out, because the recovery is one tap on Continue as Guest whereas
+  /// the opposite mistake silently mints the guest this whole mechanism
+  /// exists to prevent.
+  Future<bool> _isSignedOut() async {
+    final cached = _signedOut;
+    if (cached != null) return cached;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return _signedOut = prefs.getBool(_signedOutKey) ?? false;
+    } catch (e) {
+      debugPrint('[AuthService] signed-out flag read failed ($e) — '
+          'treating as signed out');
+      return _signedOut = true;
+    }
+  }
+
+  /// Hydrate the flag before the first [initAuth]. Called from `main()`.
+  ///
+  /// Only an optimisation: [initAuth] hydrates lazily anyway, so skipping this
+  /// costs a disk read on the first call but never changes the outcome. It
+  /// exists so the check is already resolved by the time the tree builds.
+  Future<void> hydrateSession() => _isSignedOut();
+
+  /// Test seam: drop the hydrated flag so the next read comes off disk again.
+  @visibleForTesting
+  void debugResetSignedOutFlag() => _signedOut = null;
 
   /// Auth codes that mean the cached credential is DEAD: the account is gone,
   /// disabled, or its refresh token is permanently rejected. Nothing recovers
@@ -72,10 +127,21 @@ class AuthService {
   /// every credentialed call it goes on to make fails. That state survives
   /// restarts, which is what made it a wedge rather than a blip.
   ///
+  /// REFUSES with [SignedOutException] after a deliberate [signOut]. "No
+  /// session yet" and "signed out" are indistinguishable in FirebaseAuth —
+  /// `currentUser` is null for both — so the difference is carried by a flag
+  /// rather than derived. Only [signInAsGuest] (and, later, a real sign-in)
+  /// clears it, which is why no service can mint one by accident: they all
+  /// come through here.
+  ///
+  /// The check runs FIRST and OUTSIDE the memo, so a refusal neither populates
+  /// nor churns [_pending].
+  ///
   /// Memoized, so validation costs one round trip per app launch at most and
   /// concurrent callers share it; a failure clears the memo so the next call
   /// retries.
-  Future<User> initAuth() {
+  Future<User> initAuth() async {
+    if (await _isSignedOut()) throw const SignedOutException();
     return _pending ??= () async {
       try {
         final existing = _auth.currentUser;
@@ -154,8 +220,29 @@ class AuthService {
     }
   }
 
-  /// Explicit guest sign-in (the "Continue as Guest" button).
-  Future<User> signInAnonymously() => initAuth();
+  /// The user CHOOSING guest — the "Continue as Guest" button, and the only
+  /// sanctioned way a guest is minted.
+  ///
+  /// This is why it is not [initAuth]: that ensures an identity and must
+  /// refuse after a deliberate sign-out, while this one IS the deliberate
+  /// choice that lifts the refusal. Services only ever reach [initAuth], so
+  /// none of them can mint by accident — which was the whole defect.
+  ///
+  /// Clears the flag first, then mints INTO the memo so a concurrent
+  /// [initAuth] shares this session rather than racing a second one. A failed
+  /// mint clears the memo, matching [initAuth] — the sign-in screen offers a
+  /// retry, and a poisoned memo would make every retry fail forever.
+  Future<User> signInAsGuest() async {
+    await _setSignedOut(false);
+    return _pending = () async {
+      try {
+        return await _createGuestSession();
+      } catch (e) {
+        _pending = null;
+        rethrow;
+      }
+    }();
+  }
 
   /// User-scoped SharedPreferences keys wiped on sign-out.
   ///
@@ -176,15 +263,23 @@ class AuthService {
 
   /// Ends the session and clears the local state that belonged to it.
   ///
-  /// The prefs wipe runs FIRST and its failure is swallowed. Both are
-  /// deliberate: a wipe that throws must never leave the session alive, which
-  /// is the outcome if the sign-out sits behind it. The residual risk runs the
-  /// other way — if `_auth.signOut()` itself throws, the keys are already gone
-  /// while the session survives — and that is the correct side to fail on,
-  /// since a signed-in user losing their own search history is a nuisance
-  /// where a signed-out-looking user keeping a live session is a leak.
+  /// ORDER MATTERS, and it is: flag, prefs wipe, then `_auth.signOut()`.
+  ///
+  /// The flag goes first because it is what stops the next [initAuth] from
+  /// minting a replacement guest. Set it after the session is torn down and
+  /// any service call landing in that window sees "no user, not signed out" —
+  /// which is the mint path this exists to close.
+  ///
+  /// Both bookkeeping steps swallow their failures, for one shared reason: a
+  /// step that throws must never leave the session alive, which is the outcome
+  /// if `_auth.signOut()` sits behind it. The residual risk runs the other way
+  /// — if `_auth.signOut()` itself throws, the keys are already gone while the
+  /// session survives — and that is the correct side to fail on, since a
+  /// signed-in user losing their own search history is a nuisance where a
+  /// signed-out-looking user keeping a live session is a leak.
   Future<void> signOut() async {
     _pending = null;
+    await _setSignedOut(true);
     try {
       final prefs = await SharedPreferences.getInstance();
       for (final key in _userScopedPrefKeys) {
@@ -194,5 +289,29 @@ class AuthService {
       debugPrint('[AuthService] prefs wipe on sign-out failed (continuing): $e');
     }
     await _auth.signOut();
+  }
+
+  /// Sets the flag in memory and mirrors it to disk.
+  ///
+  /// The in-memory write happens FIRST and unconditionally, so the current
+  /// process is correct even if the disk write throws. A failed write is
+  /// swallowed for the same reason the prefs wipe is: bookkeeping that throws
+  /// must never leave [signOut] short of `_auth.signOut()` with the session
+  /// still alive.
+  ///
+  /// The residual risk is one-sided and worth naming: if the write fails while
+  /// setting `true`, this process still refuses, but a force-quit loses the
+  /// flag and the next launch mints a guest. That is the same outcome as
+  /// before this change, so a failure degrades to the old behaviour rather
+  /// than to a worse one.
+  Future<void> _setSignedOut(bool value) async {
+    _signedOut = value;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_signedOutKey, value);
+    } catch (e) {
+      debugPrint('[AuthService] signed-out flag write ($value) failed '
+          '(continuing, in-memory value stands): $e');
+    }
   }
 }

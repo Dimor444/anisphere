@@ -25,7 +25,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     Haptics.medium();
     setState(() => _guestLoading = true);
     try {
-      final user = await AuthService.instance.signInAnonymously();
+      final user = await AuthService.instance.signInAsGuest();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('${ref.tr('guestSignedIn')} · ${user.uid}'),

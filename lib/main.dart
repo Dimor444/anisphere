@@ -12,6 +12,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'app.dart';
 import 'core/constants/app_colors.dart';
 import 'firebase_options.dart';
+import 'services/auth_service.dart';
 
 /// Compile-time backend switch: `flutter run --dart-define=USE_EMULATOR=true`
 /// points the app at the local Firebase emulator suite (same define the
@@ -78,6 +79,11 @@ Future<void> main() async {
     systemNavigationBarIconBrightness: Brightness.light,
   ));
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // Resolve the deliberate-sign-out flag before the first frame, so the very
+  // first initAuth() answers from memory. Purely an optimisation — initAuth
+  // hydrates lazily on its own — but it keeps the check off the startup path.
+  await AuthService.instance.hydrateSession();
 
   runApp(const ProviderScope(child: AniSphereApp()));
 }
