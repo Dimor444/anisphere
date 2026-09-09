@@ -713,8 +713,42 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
     return Container(color: AppColors.background, child: tabBar);
   }
 
+  /// Rebuild when the bar itself changed — never merely because the parent
+  /// rebuilt.
+  ///
+  /// This returned a hardcoded `false`, which is wrong for one specific
+  /// reason: the profile swaps between a 6-tab bar (own) and a 3-tab bar
+  /// (visitor), and `isOwn` is read live from AuthService on every build. When
+  /// it flips — signing out is the way to see it — DefaultTabController and
+  /// TabBarView drop to 3 while this cached sliver kept painting 6, and the
+  /// framework asserts "Controller's length property (3) does not match the
+  /// number of tabs (6)".
+  ///
+  /// Nothing else this delegate renders can change: [minExtent]/[maxExtent]
+  /// are the literal 48, and the Container's colour is `AppColors.background`,
+  /// a compile-time const. So [tabBar] is the whole dependency, and within it
+  /// only the count and the labels are observable — the count catches the
+  /// own/visitor swap (which is also the only place isScrollable and
+  /// tabAlignment differ), and the labels catch a language change, since the
+  /// visitor bar builds its titles through ref.tr.
+  ///
+  /// Deliberately NOT `true`: that would rebuild the header on every parent
+  /// rebuild, and the profile's identity stream emits far more often than the
+  /// bar actually changes.
   @override
-  bool shouldRebuild(covariant _TabBarDelegate oldDelegate) => false;
+  bool shouldRebuild(covariant _TabBarDelegate oldDelegate) {
+    final before = oldDelegate.tabBar.tabs;
+    final after = tabBar.tabs;
+    if (before.length != after.length) return true;
+    for (var i = 0; i < after.length; i++) {
+      if (_labelOf(before[i]) != _labelOf(after[i])) return true;
+    }
+    return false;
+  }
+
+  /// Both profile bars build `Tab(text:)`; anything else compares as null,
+  /// which is stable rather than falsely "changed".
+  static String? _labelOf(Widget tab) => tab is Tab ? tab.text : null;
 }
 
 class _PostsTab extends ConsumerWidget {
