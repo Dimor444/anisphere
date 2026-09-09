@@ -14,6 +14,15 @@ import '../../services/follow_service.dart';
 /// paints the correct identity instantly while its listener re-attaches.
 final _lastKnown = <String, UserData>{};
 
+/// Drop every cached identity. Called by the session lifecycle when the
+/// signed-in user changes.
+///
+/// Without this the map outlives the session that filled it, and since
+/// [identityOf] falls back to it whenever the live doc has not arrived, the
+/// PREVIOUS user's display name and avatar paint over the new session's
+/// screens until each listener delivers its first snapshot.
+void clearIdentityCache() => _lastKnown.clear();
+
 /// Live identity of any user. The family dedupes: every widget watching the
 /// same uid shares one Firestore listener, dropped when the last one leaves.
 final identityProvider =

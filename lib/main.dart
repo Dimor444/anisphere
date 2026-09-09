@@ -11,6 +11,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'app.dart';
 import 'core/constants/app_colors.dart';
+import 'core/session_lifecycle.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 
@@ -84,6 +85,21 @@ Future<void> main() async {
   // first initAuth() answers from memory. Purely an optimisation — initAuth
   // hydrates lazily on its own — but it keeps the check off the startup path.
   await AuthService.instance.hydrateSession();
+
+  // Identity teardown/attach. Position is load-bearing on both sides:
+  //
+  // AFTER the backend hookup above, because subscribing to authStateChanges
+  // is itself an Auth touch — the same rule that comment states — and doing it
+  // first would bind the listener before useAuthEmulator re-points Auth.
+  //
+  // AFTER hydrateSession, because subscribing delivers the current user
+  // immediately. That first emission can attach the following watch, which
+  // resolves identity through initAuth — so the flag wants to be settled
+  // before it is asked, not read lazily underneath it. Correct either way
+  // (initAuth hydrates on demand); deterministic only in this order.
+  //
+  // Synchronous — it subscribes and returns, adding nothing to startup.
+  SessionLifecycle.instance.install();
 
   runApp(const ProviderScope(child: AniSphereApp()));
 }

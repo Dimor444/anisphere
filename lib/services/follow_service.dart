@@ -364,6 +364,31 @@ class FollowService {
     }
   }
 
+  /// Drop everything this service holds on behalf of the signed-out user.
+  ///
+  /// Called by the session lifecycle on an identity transition, NOT by
+  /// signOut() — sign-out has more than one origin (a deliberate signOut and
+  /// _recoverFromDeadCredential both end a session), and binding to the
+  /// transition catches all of them.
+  ///
+  /// [_watchedUid] is load-bearing, not hygiene: it is the idempotence guard
+  /// in [ensureFollowingWatch]. Cancel the subscription but leave the uid set
+  /// and the next call for that same uid takes the `_watchedUid == uid` early
+  /// return — so the watch is never re-attached, permanently, for the rest of
+  /// the process. Signing back into the same account is enough to hit it.
+  ///
+  /// [followingIdsListenable] resets to `null`, NOT `[]`. The two are
+  /// different states to every widget reading it: null is "not loaded yet"
+  /// and renders a spinner, `[]` is "follows nobody" and renders the empty
+  /// state. Handing the next session an empty list would flash a wrong,
+  /// confident answer before the first snapshot lands.
+  Future<void> resetForSignOut() async {
+    await _followingSub?.cancel();
+    _followingSub = null;
+    _watchedUid = null;
+    followingIdsListenable.value = null;
+  }
+
   Future<bool> hasAnyFollowing() async => (await followingIds()).isNotEmpty;
 
   // ── Lists (profiles resolved per id — no duplicated user data) ─────────
