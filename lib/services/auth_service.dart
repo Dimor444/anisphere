@@ -253,6 +253,15 @@ class AuthService {
   /// Deliberately NOT listed: `app_language` is a device preference the user
   /// set for the handset, not for the account, and `trending_cache_*` is
   /// global anime data that belongs to nobody.
+  ///
+  /// `aniscan_used` is also NOT listed, but for the opposite reason, and it
+  /// is the one exclusion that looks like a bug. It IS per-account — the
+  /// lifetime AniScan count — so a sweep for user-scoped keys will find it
+  /// and want to add it here. Do not. It gates the three free scans, and
+  /// wiping it on sign-out makes that paywall farmable: sign out, sign back
+  /// in, three more scans, repeat forever. The accepted cost is the other
+  /// way round — a shared handset carries the previous person's count.
+  /// Defined on AniScanController, which repeats this note.
   static const List<String> _userScopedPrefKeys = [
     'search_history_v2',
     'search_history_v1', // legacy key, still read by SearchHistory

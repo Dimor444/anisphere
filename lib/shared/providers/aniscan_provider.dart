@@ -7,6 +7,15 @@ class AniScanController extends StateNotifier<int> {
     _load();
   }
 
+  /// Per-account, and deliberately EXCLUDED from
+  /// `AuthService._userScopedPrefKeys` — so it survives sign-out while search
+  /// history, challenge attempts and pending AniGold are wiped.
+  ///
+  /// That asymmetry is the decision, not an oversight. This key is what gates
+  /// [freeLimit], so wiping it on sign-out would make the paywall farmable:
+  /// sign out, sign back in, three more scans, repeat forever. The cost is
+  /// accepted in the other direction — on a shared handset the next person
+  /// inherits this count.
   static const _key = 'aniscan_used';
   static const freeLimit = 3;
 
