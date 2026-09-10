@@ -40,6 +40,10 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _me;
+
+  /// Set when [AuthService.initAuth] refuses: renders a terminal state instead
+  /// of a spinner that can never resolve.
+  bool _signedOut = false;
   DmConversation? _convo;
   bool _convoLoaded = false;
 
@@ -77,7 +81,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _init() async {
-    final uid = (await AuthService.instance.initAuth()).uid;
+    final String uid;
+    try {
+      uid = (await AuthService.instance.initAuth()).uid;
+    } on SignedOutException {
+      // No identity to read the thread as. Without this the throw escaped an
+      // unawaited initState future AND left _me null forever, which _body
+      // reads as "still loading" — a permanent spinner, not an error card.
+      if (mounted) setState(() => _signedOut = true);
+      return;
+    }
     if (!mounted) return;
     setState(() => _me = uid);
 
@@ -455,10 +468,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _body(String? me) {
-    if (me == null || (!_convoLoaded && !_liveLoaded)) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_convoLoaded && _convo == null) {
+    // Signed out is checked FIRST and shares the unavailable copy: with no
+    // identity the thread genuinely cannot be read, and the spinner below
+    // would never resolve.
+    if (_signedOut || (_convoLoaded && _convo == null)) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -466,6 +479,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               textAlign: TextAlign.center, style: AppTextStyles.bodyMuted),
         ),
       );
+    }
+    if (me == null || (!_convoLoaded && !_liveLoaded)) {
+      return const Center(child: CircularProgressIndicator());
     }
     final messages = _ordered;
     final blocked = _convo?.isBlocked ?? false;

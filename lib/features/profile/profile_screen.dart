@@ -83,9 +83,46 @@ class ProfileScreen extends StatelessWidget {
       future: AuthService.instance.initAuth(),
       builder: (context, snap) {
         final user = snap.data;
-        if (user == null) return const Center(child: CircularProgressIndicator());
-        return _ProfileBody(uid: user.uid, fromTab: true);
+        if (user != null) return _ProfileBody(uid: user.uid, fromTab: true);
+        // Still resolving.
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        // Settled with no user — signed out, or the session could not be
+        // established. Terminal either way. This branch is why the test is on
+        // connectionState and not on `user == null`: initAuth now REFUSES
+        // after a deliberate sign-out, and a refusal leaves data null with
+        // hasError set, which the old check read as "still loading" and
+        // answered with a spinner that could never stop.
+        return const _SignedOutTab();
       },
+    );
+  }
+}
+
+/// The profile tab with nobody signed in. Reuses the userX + existing copy of
+/// the not-found state rather than inventing a message: no new string keys,
+/// and eight translations stay in step.
+class _SignedOutTab extends ConsumerWidget {
+  const _SignedOutTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      appBar: AppBar(title: Text(ref.tr('profile'))),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppGradients.pageBg),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(LucideIcons.userX, size: 42, color: AppColors.textMuted),
+              const SizedBox(height: 12),
+              Text(ref.tr('signIn'), style: AppTextStyles.captionMuted),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

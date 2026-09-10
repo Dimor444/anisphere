@@ -18,7 +18,16 @@ import '../../shared/widgets/user_avatar.dart';
 /// the caller's own entry, exactly like the chat screen's menu.
 final _blockedProvider =
     StreamProvider.autoDispose<List<DmConversation>>((ref) async* {
-  final uid = (await AuthService.instance.initAuth()).uid;
+  final String uid;
+  try {
+    uid = (await AuthService.instance.initAuth()).uid;
+  } on SignedOutException {
+    // Signed out: nobody is blocked, because there is no "somebody". Yielding
+    // empty renders the normal empty state — the error branch here says
+    // "check your connection", which would be a plainly wrong diagnosis.
+    yield const [];
+    return;
+  }
   yield* DmService.instance.watchBlockedConversations(uid);
 });
 

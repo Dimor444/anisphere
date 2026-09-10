@@ -38,7 +38,16 @@ final identityProvider =
 /// FollowService.updateProfile), so this can never watch a different doc
 /// than the one edits land in.
 final myIdentityProvider = StreamProvider.autoDispose<UserData?>((ref) async* {
-  final uid = (await AuthService.instance.initAuth()).uid;
+  final String uid;
+  try {
+    uid = (await AuthService.instance.initAuth()).uid;
+  } on SignedOutException {
+    // Signed out is a normal state, not a failure. Yielding null lands in the
+    // SAME branch every consumer already handles — myIdentity(ref) returns
+    // null while loading too — so no UI has to grow an error case.
+    yield null;
+    return;
+  }
   yield* FollowService.instance.watchUser(uid).map((u) {
     if (u != null) _lastKnown[uid] = u;
     return u;

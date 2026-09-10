@@ -48,8 +48,22 @@ final storyViewedProvider = FutureProvider.autoDispose.family<bool, String>((ref
 });
 
 /// The signed-in uid (guest session included) — for owner checks in the
-/// viewer and skipping self-views.
-final myUidProvider = FutureProvider<String>((ref) async => (await AuthService.instance.initAuth()).uid);
+/// viewer and skipping self-views. Null when nobody is signed in, which the
+/// viewer already treats as "not the owner" and "do not record a view".
+///
+/// autoDispose is load-bearing here, and was missing: as a plain
+/// FutureProvider this cached the resolved uid for the WHOLE app session, so
+/// after a sign-out it kept handing out the dead uid to every later reader —
+/// a bug in its own right, independent of the exception below. Disposing when
+/// unwatched makes each open re-resolve; initAuth is memoized inside
+/// AuthService, so re-resolving costs nothing.
+final myUidProvider = FutureProvider.autoDispose<String?>((ref) async {
+  try {
+    return (await AuthService.instance.initAuth()).uid;
+  } on SignedOutException {
+    return null;
+  }
+});
 
 /// Marks [storyId] viewed: overlay immediately (ring flips), Firestore
 /// write behind it (create-only; failures don't block playback).

@@ -21,7 +21,15 @@ import '../../shared/widgets/verified_badge.dart';
 /// nothing is denormalized on the conversation doc.
 final _conversationsProvider =
     StreamProvider.autoDispose<List<DmConversation>>((ref) async* {
-  final uid = (await AuthService.instance.initAuth()).uid;
+  final String uid;
+  try {
+    uid = (await AuthService.instance.initAuth()).uid;
+  } on SignedOutException {
+    // Signed out: no threads to show, and no error to report. The empty state
+    // is the truthful rendering.
+    yield const [];
+    return;
+  }
   yield* DmService.instance.watchConversations(uid);
 });
 

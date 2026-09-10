@@ -348,9 +348,23 @@ class FollowService {
 
   /// Start (or re-point after a sign-in change) the shared following watch.
   /// Idempotent — safe to call from every screen that needs it.
+  ///
+  /// Reads the uid through [AuthService.uid] — the synchronous, non-minting
+  /// view of `currentUser` — NOT through `_uid()`. That helper resolves via
+  /// initAuth, which used to mean this method's own recovery path was a
+  /// MINTING path: called with no session, it would silently create a guest
+  /// as a side effect of trying to re-attach a listener. A watch is not a
+  /// reason to invent an identity.
+  ///
+  /// Null therefore means "nobody is signed in", and the answer is to do
+  /// nothing. The cold-start case this used to cover — called before the
+  /// session resolves — is now covered by SessionLifecycle, which attaches on
+  /// the identity transition itself rather than depending on whichever screen
+  /// happened to mount first.
   Future<void> ensureFollowingWatch() async {
     try {
-      final uid = await _uid();
+      final uid = AuthService.instance.uid;
+      if (uid == null) return;
       if (_watchedUid == uid) return;
       _watchedUid = uid;
       await _followingSub?.cancel();

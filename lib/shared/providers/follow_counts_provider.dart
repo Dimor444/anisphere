@@ -39,6 +39,14 @@ final followCountsProvider =
 /// same [AuthService.initAuth] every FollowService write resolves.
 final myFollowCountsProvider =
     FutureProvider.autoDispose<FollowCounts>((ref) async {
-  final uid = (await AuthService.instance.initAuth()).uid;
+  final String uid;
+  try {
+    uid = (await AuthService.instance.initAuth()).uid;
+  } on SignedOutException {
+    // Nobody signed in: the honest count is zero, not an error card. Zero is
+    // also what the aggregation would return for an account with no graph, so
+    // consumers need no new branch.
+    return const FollowCounts(followers: 0, following: 0);
+  }
   return ref.watch(followCountsProvider(uid).future);
 });
