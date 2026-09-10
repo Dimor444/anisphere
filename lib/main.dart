@@ -99,7 +99,18 @@ Future<void> main() async {
   // (initAuth hydrates on demand); deterministic only in this order.
   //
   // Synchronous — it subscribes and returns, adding nothing to startup.
-  SessionLifecycle.instance.install();
+  //
+  // The container is built here rather than by ProviderScope so the lifecycle
+  // can invalidate providers on an identity change. Some session state lives
+  // in keepAlive providers, not in service singletons, and there is no other
+  // handle on it from outside the widget tree. UncontrolledProviderScope is
+  // the supported way to hand an externally-owned container to the tree; it
+  // lives for the life of the process, exactly like the old ProviderScope's.
+  final container = ProviderContainer();
+  SessionLifecycle.instance.install(container);
 
-  runApp(const ProviderScope(child: AniSphereApp()));
+  runApp(UncontrolledProviderScope(
+    container: container,
+    child: const AniSphereApp(),
+  ));
 }

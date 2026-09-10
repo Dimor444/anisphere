@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/stories/story_providers.dart';
 import '../services/auth_service.dart';
 import '../services/follow_service.dart';
 import '../shared/providers/identity_provider.dart';
@@ -46,10 +48,21 @@ class SessionLifecycle {
 
   bool _installed = false;
 
+  /// The app's provider container, so teardown can reach state that lives in
+  /// Riverpod rather than in a service singleton. `main()` builds it and hands
+  /// it to [install]; see UncontrolledProviderScope there.
+  ///
+  /// This is the class of state the earlier sweep missed entirely — a
+  /// keepAlive provider is functionally a service-scoped listener, but it
+  /// looks nothing like one, so no amount of grepping for StreamSubscription
+  /// would ever have found it.
+  ProviderContainer? _container;
+
   /// Subscribe to identity changes. Idempotent; extra calls are ignored.
-  void install() {
+  void install(ProviderContainer container) {
     if (_installed) return;
     _installed = true;
+    _container = container;
     _sub = AuthService.instance.authStateChanges.listen(
       _onAuthState,
       onError: (Object e) => debugPrint('[SessionLifecycle] auth stream error: $e'),
@@ -87,9 +100,21 @@ class SessionLifecycle {
       debugPrint('[SessionLifecycle] identity left ($prev) — tearing down');
       await FollowService.instance.resetForSignOut();
       clearIdentityCache();
+      // Cancels the live stories listener at the transition — the same moment
+      // the following watch is cancelled, which is demonstrably early enough
+      // to beat the backend's rejection. The provider's own signed-in gate
+      // keeps the immediate rebuild from opening a replacement.
+      _container?.invalidate(activeStoryGroupsProvider);
+      // Viewed-story ids belong to the user who viewed them.
+      _container?.invalidate(viewedOverlayProvider);
     }
     if (next != null) {
       debugPrint('[SessionLifecycle] identity arrived ($next) — attaching');
+      // Re-run the gate now that there IS an identity: without this the
+      // provider would sit on the empty stream its gate returned while
+      // signed out, and the stories row would stay blank for the whole of
+      // the next session.
+      _container?.invalidate(activeStoryGroupsProvider);
       await FollowService.instance.ensureFollowingWatch();
     }
   }
@@ -101,6 +126,7 @@ class SessionLifecycle {
     await _sub?.cancel();
     _sub = null;
     _actedOn = null;
+    _container = null;
     _installed = false;
     _queue = Future<void>.value();
   }

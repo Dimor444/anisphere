@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/auth_service.dart';
@@ -15,7 +16,27 @@ class StoryGroup {
 /// Active stories grouped per user, groups ordered by most recent story.
 /// Backed by one Firestore listener; expiry is filtered client-side inside
 /// [StoryService.getActiveStories].
+///
+/// GATED on there being a signed-in identity, and invalidated by
+/// SessionLifecycle on both transitions. The rule for `stories` is
+/// `allow read: if signedIn()` — not uid-scoped — so the gate is simply
+/// whether anyone is signed in.
+///
+/// Both halves are needed. The gate alone would not help: the listener that
+/// already exists keeps running after sign-out, which is precisely the
+/// permission-denied this fixes. The invalidate alone would be worse than
+/// useless: this provider is keepAlive and still watched by the stories row
+/// at that moment, so invalidating rebuilds it immediately — and without the
+/// gate the rebuild opens a NEW Firestore listener with no credential.
+/// Together, the invalidate cancels the live listener at the identity
+/// transition and the gate makes the rebuild inert.
 final activeStoryGroupsProvider = StreamProvider<List<StoryGroup>>((ref) {
+  final uid = AuthService.instance.uid;
+  if (uid == null) {
+    debugPrint('[Stories] no identity — not subscribing');
+    return Stream.value(const <StoryGroup>[]);
+  }
+  debugPrint('[Stories] subscribing as $uid');
   return StoryService.instance.getActiveStories().map((stories) {
     final byUid = <String, List<StoryData>>{};
     for (final s in stories) {
@@ -38,6 +59,14 @@ final activeStoryGroupsProvider = StreamProvider<List<StoryGroup>>((ref) {
 
 /// Story ids the signed-in user viewed THIS session — an overlay so the ring
 /// flips to "viewed" instantly, without waiting for a Firestore round-trip.
+///
+/// Deliberately NOT autoDispose, and cleared by SessionLifecycle instead.
+/// Surviving is the entire point: the overlay has to outlive any single story
+/// widget so a ring stays flipped for the rest of the session. autoDispose
+/// would drop the set whenever no story row happened to be watching and the
+/// rings would silently un-flip mid-session — a consumer-visible regression.
+/// It still carries the PREVIOUS user's viewing history across a sign-out,
+/// which is why the teardown clears it.
 final viewedOverlayProvider = StateProvider<Set<String>>((_) => <String>{});
 
 /// Whether the signed-in user has viewed [storyId] (overlay first, then the
