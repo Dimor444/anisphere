@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../services/streak_service.dart';
 import '../providers/currency_provider.dart';
+import '../providers/identity_provider.dart';
 import 'ani_gold_icon.dart';
 import 'ani_gem_icon.dart';
 import 'verified_badge.dart' show BadgeSize;
@@ -16,6 +18,29 @@ class CurrencyBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = ref.watch(currencyProvider);
+
+    // The streak is the real one: users/{uid}.currentStreak, resolved through
+    // the same identity family the profile uses (identityOf there, its
+    // own-user twin myIdentity here) and passed through the same
+    // [StreakService.displayStreak] — so the feed and the profile can never
+    // disagree about a user's streak.
+    //
+    // Gold and gem still come from currencyProvider. They are a separate
+    // question: no server field exists for either, so there is nothing yet to
+    // read them from.
+    //
+    // null covers loading, signed-out and a missing doc alike — myIdentity
+    // returns null for all three. It renders an em dash rather than a number,
+    // because the alternative is flashing a confident value for an account
+    // whose streak has not been read yet.
+    final me = myIdentity(ref);
+    final streak = me == null
+        ? null
+        : StreakService.displayStreak(
+            currentStreak: me.currentStreak,
+            lastActiveDay: me.lastActiveDay,
+          );
+
     return Padding(
       padding: padding,
       child: Row(
@@ -26,7 +51,11 @@ class CurrencyBar extends ConsumerWidget {
           const SizedBox(width: 10),
           _Pill(
             icon: const Text('🔥', style: TextStyle(fontSize: 14)),
-            value: '${c.streak} days',
+            // "1 days" was reachable the moment this read a real value — a
+            // one-day streak is the common case on a new account.
+            value: streak == null
+                ? '—'
+                : '$streak ${streak == 1 ? 'day' : 'days'}',
             tint: AppColors.streak,
           ),
         ],
