@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/stories/story_providers.dart';
 import '../services/auth_service.dart';
 import '../services/follow_service.dart';
+import '../services/streak_service.dart';
 import '../shared/providers/identity_provider.dart';
 
 /// Reacts to the signed-in identity changing: tears down what belonged to the
@@ -100,6 +101,10 @@ class SessionLifecycle {
       debugPrint('[SessionLifecycle] identity left ($prev) — tearing down');
       await FollowService.instance.resetForSignOut();
       clearIdentityCache();
+      // Per-process memo of "already checked in today", which does not record
+      // whose check-in it was. Left set, the next user's first checkIn()
+      // returns early on the previous user's answer.
+      StreakService.instance.resetSession();
       // Cancels the live stories listener at the transition — the same moment
       // the following watch is cancelled, which is demonstrably early enough
       // to beat the backend's rejection. The provider's own signed-in gate

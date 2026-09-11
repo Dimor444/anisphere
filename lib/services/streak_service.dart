@@ -23,9 +23,34 @@ class StreakService {
   String? _sessionDay;
   Future<bool>? _inFlight;
 
-  /// Forget the session memo so the next [checkIn] re-reads the doc.
-  @visibleForTesting
-  void resetSession() => _sessionDay = null;
+  /// Forget both memos so the next [checkIn] re-reads the doc.
+  ///
+  /// Called by SessionLifecycle when the signed-in identity changes. Both
+  /// fields record something about THIS PROCESS and neither records WHOSE, so
+  /// both hand the next user the previous user's answer:
+  ///
+  /// - [_sessionDay] — "this process already checked in today". Left set, the
+  ///   next user's first [checkIn] takes the early return and they never get a
+  ///   first check-in until the process restarts.
+  /// - [_inFlight] — the check-in currently running. Left set, `_inFlight ??=`
+  ///   hands the next user the PREVIOUS user's future, so their own check-in
+  ///   never starts and they receive a result computed for someone else.
+  ///
+  /// Nulling [_inFlight] does not cancel the run it referenced — Dart futures
+  /// have no cancellation, and this only drops our handle on it. That run is
+  /// harmless: it captured its own uid before its first await, so it can only
+  /// ever write ITS OWN doc, and its single merge-set is atomic at the
+  /// document level. After a sign-out it simply fails (initAuth refuses, or
+  /// the write is denied), and its own catch swallows that and returns false.
+  ///
+  /// No longer @visibleForTesting: production calls it now, and keeping the
+  /// annotation makes that call an `invalid_use_of_visible_for_testing_member`
+  /// warning. It is the same shape as FollowService.resetForSignOut, which is
+  /// likewise a plain public method the lifecycle calls.
+  void resetSession() {
+    _sessionDay = null;
+    _inFlight = null;
+  }
 
   /// What the streak chip should SHOW right now — read-only, never writes.
   ///
