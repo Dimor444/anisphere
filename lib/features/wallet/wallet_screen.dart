@@ -10,6 +10,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/sample_data.dart';
 import '../../shared/providers/currency_provider.dart';
+import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/user_provider.dart';
 import '../../shared/widgets/ani_gem_icon.dart';
 import '../../shared/widgets/ani_gold_icon.dart';
@@ -24,7 +25,10 @@ class WalletScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = ref.watch(currencyProvider);
+    // Balances are read from users/{uid} — server-owned, client-immutable.
+    // currencyProvider is still imported below because the spin wheel and the
+    // shop mutate it; those call sites are Phase 2 and untouched here.
+    final me = myIdentity(ref);
     final initial = switch (initialTab) {
       'spend' => 1,
       'recharge' => 2,
@@ -43,11 +47,11 @@ class WalletScreen extends ConsumerWidget {
               child: Row(children: [
                 const AniGoldIcon(size: BadgeSize.lg),
                 const SizedBox(width: 5),
-                Text(Fmt.thousands(c.gold), style: AppTextStyles.numbersLg()),
+                Text(Fmt.balance(me?.aniGold), style: AppTextStyles.numbersLg()),
                 const SizedBox(width: 14),
                 const AniGemIcon(size: BadgeSize.md),
                 const SizedBox(width: 5),
-                Text(Fmt.thousands(c.gem), style: AppTextStyles.numbersLg()),
+                Text(Fmt.balance(me?.aniGem), style: AppTextStyles.numbersLg()),
               ]),
             ),
           ],

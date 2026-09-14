@@ -38,6 +38,16 @@ class UserData {
 
   /// "YYYY-MM-DD" UTC of the last check-in; "" before the first one.
   final String lastActiveDay;
+
+  /// Currency balance. SERVER-OWNED: the rules admit these on no create and
+  /// no update path, so the only writer is the Admin SDK. Read here, never
+  /// written from the client — which is why [toMap] omits them.
+  ///
+  /// Absent on every profile written before the fields existed, hence the
+  /// `?? 0` in [fromDoc]: no migration is needed, a missing field simply
+  /// reads as an empty balance.
+  final int aniGold;
+  final int aniGem;
   final DateTime? createdAt;
 
   /// Anime DNA overrides — AniList ids ONLY (no denormalized titles/covers;
@@ -73,6 +83,8 @@ class UserData {
     this.currentStreak = 0,
     this.longestStreak = 0,
     this.lastActiveDay = '',
+    this.aniGold = 0,
+    this.aniGem = 0,
     this.createdAt,
     this.dnaPinned = const [],
     this.firstAnimeId,
@@ -98,6 +110,8 @@ class UserData {
       currentStreak: (d['currentStreak'] as num?)?.toInt() ?? 0,
       longestStreak: (d['longestStreak'] as num?)?.toInt() ?? 0,
       lastActiveDay: d['lastActiveDay'] as String? ?? '',
+      aniGold: (d['aniGold'] as num?)?.toInt() ?? 0,
+      aniGem: (d['aniGem'] as num?)?.toInt() ?? 0,
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
       dnaPinned: (d['dnaPinned'] as List<dynamic>?)
               ?.whereType<num>()
@@ -113,6 +127,12 @@ class UserData {
   /// creation; partial updates go through FollowService with explicit fields.
   /// DNA fields (dnaPinned/firstAnimeId) are deliberately absent — the create
   /// rule whitelist doesn't admit them; they're written by AnimeDnaService.
+  ///
+  /// aniGold/aniGem are absent for the same reason and a stronger one: they
+  /// are spendable and server-owned. Emitting them would make every profile
+  /// create carry a balance the client chose, and the create rule would
+  /// reject the write outright — so their absence here is load-bearing, not
+  /// tidiness. Nothing client-side may ever put them in a payload.
   Map<String, dynamic> toMap() => {
         'userId': id,
         'userName': userName,

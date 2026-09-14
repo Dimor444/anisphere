@@ -7,7 +7,6 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
-import '../providers/currency_provider.dart';
 import '../providers/identity_provider.dart';
 import '../providers/language_provider.dart';
 import '../providers/user_provider.dart';
@@ -37,7 +36,6 @@ class AppDrawer extends ConsumerWidget {
     // extras like the level aura.
     final user = ref.watch(userProvider);
     final me = myIdentity(ref);
-    final c = ref.watch(currencyProvider);
 
     void go(String route, {bool push = true}) {
       Haptics.light();
@@ -78,11 +76,11 @@ class AppDrawer extends ConsumerWidget {
                     children: [
                       const AniGoldIcon(size: BadgeSize.sm),
                       const SizedBox(width: 4),
-                      Text(Fmt.thousands(c.gold), style: AppTextStyles.numbers),
+                      Text(Fmt.balance(me?.aniGold), style: AppTextStyles.numbers),
                       const SizedBox(width: 14),
                       const AniGemIcon(size: BadgeSize.sm),
                       const SizedBox(width: 4),
-                      Text(Fmt.thousands(c.gem), style: AppTextStyles.numbers),
+                      Text(Fmt.balance(me?.aniGem), style: AppTextStyles.numbers),
                     ],
                   ),
                 ],

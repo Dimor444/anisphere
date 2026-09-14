@@ -14,6 +14,16 @@ class Fmt {
     return buf.toString();
   }
 
+  /// A currency balance that may not be known yet: 1240 -> "1,240",
+  /// null -> "—".
+  ///
+  /// Null is loading, signed-out, or a profile whose doc has not arrived —
+  /// the states myIdentity collapses into one. Rendering a dash rather than
+  /// "0" matters for a balance specifically: zero is a claim about someone's
+  /// money, and showing it before the real figure loads is the kind of wrong
+  /// a user notices.
+  static String balance(int? n) => n == null ? '—' : thousands(n);
+
   /// 18400 -> "18.4K", 720000 -> "720K", 1200000 -> "1.2M"
   static String compact(num n) {
     if (n < 1000) return n.toString();

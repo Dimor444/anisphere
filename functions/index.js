@@ -626,3 +626,117 @@ exports.fetchAnimeMeta = onCall(
     return { meta, unavailable, stale, upstream: 'ok' };
   },
 );
+
+// ─────────────────────────── CURRENCY ────────────────────────────────────
+
+const CURRENCY_LEDGER = 'currency_ledger';
+
+/// Upper bound on a single spend. Not a product rule — a blast radius. The
+/// most expensive thing in the catalogue costs 444, so anything near this is
+/// a malformed or hostile call, and refusing it early keeps a typo from
+/// draining a balance in one transaction.
+const MAX_SPEND = 100000;
+
+/// Bound on itemId so a caller cannot write an unbounded string into every
+/// ledger entry.
+const MAX_ITEM_ID_LENGTH = 64;
+
+/**
+ * Deducts AniGold and records why.
+ *
+ * Grants NOTHING. This function moves the balance and writes the audit row;
+ * whatever the user bought is Phase 3's problem. Keeping the grant out means
+ * a half-finished purchase can only ever cost gold, never hand out an item
+ * that was not paid for.
+ *
+ * WHY A TRANSACTION, AND WHY THE LEDGER IS INSIDE IT
+ *
+ * A read-then-write would let two rapid calls both observe 100, both judge a
+ * 60-gold purchase affordable, and both commit — 120 gold spent against a
+ * 100 balance. Inside runTransaction the second attempt is retried against
+ * the committed balance and refuses on the re-read.
+ *
+ * The balance update and the ledger entry are writes in the SAME transaction,
+ * so Firestore commits both or neither. There is no window in which gold is
+ * deducted without a row explaining it, and none in which a row claims a
+ * deduction that did not happen. That is the whole reason the ledger write is
+ * not a follow-up call: a ledger that can disagree with the balance is worse
+ * than no ledger, because it would be trusted.
+ *
+ * NOT idempotent across retries. A client that calls twice for one tap spends
+ * twice, exactly as two taps would. Making a purchase idempotent needs a
+ * client-supplied key checked inside the transaction, which belongs with the
+ * inventory work rather than here.
+ */
+exports.spendGold = onCall({ region: 'europe-west1' }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Sign in to spend AniGold.');
+  }
+  const uid = request.auth.uid;
+
+  const amount = request.data && request.data.amount;
+  const itemId = request.data && request.data.itemId;
+
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new HttpsError('invalid-argument', 'amount must be a positive integer.');
+  }
+  if (amount > MAX_SPEND) {
+    throw new HttpsError('invalid-argument', `amount may not exceed ${MAX_SPEND}.`);
+  }
+  if (typeof itemId !== 'string' || itemId.length === 0 || itemId.length > MAX_ITEM_ID_LENGTH) {
+    throw new HttpsError(
+      'invalid-argument',
+      `itemId must be a non-empty string of at most ${MAX_ITEM_ID_LENGTH} characters.`,
+    );
+  }
+
+  const userRef = db.collection('users').doc(uid);
+  const entryRef = db.collection(CURRENCY_LEDGER).doc(uid).collection('entries').doc();
+
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    if (!snap.exists) {
+      throw new HttpsError('not-found', 'No profile for this account.');
+    }
+
+    // Absent on profiles written before the field existed — an empty balance,
+    // not an error. A stored non-number is corruption and must not be coerced
+    // into free gold, so it is refused rather than defaulted.
+    const raw = snap.get('aniGold');
+    const before = raw === undefined ? 0 : raw;
+    if (!Number.isInteger(before) || before < 0) {
+      throw new HttpsError('internal', 'Stored balance is not a non-negative integer.');
+    }
+
+    if (before < amount) {
+      // The one refusal the UI has to render differently from a failure:
+      // nothing went wrong, the user simply cannot afford this. No other
+      // branch here uses failed-precondition, and `reason` makes the match
+      // exact rather than a string comparison on the message.
+      throw new HttpsError(
+        'failed-precondition',
+        'Not enough AniGold.',
+        { reason: 'insufficient-funds', balance: before, required: amount },
+      );
+    }
+
+    const after = before - amount;
+
+    // Written explicitly rather than with increment(-amount): the balance the
+    // ledger row claims and the balance the document ends on are then the
+    // same computed number, and cannot drift.
+    tx.update(userRef, { aniGold: after });
+    tx.set(entryRef, {
+      userId: uid,
+      kind: 'spend',
+      currency: 'aniGold',
+      amount,
+      itemId,
+      balanceBefore: before,
+      balanceAfter: after,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    return { balance: after, spent: amount, itemId, entryId: entryRef.id };
+  });
+});

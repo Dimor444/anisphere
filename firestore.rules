@@ -8,8 +8,13 @@ service cloud.firestore {
     // Public profile + follow graph. The profile doc is world-readable
     // (signed-in); the owner may create it (zeroed counters) and edit only
     // identity/bio fields. Counters (followerCount/followingCount/postsCount)
-    // are bumped ±1 by follow/post batches — never settable directly, and
-    // server-managed fields (aniGold, aniGem, …) stay client-immutable.
+    // are bumped ±1 by follow/post batches — never settable directly.
+    //
+    // aniGold and aniGem are the currency balance and are SERVER-OWNED: the
+    // create whitelist does not admit them at all, and no update path lists
+    // them, so the only writer is the Admin SDK (the spendGold callable, and
+    // the grant paths that follow it). This comment used to promise that
+    // about fields that did not exist; the rules below now enforce it.
     match /users/{userId} {
       function validBio() {
         return !('bio' in request.resource.data)
@@ -96,6 +101,14 @@ service cloud.firestore {
       // them or set them false, and update can never touch them. isPlus stays
       // in the create whitelist because ensureProfile always writes the field
       // — it is pinned to false here rather than forbidden outright.
+      //
+      // aniGold and aniGem are held to a STRICTER standard than either,
+      // because they are spendable: they are absent from the create whitelist
+      // entirely, so hasOnly rejects any create that carries them, and
+      // UserData.toMap deliberately does not emit them (the same treatment
+      // dnaPinned/firstAnimeId already get). The zero-pins below are therefore
+      // unreachable today — they are kept as a guard for the day someone adds
+      // either field to the whitelist and does not think about the value.
       allow read: if signedIn();
       allow create: if signedIn() && request.auth.uid == userId
         && request.resource.data.keys().hasOnly([
@@ -108,6 +121,10 @@ service cloud.firestore {
           || request.resource.data.isVerified == false)
         && (!('isPlus' in request.resource.data)
           || request.resource.data.isPlus == false)
+        && (!('aniGold' in request.resource.data)
+          || request.resource.data.aniGold == 0)
+        && (!('aniGem' in request.resource.data)
+          || request.resource.data.aniGem == 0)
         && request.resource.data.followerCount == 0
         && request.resource.data.followingCount == 0
         && request.resource.data.postsCount == 0
@@ -357,6 +374,23 @@ service cloud.firestore {
     // loud rather than rely on the absence of a rule.
     match /upload_grants/{grantId} {
       allow read, write: if false;
+    }
+
+    // Append-only currency ledger: one entry per balance movement, written
+    // ONLY by the spendGold callable (and the grant paths that follow it)
+    // through the Admin SDK, which bypasses these rules.
+    //
+    // `write: if false` covers create, update AND delete, which is what makes
+    // it append-only from the client's side: nobody can forge an entry, and
+    // nobody can erase one that contradicts them. The balance on users/{uid}
+    // is the fast path; this is the audit trail that explains it.
+    //
+    // Owners may READ their own entries — it is their own spending history,
+    // and a client that can show it does not need to be trusted to compute
+    // it. Nobody may read anyone else's.
+    match /currency_ledger/{userId}/entries/{entryId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
     }
 
     // Curated news — admin-managed (Console / Admin SDK bypasses rules).
