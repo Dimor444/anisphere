@@ -276,12 +276,12 @@ class SampleData {
 
   // ─────────────────────────────────────────── STORE ITEMS
   static const List<StoreItem> storeItems = [
-    StoreItem('Cherry Blossom Frame', 'Profile frame', 200, '🌸', [Color(0xFFF472B6), Color(0xFF8B5CF6)]),
-    StoreItem('Demon Slayer Emotions', 'Chat sticker pack', 150, '🗡️', [Color(0xFF14B8A6), Color(0xFFEC4899)]),
-    StoreItem('Rainbow Shimmer', 'Username effect', 300, '🌈', [Color(0xFF8B5CF6), Color(0xFF22D3EE)]),
-    StoreItem('Gold Elite', 'Post border frame', 250, '✨', [Color(0xFFF59E0B), Color(0xFFB45309)]),
-    StoreItem('Verification ✓', 'Account verification', 444, '✅', [Color(0xFF3B82F6), Color(0xFF22D3EE)]),
-    StoreItem('Streak Restore', 'Revive a lost streak', 50, '🔥', [Color(0xFFFB7185), Color(0xFFEF4444)]),
+    StoreItem('cherry_blossom_frame', 'Cherry Blossom Frame', 'Profile frame', 200, '🌸', [Color(0xFFF472B6), Color(0xFF8B5CF6)]),
+    StoreItem('demon_slayer_emotions', 'Demon Slayer Emotions', 'Chat sticker pack', 150, '🗡️', [Color(0xFF14B8A6), Color(0xFFEC4899)]),
+    StoreItem('rainbow_shimmer', 'Rainbow Shimmer', 'Username effect', 300, '🌈', [Color(0xFF8B5CF6), Color(0xFF22D3EE)]),
+    StoreItem('gold_elite', 'Gold Elite', 'Post border frame', 250, '✨', [Color(0xFFF59E0B), Color(0xFFB45309)]),
+    StoreItem('verification', 'Verification ✓', 'Account verification', 444, '✅', [Color(0xFF3B82F6), Color(0xFF22D3EE)]),
+    StoreItem('streak_restore', 'Streak Restore', 'Revive a lost streak', 50, '🔥', [Color(0xFFFB7185), Color(0xFFEF4444)]),
   ];
 
   static const List<RechargePack> rechargePacks = [
@@ -412,12 +412,17 @@ class Achievement {
 }
 
 class StoreItem {
+  /// Stable slug sent to the spendGold callable as its itemId and recorded in
+  /// the currency ledger. Deliberately NOT derived from [name]: the ledger is
+  /// an audit trail, and a renamed or re-emoji'd item must not change what
+  /// past entries say was bought.
+  final String id;
   final String name;
   final String sub;
   final int price;
   final String emoji;
   final List<Color> gradient;
-  const StoreItem(this.name, this.sub, this.price, this.emoji, this.gradient);
+  const StoreItem(this.id, this.name, this.sub, this.price, this.emoji, this.gradient);
 }
 
 class RechargePack {

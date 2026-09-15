@@ -10,7 +10,6 @@ class ResultsScreen extends StatelessWidget {
   final String gameTitle;
   final int score;
   final int total;
-  final int goldEarned;
   final VoidCallback onPlayAgain;
   final VoidCallback onBack;
 
@@ -19,7 +18,6 @@ class ResultsScreen extends StatelessWidget {
     required this.gameTitle,
     required this.score,
     required this.total,
-    required this.goldEarned,
     required this.onPlayAgain,
     required this.onBack,
   });
@@ -50,18 +48,12 @@ class ResultsScreen extends StatelessWidget {
                 style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.aniGold.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.aniGold.withOpacity(0.5)),
-                  ),
-                  child: Text('+$goldEarned 🟡 AniGold earned', style: AppTextStyles.numbers.copyWith(color: AppColors.aniGold)),
-                ),
-              ),
+              // The AniGold pill stood here. Nothing records a quiz result —
+              // no collection, no rule, no write — so there is no claim a
+              // server could ever honour, and the figure it showed was a
+              // local number that moved a local balance. The score is the
+              // result; announcing a reward nobody can pay is the lie this
+              // removes.
               const SizedBox(height: 28),
               Row(
                 children: [

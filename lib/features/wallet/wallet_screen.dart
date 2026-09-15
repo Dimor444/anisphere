@@ -9,7 +9,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/sample_data.dart';
-import '../../shared/providers/currency_provider.dart';
+import '../../services/currency_service.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/user_provider.dart';
 import '../../shared/widgets/ani_gem_icon.dart';
@@ -26,8 +26,9 @@ class WalletScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Balances are read from users/{uid} — server-owned, client-immutable.
-    // currencyProvider is still imported below because the spin wheel and the
-    // shop mutate it; those call sites are Phase 2 and untouched here.
+    // Nothing on this screen mutates a local balance any more: the shop goes
+    // through the spendGold callable and the spin wheel grants nothing, so
+    // currencyProvider is not imported here at all.
     final me = myIdentity(ref);
     final initial = switch (initialTab) {
       'spend' => 1,
@@ -142,42 +143,32 @@ class _EarnTab extends StatelessWidget {
   }
 }
 
-class _LuckySpin extends ConsumerStatefulWidget {
+/// The Lucky Spin, shown but not live.
+///
+/// The draw was `math.Random()` on the device and the payout was a local
+/// addGold, so the prize was decided by the client and the balance it moved
+/// was invented. Against a server-owned balance neither survives: there is no
+/// server-side draw to trust, and nothing may grant gold from the client.
+///
+/// `_spun` was widget state, so leaving the Wallet and returning re-armed it
+/// — this was unbounded free gold, not a daily reward. That is why it is held
+/// back rather than merely rate-limited.
+///
+/// The wheel, its face and its layout are deliberately kept. What is gone is
+/// the machinery that pretended to work: the AnimationController, the ticker
+/// mixin and the rotation angle, none of which can move anything now. The
+/// face still renders so the feature reads as pending, not deleted.
+class _LuckySpin extends StatelessWidget {
   const _LuckySpin();
-  @override
-  ConsumerState<_LuckySpin> createState() => _LuckySpinState();
-}
 
-class _LuckySpinState extends ConsumerState<_LuckySpin> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200));
-  double _angle = 0;
-  bool _spun = false;
-  final _prizes = [10, 25, 5, 50, 15, 100, 20, 30];
+  static const _prizes = [10, 25, 5, 50, 15, 100, 20, 30];
 
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  void _spin() {
-    if (_spun) return;
-    Haptics.medium();
-    final seg = math.Random().nextInt(8);
-    final target = (5 * 2 * math.pi) + (seg * (2 * math.pi / 8));
-    final tween = Tween(begin: _angle, end: target).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
-    tween.addListener(() => setState(() => _angle = tween.value));
-    _c.forward(from: 0).whenComplete(() {
-      final prize = _prizes[(8 - seg) % 8];
-      ref.read(currencyProvider.notifier).addGold(prize);
-      Haptics.heavy();
-      setState(() => _spun = true);
-      showDialog(context: context, builder: (ctx) => AlertDialog(
-        title: const Text('🎉 You won!'),
-        content: Row(mainAxisSize: MainAxisSize.min, children: [const AniGoldIcon(size: BadgeSize.lg), const SizedBox(width: 8), Text('+$prize AniGold', style: AppTextStyles.numbersXl(color: AppColors.aniGold))]),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Collect'))],
-      ));
-    });
+  void _announce(BuildContext context) {
+    Haptics.light();
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Lucky Spin is not available yet.'),
+      duration: Duration(seconds: 2),
+    ));
   }
 
   @override
@@ -188,21 +179,21 @@ class _LuckySpinState extends ConsumerState<_LuckySpin> with SingleTickerProvide
       child: Column(children: [
         const Text('🎡 Lucky Spin', style: AppTextStyles.subheading),
         const SizedBox(height: 4),
-        Text(_spun ? 'Come back tomorrow!' : '1 free spin daily', style: AppTextStyles.captionMuted),
+        const Text('Not available yet', style: AppTextStyles.captionMuted),
         const SizedBox(height: 16),
         SizedBox(
           height: 200,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Transform.rotate(angle: _angle, child: CustomPaint(size: const Size(190, 190), painter: _WheelPainter(_prizes))),
+              CustomPaint(size: const Size(190, 190), painter: _WheelPainter(_prizes)),
               const Positioned(top: 0, child: Icon(LucideIcons.triangle, color: AppColors.secondary, size: 26)),
               Container(width: 44, height: 44, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: Icon(LucideIcons.sparkles, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 20)),
             ],
           ),
         ),
         const SizedBox(height: 16),
-        GradientButton(label: _spun ? 'Spun ✓' : 'SPIN', icon: _spun ? LucideIcons.check : LucideIcons.rotateCw, onPressed: _spun ? null : _spin),
+        GradientButton(label: 'Coming Soon', icon: LucideIcons.clock, onPressed: () => _announce(context)),
       ]),
     );
   }
@@ -240,10 +231,38 @@ class _WheelPainter extends CustomPainter {
 }
 
 // ───────────────────────── SPEND
-class _SpendTab extends ConsumerWidget {
+class _SpendTab extends ConsumerStatefulWidget {
   const _SpendTab();
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SpendTab> createState() => _SpendTabState();
+}
+
+class _SpendTabState extends ConsumerState<_SpendTab> {
+  /// Items whose purchase CANNOT be delivered, whatever the balance says.
+  ///
+  /// Not "not built yet" — structurally impossible as written. `verification`
+  /// would set users/{uid}.isVerified, which firestore.rules pins false on
+  /// create and admits on no update path; `streak_restore` maps to
+  /// CurrencyController.restoreStreak, which is `copyWith(streak: streak)` —
+  /// a no-op with no callers.
+  ///
+  /// The cosmetics above them ARE charged, because the ledger entry is a
+  /// receipt Phase 3 can grant from. These two have nothing to grant from, so
+  /// charging for them would be taking real gold for something no future code
+  /// is going to honour. They stay visible and say so.
+  static const Set<String> _undeliverable = {'verification', 'streak_restore'};
+
+  /// The purchase currently in flight, by item id.
+  ///
+  /// spendGold is deliberately not idempotent — it spends once per call, so a
+  /// double tap spends twice. Nothing server-side dedupes that, which makes
+  /// this guard the only thing between an impatient tap and a double charge.
+  /// It disables EVERY buy button, not just the one tapped, because two
+  /// different purchases racing is the same problem.
+  String? _busyItemId;
+
+  @override
+  Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(14),
       children: [
@@ -256,7 +275,7 @@ class _SpendTab extends ConsumerWidget {
                 Container(width: 50, height: 50, decoration: BoxDecoration(gradient: LinearGradient(colors: s.gradient), borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Text(s.emoji, style: const TextStyle(fontSize: 24))),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(s.name, style: AppTextStyles.label), Text(s.sub, style: AppTextStyles.captionMuted)])),
-                _buyBtn(context, ref, s.price),
+                _buyBtn(s),
               ]),
             )),
         const SectionHeader(title: 'Verification', padding: EdgeInsets.only(top: 8, bottom: 10)),
@@ -267,7 +286,10 @@ class _SpendTab extends ConsumerWidget {
             const VerifiedBadge(size: BadgeSize.lg),
             const SizedBox(width: 12),
             const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Get Verified', style: AppTextStyles.label), Text('Blue verification badge', style: AppTextStyles.captionMuted)])),
-            _buyBtn(context, ref, 444),
+            // The same item as the 'verification' row above, shown again in
+            // its own section. One id, so both render the same held-back
+            // state and neither can be bought behind the other's back.
+            _buyBtn(SampleData.storeItems.firstWhere((s) => s.id == 'verification')),
           ]),
         ),
         const SizedBox(height: 14),
@@ -288,19 +310,95 @@ class _SpendTab extends ConsumerWidget {
     );
   }
 
-  Widget _buyBtn(BuildContext context, WidgetRef ref, int price) {
+  Widget _buyBtn(StoreItem item) {
+    if (_undeliverable.contains(item.id)) return _comingSoonBtn(item);
+
+    final busy = _busyItemId != null;
+    final mine = _busyItemId == item.id;
+    return Opacity(
+      opacity: busy && !mine ? 0.4 : 1,
+      child: GestureDetector(
+        onTap: busy ? null : () => _buy(item),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(gradient: AppGradients.gold, borderRadius: BorderRadius.circular(20)),
+          child: mine
+              ? const SizedBox(
+                  width: 34,
+                  height: 17,
+                  child: Center(
+                    child: SizedBox(
+                      width: 13,
+                      height: 13,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    ),
+                  ),
+                )
+              : Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('${item.price}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+                  const SizedBox(width: 3),
+                  const Text('🟡', style: TextStyle(fontSize: 12)),
+                ]),
+        ),
+      ),
+    );
+  }
+
+  /// Visible, priced, and plainly not for sale — the same treatment the
+  /// Subscribe button got when AniPlus lost its client-side grant.
+  Widget _comingSoonBtn(StoreItem item) {
     return GestureDetector(
       onTap: () {
-        final ok = ref.read(currencyProvider.notifier).spendGold(price);
-        Haptics.medium();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Purchased! −$price🟡' : 'Not enough AniGold'), duration: const Duration(seconds: 1)));
+        Haptics.light();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${item.name} is not available yet.')),
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(gradient: AppGradients.gold, borderRadius: BorderRadius.circular(20)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [Text('$price', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)), const SizedBox(width: 3), const Text('🟡', style: TextStyle(fontSize: 12))]),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(LucideIcons.clock, size: 12, color: AppColors.textMuted),
+          const SizedBox(width: 4),
+          Text('Soon', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+        ]),
       ),
     );
+  }
+
+  Future<void> _buy(StoreItem item) async {
+    setState(() => _busyItemId = item.id);
+    Haptics.medium();
+    try {
+      await CurrencyService.instance.spendGold(itemId: item.id, amount: item.price);
+      if (!mounted) return;
+      // No balance is set from here. users/{uid}.aniGold is watched through
+      // myIdentity, so the header figure updates from the Firestore push when
+      // the write lands — the number moving is evidence the server agreed,
+      // not an optimistic guess this screen made.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${item.name} — ${item.price}🟡 deducted'),
+        duration: const Duration(seconds: 2),
+      ));
+    } on InsufficientGoldException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Not enough AniGold — ${e.short}🟡 short'),
+        duration: const Duration(seconds: 2),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Couldn't complete that purchase. Try again."),
+        duration: Duration(seconds: 2),
+      ));
+    } finally {
+      if (mounted) setState(() => _busyItemId = null);
+    }
   }
 }
 

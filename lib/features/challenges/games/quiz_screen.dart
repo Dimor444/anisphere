@@ -9,7 +9,6 @@ import '../../../core/constants/app_gradients.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/haptics.dart';
 import '../../../services/pending_gold_service.dart';
-import '../../../shared/providers/currency_provider.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import 'quiz_question.dart';
 import 'results_screen.dart';
@@ -54,7 +53,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   int? _picked; // null while unanswered (and on timeout)
   bool _locked = false;
   int _secondsLeft = _secondsPerQuestion;
-  int _goldEarned = 0;
   Timer? _timer;
 
   @override
@@ -77,7 +75,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       _score = 0;
       _picked = null;
       _locked = false;
-      _goldEarned = 0;
     });
     try {
       final questions = await widget.loadQuestions();
@@ -152,23 +149,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     }
   }
 
-  /// AniGold is proportional: (reward ÷ question count) × correct answers.
-  /// It is NOT written to Firestore (users.aniGold is rule-protected; Cloud
-  /// Functions will credit it later) — it accumulates in the local
-  /// "pending_anigold" ledger, plus the in-session wallet display.
+  /// Records what a run WOULD be worth — proportional:
+  /// (reward ÷ question count) × correct answers — and grants nothing.
+  ///
+  /// The balance is server-owned now, and nothing anywhere records that this
+  /// quiz was played: no collection, no rule, no write. So there is no claim
+  /// a server could verify, and the local addGold that used to run here was
+  /// inventing money. It is gone, along with the figure the results screen
+  /// announced.
+  ///
+  /// The write to "pending_anigold" stays, but read its limits before
+  /// trusting it: it is a plain SharedPreferences int the device owns, with
+  /// no per-run detail, and AuthService wipes it on sign-out. It is a note to
+  /// ourselves about unpaid runs, not evidence anybody earned anything.
   Future<void> _finish() async {
     _timer?.cancel();
     final gold = (widget.totalReward * _score / _questions.length).round();
     if (gold > 0) {
       await PendingGoldService.instance.add(gold);
       if (!mounted) return;
-      ref.read(currencyProvider.notifier).addGold(gold);
     }
     if (_score == _questions.length) Haptics.heavy();
-    setState(() {
-      _goldEarned = gold;
-      _phase = _QuizPhase.finished;
-    });
+    setState(() => _phase = _QuizPhase.finished);
   }
 
   Future<void> _playAgain() async {
@@ -186,7 +188,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         gameTitle: widget.title,
         score: _score,
         total: _questions.length,
-        goldEarned: _goldEarned,
         onPlayAgain: _playAgain,
         onBack: () => Navigator.pop(context),
       );
