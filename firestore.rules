@@ -181,6 +181,28 @@ service cloud.firestore {
         allow read: if signedIn();
         allow create, delete: if signedIn() && request.auth.uid == followerId;
       }
+
+      // What a user owns. One doc per item, keyed BY the item id, which is
+      // what makes it self-deduplicating: a second purchase of the same thing
+      // is the same document, so ownership cannot be held twice however many
+      // receipts exist. Same trick as posts/{id}/likes/{likeUid}.
+      //
+      // Written ONLY by the spendGold callable, inside the transaction that
+      // takes the gold — `write: if false` covers create, update and delete,
+      // so nobody can grant themselves an item, silently upgrade one, or
+      // erase a purchase in order to buy it again.
+      //
+      // OWNER-ONLY READ, deliberately, even though a bought frame will later
+      // be painted on an avatar for everyone to see. What someone DISPLAYS
+      // and what someone OWNS are different facts: this is a purchase
+      // history, and opening it would publish everything they ever bought,
+      // what they chose not to equip, and how much they spend. The public
+      // half belongs on the user doc as the one equipped cosmetic — which
+      // also leaves room to own something without showing it.
+      match /inventory/{itemId} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
     }
 
     // ── Usernames ─────────────────────────────────────────────────────────

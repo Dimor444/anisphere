@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 
@@ -19,6 +20,20 @@ class InsufficientGoldException implements Exception {
       'InsufficientGoldException(balance: $balance, required: $required)';
 }
 
+/// The spend was refused because the item is already owned.
+///
+/// Items are one-time, and the inventory document is keyed by item id, so
+/// owning one twice is not representable. Distinct from a fault for the same
+/// reason as [InsufficientGoldException]: nothing broke, and a retry cannot
+/// succeed — the right UI is to show the item as owned.
+class AlreadyOwnedException implements Exception {
+  final String itemId;
+  const AlreadyOwnedException(this.itemId);
+
+  @override
+  String toString() => 'AlreadyOwnedException($itemId)';
+}
+
 /// Spending AniGold.
 ///
 /// There is no earn path here and no local balance. The balance lives on
@@ -34,11 +49,26 @@ class CurrencyService {
   /// rather than falling back.
   static const String _functionsRegion = 'europe-west1';
 
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
+
+  /// Item ids [uid] owns, live.
+  ///
+  /// The ids ARE the document ids — the inventory is keyed by item, which is
+  /// what makes ownership self-deduplicating — so this never reads a field.
+  /// A set, because the only question any caller asks is membership.
+  Stream<Set<String>> watchOwnedItemIds(String uid) => _db
+      .collection('users')
+      .doc(uid)
+      .collection('inventory')
+      .snapshots()
+      .map((snap) => snap.docs.map((d) => d.id).toSet());
+
   /// Deducts [amount] for [itemId] and returns the new balance.
   ///
-  /// Grants nothing — the server records what was bought in the currency
-  /// ledger and the item itself is delivered later. Throws
-  /// [InsufficientGoldException] when the balance is short; every other
+  /// The server deducts, grants the item and writes the ledger receipt in one
+  /// transaction, so a success means all three happened. Throws
+  /// [InsufficientGoldException] when the balance is short and
+  /// [AlreadyOwnedException] when the item is already held; every other
   /// failure rethrows as-is, because a refusal the user can act on and a
   /// fault they cannot must not look the same.
   ///
@@ -63,13 +93,16 @@ class CurrencyService {
       // this from breaking when the copy changes, and keeps a future
       // failed-precondition for some other cause from being mistaken for it.
       final details = e.details;
-      if (e.code == 'failed-precondition' &&
-          details is Map &&
-          details['reason'] == 'insufficient-funds') {
-        throw InsufficientGoldException(
-          balance: (details['balance'] as num?)?.toInt() ?? 0,
-          required: (details['required'] as num?)?.toInt() ?? amount,
-        );
+      if (e.code == 'failed-precondition' && details is Map) {
+        switch (details['reason']) {
+          case 'insufficient-funds':
+            throw InsufficientGoldException(
+              balance: (details['balance'] as num?)?.toInt() ?? 0,
+              required: (details['required'] as num?)?.toInt() ?? amount,
+            );
+          case 'already-owned':
+            throw AlreadyOwnedException(itemId);
+        }
       }
       debugPrint('[CurrencyService] spendGold failed: [${e.code}] ${e.message}');
       rethrow;

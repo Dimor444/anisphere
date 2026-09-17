@@ -11,6 +11,7 @@ import '../../core/utils/haptics.dart';
 import '../../data/sample_data.dart';
 import '../../services/currency_service.dart';
 import '../../shared/providers/identity_provider.dart';
+import '../../shared/providers/inventory_provider.dart';
 import '../../shared/providers/user_provider.dart';
 import '../../shared/widgets/ani_gem_icon.dart';
 import '../../shared/widgets/ani_gold_icon.dart';
@@ -261,8 +262,13 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
   /// different purchases racing is the same problem.
   String? _busyItemId;
 
+  /// Owned ids for this build. Read once here and passed down rather than
+  /// watched inside each button, so every row in one frame agrees.
+  Set<String> _owned = const {};
+
   @override
   Widget build(BuildContext context) {
+    _owned = ownedItemIds(ref);
     return ListView(
       padding: const EdgeInsets.all(14),
       children: [
@@ -311,6 +317,11 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
   }
 
   Widget _buyBtn(StoreItem item) {
+    // Owned is checked FIRST, ahead of the held-back list. Neither of those
+    // two can be bought, so neither should be ownable — but if a backfill
+    // ever grants one, "Owned" is the true thing to say and "Soon" would not
+    // be.
+    if (_owned.contains(item.id)) return _ownedBtn();
     if (_undeliverable.contains(item.id)) return _comingSoonBtn(item);
 
     final busy = _busyItemId != null;
@@ -341,6 +352,24 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
                 ]),
         ),
       ),
+    );
+  }
+
+  /// Already owned: no price, nothing to tap. Items are one-time, so the
+  /// honest control is not a disabled buy button but the absence of one.
+  Widget _ownedBtn() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.success.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.success.withOpacity(0.5)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(LucideIcons.check, size: 12, color: AppColors.success),
+        const SizedBox(width: 4),
+        Text('Owned', style: AppTextStyles.caption.copyWith(color: AppColors.success)),
+      ]),
     );
   }
 
@@ -382,6 +411,15 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
       // not an optimistic guess this screen made.
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('${item.name} — ${item.price}🟡 deducted'),
+        duration: const Duration(seconds: 2),
+      ));
+    } on AlreadyOwnedException {
+      // Reachable without a bug: the inventory stream had not arrived when
+      // the row rendered, so it offered a buy for something already held.
+      // The stream lands moments later and the row becomes Owned on its own.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('You already own ${item.name}.'),
         duration: const Duration(seconds: 2),
       ));
     } on InsufficientGoldException catch (e) {

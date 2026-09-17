@@ -642,12 +642,15 @@ const MAX_SPEND = 100000;
 const MAX_ITEM_ID_LENGTH = 64;
 
 /**
- * Deducts AniGold and records why.
+ * Deducts AniGold, grants the item, and records why — atomically.
  *
- * Grants NOTHING. This function moves the balance and writes the audit row;
- * whatever the user bought is Phase 3's problem. Keeping the grant out means
- * a half-finished purchase can only ever cost gold, never hand out an item
- * that was not paid for.
+ * Three writes in one transaction: the new balance, the ledger receipt, and
+ * the inventory document that IS the ownership claim. Either all of it
+ * happened or none of it did.
+ *
+ * Items are one-time. The inventory doc is keyed by itemId, so owning
+ * something twice is not representable, and the transaction refuses an
+ * already-owned item before it touches the balance.
  *
  * WHY A TRANSACTION, AND WHY THE LEDGER IS INSIDE IT
  *
@@ -691,12 +694,33 @@ exports.spendGold = onCall({ region: 'europe-west1' }, async (request) => {
   }
 
   const userRef = db.collection('users').doc(uid);
+  const invRef = userRef.collection('inventory').doc(itemId);
   const entryRef = db.collection(CURRENCY_LEDGER).doc(uid).collection('entries').doc();
 
   return db.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef);
+    // ── READS ────────────────────────────────────────────────────────────
+    // Firestore forbids a read after the first write in a transaction, so
+    // BOTH reads happen here, before anything is written. getAll fetches them
+    // in one round trip and makes the ordering constraint impossible to break
+    // by accident later — there is no second await further down to move.
+    const [snap, invSnap] = await tx.getAll(userRef, invRef);
+
     if (!snap.exists) {
       throw new HttpsError('not-found', 'No profile for this account.');
+    }
+
+    // Ownership is checked BEFORE the balance, and refuses before anything is
+    // deducted: charging for something already owned is the worse failure, so
+    // it is ruled out first. Reading it inside the transaction is what makes
+    // a double tap safe — the second attempt is retried against the committed
+    // state, sees the doc this one wrote, and refuses rather than charging
+    // twice for one item.
+    if (invSnap.exists) {
+      throw new HttpsError(
+        'failed-precondition',
+        'You already own this item.',
+        { reason: 'already-owned', itemId },
+      );
     }
 
     // Absent on profiles written before the field existed — an empty balance,
@@ -722,6 +746,13 @@ exports.spendGold = onCall({ region: 'europe-west1' }, async (request) => {
 
     const after = before - amount;
 
+    // ── WRITES ───────────────────────────────────────────────────────────
+    // All three commit together or none does. The grant is not a follow-up
+    // call for the same reason the ledger is not: a purchase that can take
+    // gold without handing over the item is worse than one that fails
+    // outright, because the failure is invisible and the user has no way to
+    // ask for it again — the item would already be "bought".
+    //
     // Written explicitly rather than with increment(-amount): the balance the
     // ledger row claims and the balance the document ends on are then the
     // same computed number, and cannot drift.
@@ -735,6 +766,17 @@ exports.spendGold = onCall({ region: 'europe-west1' }, async (request) => {
       balanceBefore: before,
       balanceAfter: after,
       createdAt: FieldValue.serverTimestamp(),
+    });
+    // Keyed by itemId, so the document IS the ownership claim — there is no
+    // count to get wrong. ledgerEntryId ties the grant to the receipt that
+    // paid for it, which is what makes a later audit answer "why does this
+    // account own this" without guessing.
+    tx.set(invRef, {
+      itemId,
+      source: 'purchase',
+      pricePaid: amount,
+      ledgerEntryId: entryRef.id,
+      acquiredAt: FieldValue.serverTimestamp(),
     });
 
     return { balance: after, spent: amount, itemId, entryId: entryRef.id };
