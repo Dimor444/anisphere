@@ -782,3 +782,110 @@ exports.spendGold = onCall({ region: 'europe-west1' }, async (request) => {
     return { balance: after, spent: amount, itemId, entryId: entryRef.id };
   });
 });
+
+// ─────────────────────────── COSMETICS ───────────────────────────────────
+
+/**
+ * The cosmetics catalogue: what exists, what slot it occupies, what it costs.
+ *
+ * This is the SERVER's copy of what the client shows in SampleData.storeItems,
+ * and it is a second source of truth — say so plainly rather than pretend
+ * otherwise. Keeping it here is not the ideal shape; it is the shape that lets
+ * slot-validity be checked at all, because security rules cannot know that
+ * cherry_blossom_frame belongs in `frame` and not `postBorder` without
+ * hardcoding the same table into the rules and keeping THAT in step too.
+ *
+ * The way out is to stop having two: move the catalogue into Firestore
+ * (store_items/{itemId}, server-written and world-readable) and let both the
+ * client's shop and these functions read the one document set. That is a
+ * bigger change than this one — seeding, rules, a client read path and an
+ * offline story — so it is named here rather than smuggled in.
+ *
+ * `price` is recorded but NOT yet enforced: spendGold still takes the amount
+ * from the caller. See the note on spendGold.
+ */
+const COSMETICS = {
+  cherry_blossom_frame: { slot: 'frame', price: 200 },
+  gold_elite: { slot: 'postBorder', price: 250 },
+  rainbow_shimmer: { slot: 'nameEffect', price: 300 },
+};
+
+/// Declared slots. nameEffect has no renderer yet and is listed anyway, so
+/// shipping one later is a client change and not a schema change.
+const COSMETIC_SLOTS = ['frame', 'postBorder', 'nameEffect'];
+
+/**
+ * Sets or clears the cosmetic displayed in one slot.
+ *
+ * Two checks the client cannot be trusted to make: that the caller OWNS the
+ * item, and that the item belongs in the slot they asked for. The first could
+ * live in security rules via exists() on the inventory doc; the second could
+ * not, which is why this is a function.
+ *
+ * Unequipping is `itemId: null` — the slot key is deleted rather than set to a
+ * sentinel, so "not in the map" is the only representation of empty and there
+ * is no second one to handle.
+ */
+exports.equipCosmetic = onCall({ region: 'europe-west1' }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Sign in to change your cosmetics.');
+  }
+  const uid = request.auth.uid;
+
+  const slot = request.data && request.data.slot;
+  // Absent and null both mean unequip; anything else must be a catalogue id.
+  const itemId = request.data && request.data.itemId != null ? request.data.itemId : null;
+
+  if (!COSMETIC_SLOTS.includes(slot)) {
+    throw new HttpsError(
+      'invalid-argument',
+      `slot must be one of: ${COSMETIC_SLOTS.join(', ')}.`,
+    );
+  }
+
+  const userRef = db.collection('users').doc(uid);
+  const field = `equipped.${slot}`;
+
+  // Unequip needs no ownership check — giving something up is always allowed,
+  // and it stays allowed for an item that was later withdrawn from the
+  // catalogue, which is exactly when someone most needs to take it off.
+  if (itemId === null) {
+    await userRef.update({ [field]: FieldValue.delete() });
+    return { slot, itemId: null };
+  }
+
+  if (typeof itemId !== 'string' || !Object.prototype.hasOwnProperty.call(COSMETICS, itemId)) {
+    throw new HttpsError('invalid-argument', 'Unknown cosmetic.');
+  }
+  const entry = COSMETICS[itemId];
+  if (entry.slot !== slot) {
+    throw new HttpsError(
+      'invalid-argument',
+      `${itemId} goes in the ${entry.slot} slot, not ${slot}.`,
+    );
+  }
+
+  const invRef = userRef.collection('inventory').doc(itemId);
+
+  return db.runTransaction(async (tx) => {
+    // Read before write, same constraint as spendGold.
+    const [userSnap, invSnap] = await tx.getAll(userRef, invRef);
+    if (!userSnap.exists) {
+      throw new HttpsError('not-found', 'No profile for this account.');
+    }
+    if (!invSnap.exists) {
+      // Its own reason, alongside insufficient-funds and already-owned: the
+      // user has to be told to buy it, not offered a retry.
+      throw new HttpsError(
+        'failed-precondition',
+        'You do not own this item.',
+        { reason: 'not-owned', itemId, slot },
+      );
+    }
+
+    // A dot path so the other slots are untouched — a whole-map write here
+    // would silently unequip everything else.
+    tx.update(userRef, { [field]: itemId });
+    return { slot, itemId };
+  });
+});

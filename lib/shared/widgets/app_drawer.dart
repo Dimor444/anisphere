@@ -15,6 +15,7 @@ import 'ani_gold_icon.dart';
 import 'gradient_button.dart';
 import 'user_avatar.dart';
 import 'verified_badge.dart';
+import '../../services/currency_service.dart';
 
 /// AniScan is hidden from the drawer until it has a server-side proxy.
 ///
@@ -59,6 +60,7 @@ class AppDrawer extends ConsumerWidget {
                   UserAvatar(
                     name: me?.nameToShow ?? '',
                     imageUrl: me?.userAvatar,
+                    frame: me?.equippedIn(CosmeticSlot.frame),
                     level: user.level,
                     radius: 28,
                   ),

@@ -20,6 +20,7 @@ import '../providers/language_provider.dart';
 import 'follow_button.dart';
 import 'user_avatar.dart';
 import 'verified_badge.dart';
+import '../../services/currency_service.dart';
 
 /// One feed post. Renders both Firestore posts and sample/demo posts
 /// ([PostData.isLocal]); interactions on local posts stay in-memory.
@@ -204,7 +205,17 @@ class _PostCardState extends ConsumerState<PostCard> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          // The author's equipped post border, falling back to the default.
+          // Read off the UserData this widget already resolved above, so a
+          // feed of fifty posts costs no extra reads — identityProvider is a
+          // family that shares one listener per uid.
+          //
+          // An unrecognised id falls through to the default border rather
+          // than throwing: an item can be withdrawn while somebody still has
+          // it equipped.
+          border: author?.equippedIn(CosmeticSlot.postBorder) == 'gold_elite'
+              ? Border.all(color: AppColors.aniGold, width: 1.5)
+              : Border.all(color: AppColors.border),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Column(
@@ -218,6 +229,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                   UserAvatar(
                       name: authorName,
                       imageUrl: author?.userAvatar ?? p.userAvatar,
+                      frame: author?.equippedIn(CosmeticSlot.frame),
                       radius: 21,
                       onTap: _openAuthorProfile),
                   const SizedBox(width: 10),

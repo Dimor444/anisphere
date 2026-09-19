@@ -12,6 +12,7 @@ import '../../services/follow_service.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
+import '../../services/currency_service.dart';
 
 /// Debounced @handle search in a bottom sheet; resolves to the picked user
 /// (or null). Backed by the shared [FollowService.searchUsers] prefix search
@@ -98,7 +99,7 @@ class _MentionPickerSheetState extends ConsumerState<_MentionPickerSheet> {
                 itemBuilder: (context, i) {
                   final u = _results[i];
                   return ListTile(
-                    leading: UserAvatar(name: u.nameToShow, imageUrl: u.userAvatar, radius: 18),
+                    leading: UserAvatar(name: u.nameToShow, imageUrl: u.userAvatar, radius: 18, frame: u.equippedIn(CosmeticSlot.frame)),
                     title: Row(
                       children: [
                         Flexible(

@@ -10,6 +10,7 @@ import '../../services/follow_service.dart';
 import '../../services/true_fan_score_service.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
+import '../../services/currency_service.dart';
 
 /// Per-anime True Fan leaderboard for the results screen: 🌍 Global and
 /// 📍 Local (the viewer's country) tabs, each listing the fastest
@@ -247,7 +248,7 @@ class _TrueFanLeaderboardState extends ConsumerState<TrueFanLeaderboard> {
       child: Row(children: [
         SizedBox(width: 28, child: Text('$rank', style: AppTextStyles.numbersLg())),
         const SizedBox(width: 8),
-        UserAvatar(name: name, imageUrl: author?.userAvatar ?? entry.userAvatar, radius: 16),
+        UserAvatar(name: name, imageUrl: author?.userAvatar ?? entry.userAvatar, radius: 16, frame: author?.equippedIn(CosmeticSlot.frame)),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
@@ -284,7 +285,7 @@ class _TrueFanLeaderboardState extends ConsumerState<TrueFanLeaderboard> {
       child: Row(children: [
         Text('You: #${Fmt.thousands(rank)}', style: AppTextStyles.numbersLg()),
         const SizedBox(width: 10),
-        UserAvatar(name: name, imageUrl: author?.userAvatar ?? entry.userAvatar, radius: 16),
+        UserAvatar(name: name, imageUrl: author?.userAvatar ?? entry.userAvatar, radius: 16, frame: author?.equippedIn(CosmeticSlot.frame)),
         const SizedBox(width: 10),
         Expanded(
           child: Text(name, style: AppTextStyles.label, maxLines: 1, overflow: TextOverflow.ellipsis),

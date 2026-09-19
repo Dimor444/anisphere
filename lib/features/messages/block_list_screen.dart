@@ -11,6 +11,7 @@ import '../../services/dm_service.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
+import '../../services/currency_service.dart';
 
 /// Conversations the signed-in user has blocked. Blocking is per-thread
 /// (the blockedBy array on the conversation doc), so this is the list of
@@ -108,6 +109,7 @@ class _BlockedTileState extends ConsumerState<_BlockedTile> {
       leading: UserAvatar(
         name: name.isEmpty ? '?' : name,
         imageUrl: other?.userAvatar,
+        frame: other?.equippedIn(CosmeticSlot.frame),
         radius: 22,
       ),
       title: Text(name.isEmpty ? ref.tr('animeFanFallback') : name,

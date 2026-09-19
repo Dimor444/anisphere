@@ -275,9 +275,20 @@ class SampleData {
       ];
 
   // ─────────────────────────────────────────── STORE ITEMS
+  //
+  // 'demon_slayer_emotions' (Chat sticker pack, 150) was WITHDRAWN. It was
+  // never a cosmetic: DMs have a reaction system, not stickers — one emoji
+  // per user per message, and the rule admits any string of 8 characters or
+  // fewer with no allowlist, so "owning a pack" gated nothing a modified
+  // client could not already send. Making it real needs either rules binding
+  // permitted reaction values to inventory, or stickers as messages, which
+  // the message create whitelist has no field for.
+  //
+  // Accounts that bought it keep their inventory doc and their ledger
+  // entries: those are accurate history and are not being rewritten. The item
+  // simply no longer appears in the shop.
   static const List<StoreItem> storeItems = [
     StoreItem('cherry_blossom_frame', 'Cherry Blossom Frame', 'Profile frame', 200, '🌸', [Color(0xFFF472B6), Color(0xFF8B5CF6)]),
-    StoreItem('demon_slayer_emotions', 'Demon Slayer Emotions', 'Chat sticker pack', 150, '🗡️', [Color(0xFF14B8A6), Color(0xFFEC4899)]),
     StoreItem('rainbow_shimmer', 'Rainbow Shimmer', 'Username effect', 300, '🌈', [Color(0xFF8B5CF6), Color(0xFF22D3EE)]),
     StoreItem('gold_elite', 'Gold Elite', 'Post border frame', 250, '✨', [Color(0xFFF59E0B), Color(0xFFB45309)]),
     StoreItem('verification', 'Verification ✓', 'Account verification', 444, '✅', [Color(0xFF3B82F6), Color(0xFF22D3EE)]),

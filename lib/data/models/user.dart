@@ -48,6 +48,26 @@ class UserData {
   /// reads as an empty balance.
   final int aniGold;
   final int aniGem;
+
+  /// Which cosmetic is DISPLAYED in each slot, keyed by slot name
+  /// ('frame', 'postBorder', 'nameEffect'). Server-owned like the balance:
+  /// written only by the equipCosmetic callable, which checks the item is
+  /// owned and belongs in that slot.
+  ///
+  /// Deliberately separate from inventory, which is owner-read only. What
+  /// someone OWNS is private; what they DISPLAY is public, and has to be, or
+  /// nobody else could render it. A slot missing from the map is unequipped —
+  /// there is no "none" sentinel to get wrong.
+  ///
+  /// A map rather than three flat fields so a fourth slot is not a schema
+  /// change: one key stays excluded from the create whitelist instead of
+  /// four.
+  final Map<String, String> equipped;
+
+  /// The cosmetic displayed in [slot], or null. Unknown slots read as null
+  /// rather than throwing — an old client meeting a slot it does not render
+  /// should ignore it, not crash.
+  String? equippedIn(String slot) => equipped[slot];
   final DateTime? createdAt;
 
   /// Anime DNA overrides — AniList ids ONLY (no denormalized titles/covers;
@@ -85,6 +105,7 @@ class UserData {
     this.lastActiveDay = '',
     this.aniGold = 0,
     this.aniGem = 0,
+    this.equipped = const {},
     this.createdAt,
     this.dnaPinned = const [],
     this.firstAnimeId,
@@ -112,6 +133,13 @@ class UserData {
       lastActiveDay: d['lastActiveDay'] as String? ?? '',
       aniGold: (d['aniGold'] as num?)?.toInt() ?? 0,
       aniGem: (d['aniGem'] as num?)?.toInt() ?? 0,
+      // Values that are not strings are dropped rather than coerced: a
+      // malformed slot should render nothing, never a widget keyed off a
+      // number.
+      equipped: <String, String>{
+        for (final e in (d['equipped'] as Map<Object?, Object?>? ?? const {}).entries)
+          if (e.key is String && e.value is String) e.key as String: e.value as String,
+      },
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
       dnaPinned: (d['dnaPinned'] as List<dynamic>?)
               ?.whereType<num>()
@@ -127,6 +155,10 @@ class UserData {
   /// creation; partial updates go through FollowService with explicit fields.
   /// DNA fields (dnaPinned/firstAnimeId) are deliberately absent — the create
   /// rule whitelist doesn't admit them; they're written by AnimeDnaService.
+  ///
+  /// equipped is absent too, and for the same reason as the balance: the
+  /// client may not choose what it displays without the server agreeing it
+  /// owns the thing.
   ///
   /// aniGold/aniGem are absent for the same reason and a stronger one: they
   /// are spendable and server-owned. Emitting them would make every profile

@@ -8,6 +8,7 @@ import '../../data/models/user.dart';
 import 'follow_button.dart';
 import 'user_avatar.dart';
 import 'verified_badge.dart';
+import '../../services/currency_service.dart';
 
 /// One user row (followers/following lists, suggestions, search results):
 /// small avatar, name + badge, bio snippet, follow toggle. Tapping the row
@@ -37,7 +38,7 @@ class UserTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            UserAvatar(name: user.nameToShow, imageUrl: user.userAvatar, radius: 20),
+            UserAvatar(name: user.nameToShow, imageUrl: user.userAvatar, radius: 20, frame: user.equippedIn(CosmeticSlot.frame)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

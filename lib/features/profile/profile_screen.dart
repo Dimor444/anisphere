@@ -38,6 +38,7 @@ import '../../shared/widgets/verified_badge.dart';
 import 'edit_profile_sheet.dart';
 import 'widgets/anime_dna_section.dart';
 import 'widgets/true_fan_section.dart';
+import '../../services/currency_service.dart';
 
 // ── Header geometry ────────────────────────────────────────────────────────
 // Banner, avatar and action row live in ONE Stack that is sized to contain
@@ -301,6 +302,7 @@ class _ProfileHeader extends ConsumerWidget {
                   child: UserAvatar(
                     name: name == '—' ? '' : name,
                     imageUrl: identity?.userAvatar,
+                    frame: identity?.equippedIn(CosmeticSlot.frame),
                     radius: _avatarRadius,
                   ),
                 ),

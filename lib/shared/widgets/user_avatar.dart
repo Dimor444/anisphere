@@ -18,6 +18,16 @@ class UserAvatar extends StatefulWidget {
 
   /// Shows a green presence dot at the bottom-right when true.
   final bool isOnline;
+
+  /// Equipped frame id, from users/{uid}.equipped['frame']. Null renders the
+  /// default hairline.
+  ///
+  /// Passed IN rather than looked up: this widget takes no uid and has no
+  /// ref, and the 19 call sites that show a real person already hold that
+  /// person's UserData — so the frame rides along on a document they have
+  /// already read. Giving the avatar its own lookup would turn a list of
+  /// fifty into fifty reads for a value its parent was already holding.
+  final String? frame;
   final double radius;
   final VoidCallback? onTap;
 
@@ -30,13 +40,15 @@ class UserAvatar extends StatefulWidget {
     this.isOnline = false,
     this.radius = 24,
     this.onTap,
+    this.frame,
   });
 
   UserAvatar.fromUser(UserModel u, {super.key, this.radius = 24, this.onTap, this.isOnline = false})
       : name = u.username,
         level = u.level,
         imageUrl = null,
-        initials = null;
+        initials = null,
+        frame = null;
 
   @override
   State<UserAvatar> createState() => _UserAvatarState();
@@ -108,7 +120,15 @@ class _UserAvatarState extends State<UserAvatar>
                             },
                           )
                         : null,
-                    border: Border.all(color: Colors.white.withOpacity(0.15), width: 2),
+                    // A frame REPLACES the default hairline rather than
+                    // adding a ring outside it. That hairline exists to
+                    // separate the image from whatever is behind it, and a
+                    // frame does the same job more loudly — stacking both
+                    // would put a fourth concentric decoration on an edge
+                    // that already carries the level aura outside it and the
+                    // presence dot across it.
+                    border: _frameBorder() ??
+                        Border.all(color: Colors.white.withOpacity(0.15), width: 2),
                   ),
                   alignment: Alignment.center,
                   child: showImage
@@ -143,6 +163,24 @@ class _UserAvatarState extends State<UserAvatar>
         },
       ),
     );
+  }
+
+  /// The border for the equipped frame, or null for none.
+  ///
+  /// An unknown id renders as no frame rather than throwing: an item can be
+  /// withdrawn from the catalogue while somebody still has it equipped, and a
+  /// client one version behind will meet ids it has never heard of. Neither
+  /// should be a crash.
+  Border? _frameBorder() {
+    switch (widget.frame) {
+      case 'cherry_blossom_frame':
+        // Deliberately a plain ring in the item's own pink, not a painted
+        // petal border. The mechanism is what this branch is proving; a
+        // richer frame is a CustomPainter away and changes nothing here.
+        return Border.all(color: const Color(0xFFF472B6), width: 2.5);
+      default:
+        return null;
+    }
   }
 
   List<BoxShadow> _aura(double t) {

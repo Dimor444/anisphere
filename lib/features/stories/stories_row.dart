@@ -13,6 +13,7 @@ import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 import 'story_providers.dart';
 import 'story_upload_sheet.dart';
+import '../../services/currency_service.dart';
 
 /// Avatar row above the feed: "Add Story" plus everyone with an active
 /// (unexpired) story. Gradient ring = their latest story is unviewed;
@@ -96,6 +97,7 @@ class _StoryRing extends ConsumerWidget {
               child: UserAvatar(
                 name: user?.nameToShow ?? '…',
                 imageUrl: user?.userAvatar,
+                frame: user?.equippedIn(CosmeticSlot.frame),
                 radius: 26,
               ),
             ),

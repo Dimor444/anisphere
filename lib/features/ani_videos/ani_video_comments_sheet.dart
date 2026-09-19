@@ -13,6 +13,7 @@ import '../../services/auth_service.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
+import '../../services/currency_service.dart';
 
 /// Comments for one Ani Video — bottom sheet over the playing video, same
 /// real-time behavior as the feed's post detail comments.
@@ -149,7 +150,7 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
                 top: false,
                 child: Row(
                   children: [
-                    UserAvatar(name: me?.nameToShow ?? '', imageUrl: me?.userAvatar, radius: 16),
+                    UserAvatar(name: me?.nameToShow ?? '', imageUrl: me?.userAvatar, radius: 16, frame: me?.equippedIn(CosmeticSlot.frame)),
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
@@ -201,7 +202,7 @@ class _CommentTile extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          UserAvatar(name: name, imageUrl: author?.userAvatar ?? comment.userAvatar, radius: 16),
+          UserAvatar(name: name, imageUrl: author?.userAvatar ?? comment.userAvatar, radius: 16, frame: author?.equippedIn(CosmeticSlot.frame)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(

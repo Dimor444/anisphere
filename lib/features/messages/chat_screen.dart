@@ -19,6 +19,7 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
+import '../../services/currency_service.dart';
 
 /// The only reactions offered — a fixed row, deliberately no picker.
 const _reactionEmojis = ['❤️', '😂', '😮', '😢', '🔥', '👍'];
@@ -411,7 +412,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(children: [
-          UserAvatar(name: name.isEmpty ? '?' : name, imageUrl: other?.userAvatar, radius: 17),
+          UserAvatar(name: name.isEmpty ? '?' : name, imageUrl: other?.userAvatar, radius: 17, frame: other?.equippedIn(CosmeticSlot.frame)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

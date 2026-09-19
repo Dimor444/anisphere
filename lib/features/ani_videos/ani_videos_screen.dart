@@ -25,6 +25,7 @@ import '../../shared/widgets/post_card.dart' show HashtagText;
 import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 import 'ani_video_comments_sheet.dart';
+import '../../services/currency_service.dart';
 
 /// Ani Videos — full-screen vertical short-video feed (`/ani-videos` tab).
 ///
@@ -623,6 +624,7 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
                           UserAvatar(
                             name: author?.nameToShow ?? v.userName,
                             imageUrl: author?.userAvatar ?? v.userAvatar,
+                            frame: author?.equippedIn(CosmeticSlot.frame),
                             radius: 17,
                             onTap: () => context.push('/profile/${v.userId}'),
                           ),

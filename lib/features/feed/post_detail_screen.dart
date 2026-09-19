@@ -14,6 +14,7 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/post_card.dart';
 import '../../shared/widgets/user_avatar.dart';
+import '../../services/currency_service.dart';
 
 /// Full post + live comments, with a composer pinned at the bottom.
 class PostDetailScreen extends ConsumerStatefulWidget {
@@ -172,7 +173,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         ),
         child: Row(
           children: [
-            UserAvatar(name: me?.nameToShow ?? '', imageUrl: me?.userAvatar, radius: 16),
+            UserAvatar(name: me?.nameToShow ?? '', imageUrl: me?.userAvatar, radius: 16, frame: me?.equippedIn(CosmeticSlot.frame)),
             const SizedBox(width: 10),
             Expanded(
               child: TextField(
@@ -219,7 +220,7 @@ class _CommentTile extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          UserAvatar(name: name, imageUrl: author?.userAvatar ?? comment.userAvatar, radius: 16),
+          UserAvatar(name: name, imageUrl: author?.userAvatar ?? comment.userAvatar, radius: 16, frame: author?.equippedIn(CosmeticSlot.frame)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(

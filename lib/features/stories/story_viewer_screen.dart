@@ -13,6 +13,7 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 import 'story_providers.dart';
+import '../../services/currency_service.dart';
 
 /// Full-screen viewer for one user's active stories: progress bars,
 /// auto-advance (5s per story), tap left/right to navigate, hold to pause,
@@ -257,7 +258,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                     child: Row(
                       children: [
                         UserAvatar(
-                            name: user?.nameToShow ?? '…', imageUrl: user?.userAvatar, radius: 18),
+                            name: user?.nameToShow ?? '…', imageUrl: user?.userAvatar, radius: 18, frame: user?.equippedIn(CosmeticSlot.frame)),
                         const SizedBox(width: 10),
                         Flexible(
                           child: Text(user?.nameToShow ?? '…',

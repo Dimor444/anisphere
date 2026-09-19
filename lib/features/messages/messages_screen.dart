@@ -14,6 +14,7 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
+import '../../services/currency_service.dart';
 
 /// Live DM threads for the signed-in user, most recently active first.
 /// One Firestore listener behind the provider; every row resolves the
@@ -122,6 +123,7 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
             UserAvatar(
               name: name.isEmpty ? '?' : name,
               imageUrl: other?.userAvatar,
+              frame: other?.equippedIn(CosmeticSlot.frame),
               radius: 26,
             ),
             const SizedBox(width: 12),

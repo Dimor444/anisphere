@@ -34,6 +34,28 @@ class AlreadyOwnedException implements Exception {
   String toString() => 'AlreadyOwnedException($itemId)';
 }
 
+/// The equip was refused because the item is not owned.
+///
+/// Distinct from a fault for the same reason as the others: the answer is to
+/// buy it, not to retry.
+class NotOwnedException implements Exception {
+  final String itemId;
+  final String slot;
+  const NotOwnedException(this.itemId, this.slot);
+
+  @override
+  String toString() => 'NotOwnedException($itemId in $slot)';
+}
+
+/// Cosmetic slots the server recognises. Mirrors COSMETIC_SLOTS in
+/// functions/index.js; `nameEffect` has no renderer yet.
+class CosmeticSlot {
+  CosmeticSlot._();
+  static const String frame = 'frame';
+  static const String postBorder = 'postBorder';
+  static const String nameEffect = 'nameEffect';
+}
+
 /// Spending AniGold.
 ///
 /// There is no earn path here and no local balance. The balance lives on
@@ -62,6 +84,30 @@ class CurrencyService {
       .collection('inventory')
       .snapshots()
       .map((snap) => snap.docs.map((d) => d.id).toSet());
+
+  /// Sets the cosmetic shown in [slot], or clears it when [itemId] is null.
+  ///
+  /// The server checks ownership and that the item belongs in the slot; the
+  /// client cannot be trusted with either. Nothing is written locally — the
+  /// new value arrives on users/{uid} and reaches the UI through myIdentity,
+  /// the same way the balance does.
+  Future<void> equip({required String slot, String? itemId}) async {
+    try {
+      await FirebaseFunctions.instanceFor(region: _functionsRegion)
+          .httpsCallable('equipCosmetic')
+          .call<Object?>({'slot': slot, 'itemId': itemId});
+      debugPrint('[CurrencyService] equipped ${itemId ?? '(nothing)'} in $slot');
+    } on FirebaseFunctionsException catch (e) {
+      final details = e.details;
+      if (e.code == 'failed-precondition' &&
+          details is Map &&
+          details['reason'] == 'not-owned') {
+        throw NotOwnedException(itemId ?? '', slot);
+      }
+      debugPrint('[CurrencyService] equip failed: [${e.code}] ${e.message}');
+      rethrow;
+    }
+  }
 
   /// Deducts [amount] for [itemId] and returns the new balance.
   ///

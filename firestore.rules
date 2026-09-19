@@ -102,6 +102,19 @@ service cloud.firestore {
       // in the create whitelist because ensureProfile always writes the field
       // — it is pinned to false here rather than forbidden outright.
       //
+      // `equipped` — which cosmetic is displayed in each slot — is
+      // server-owned on the same terms and for the same reason: equipping is
+      // only meaningful if it is gated on owning the item, and inventory is
+      // the server's to read. It is absent from the whitelist below, so a
+      // create carrying it is rejected by hasOnly, and it appears in no
+      // update path, so the only writer is the equipCosmetic callable.
+      //
+      // Unlike the currency pins, no zero-pin is written for it. A pin on a
+      // map would have to assert emptiness, and the exclusion already makes
+      // the field unreachable — the currency pins are documented below as
+      // unreachable guards, and adding a third would be a third dead clause
+      // rather than a second layer of anything.
+      //
       // aniGold and aniGem are held to a STRICTER standard than either,
       // because they are spendable: they are absent from the create whitelist
       // entirely, so hasOnly rejects any create that carries them, and

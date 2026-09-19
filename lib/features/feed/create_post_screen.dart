@@ -19,6 +19,7 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/user_avatar.dart';
+import '../../services/currency_service.dart';
 
 /// Compose a feed post: text (≤500), up to [_CreatePostScreenState._maxImages]
 /// images, optional anime tag, spoiler flag.
@@ -163,6 +164,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       UserAvatar(
                         name: me?.nameToShow ?? '',
                         imageUrl: me?.userAvatar,
+                        frame: me?.equippedIn(CosmeticSlot.frame),
                         radius: 20,
                       ),
                       const SizedBox(width: 10),
