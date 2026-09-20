@@ -631,15 +631,64 @@ exports.fetchAnimeMeta = onCall(
 
 const CURRENCY_LEDGER = 'currency_ledger';
 
-/// Upper bound on a single spend. Not a product rule — a blast radius. The
-/// most expensive thing in the catalogue costs 444, so anything near this is
-/// a malformed or hostile call, and refusing it early keeps a typo from
-/// draining a balance in one transaction.
+/// Upper bound on a single spend. Not a product rule — a blast radius, and
+/// now a check on OUR OWN table rather than on the caller: the charge is read
+/// from STORE_ITEMS, so the only way to exceed this is a mistyped price in
+/// this file. It fails loudly as `internal` instead of draining a balance.
 const MAX_SPEND = 100000;
 
 /// Bound on itemId so a caller cannot write an unbounded string into every
 /// ledger entry.
 const MAX_ITEM_ID_LENGTH = 64;
+
+/**
+ * The store catalogue: what exists, what it costs, whether it may be sold,
+ * and — for cosmetics — which slot it occupies.
+ *
+ * This is the SERVER's authority. It is also a second source of truth
+ * alongside the client's SampleData.storeItems, which is stated plainly here
+ * rather than glossed: price now lives in both places. It is kept because
+ * slot-validity has nowhere else to live — security rules cannot know that
+ * cherry_blossom_frame belongs in `frame` without hardcoding the same table
+ * a third time. The way out is one Firestore-held catalogue both sides read
+ * (store_items/{itemId}, server-written, world-readable), which needs
+ * seeding, rules, a client read path and an offline story, so it is named
+ * here rather than smuggled in.
+ *
+ * WHY WITHDRAWN ITEMS STAY IN THE TABLE
+ *
+ * demon_slayer_emotions is withdrawn and still listed. Deleting it would make
+ * it indistinguishable from a typo: a caller asking for it would be told the
+ * item is UNKNOWN, which is false — it existed, people bought it, and their
+ * ledger entries and inventory documents still name it. A catalogue that
+ * cannot explain an id appearing in its own audit trail is worse than one
+ * carrying a tombstone. `unavailable` records WHY it cannot be sold, so
+ * "never shipped" and "was sold, then pulled" stay distinguishable.
+ *
+ * Unequipping is unaffected either way: equipCosmetic's unequip path takes an
+ * early return before any catalogue lookup, because it addresses the SLOT,
+ * not the item. Somebody holding a withdrawn item can always take it off.
+ */
+const STORE_ITEMS = {
+  // Sellable cosmetics.
+  cherry_blossom_frame: { price: 200, sellable: true, slot: 'frame' },
+  gold_elite: { price: 250, sellable: true, slot: 'postBorder' },
+  rainbow_shimmer: { price: 300, sellable: true, slot: 'nameEffect' },
+
+  // Held back: real products with no delivery path yet. isVerified is pinned
+  // false by the rules and admitted on no update path; streak_restore maps to
+  // a client no-op with no callers. Both were gated in the wallet widget
+  // only, which is not a gate at all — a modified client could buy either.
+  verification: { price: 444, sellable: false, unavailable: 'coming-soon' },
+  streak_restore: { price: 50, sellable: false, unavailable: 'coming-soon' },
+
+  // Withdrawn: sold, then pulled. Never sellable again.
+  demon_slayer_emotions: { price: 150, sellable: false, unavailable: 'withdrawn' },
+};
+
+/// Declared slots. nameEffect has no renderer yet and is listed anyway, so
+/// shipping one later is a client change and not a schema change.
+const COSMETIC_SLOTS = ['frame', 'postBorder', 'nameEffect'];
 
 /**
  * Deducts AniGold, grants the item, and records why — atomically.
@@ -651,6 +700,18 @@ const MAX_ITEM_ID_LENGTH = 64;
  * Items are one-time. The inventory doc is keyed by itemId, so owning
  * something twice is not representable, and the transaction refuses an
  * already-owned item before it touches the balance.
+ *
+ * WHAT THE CALLER NO LONGER DECIDES
+ *
+ * The item must be in STORE_ITEMS, it must be marked sellable, and the amount
+ * charged is the catalogue's price. Before this, all three were the client's
+ * to choose: any string bought an inventory document, held-back items were
+ * gated in the wallet widget only, and the caller named its own price — a
+ * modified client bought a 250-gold border for 1.
+ *
+ * `amount` is still required, as a checksum rather than an input: the caller
+ * states the price it displayed, and a disagreement refuses instead of
+ * silently charging the other number. See the note at that check.
  *
  * WHY A TRANSACTION, AND WHY THE LEDGER IS INSIDE IT
  *
@@ -677,20 +738,66 @@ exports.spendGold = onCall({ region: 'europe-west1' }, async (request) => {
   }
   const uid = request.auth.uid;
 
-  const amount = request.data && request.data.amount;
+  const claimedAmount = request.data && request.data.amount;
   const itemId = request.data && request.data.itemId;
 
-  if (!Number.isInteger(amount) || amount <= 0) {
-    throw new HttpsError('invalid-argument', 'amount must be a positive integer.');
-  }
-  if (amount > MAX_SPEND) {
-    throw new HttpsError('invalid-argument', `amount may not exceed ${MAX_SPEND}.`);
-  }
   if (typeof itemId !== 'string' || itemId.length === 0 || itemId.length > MAX_ITEM_ID_LENGTH) {
     throw new HttpsError(
       'invalid-argument',
       `itemId must be a non-empty string of at most ${MAX_ITEM_ID_LENGTH} characters.`,
     );
+  }
+
+  // The item must exist. Without this, any string minted an inventory
+  // document for itself — `itemId: 'anything'` was a purchase.
+  const item = Object.prototype.hasOwnProperty.call(STORE_ITEMS, itemId)
+    ? STORE_ITEMS[itemId]
+    : null;
+  if (item === null) {
+    throw new HttpsError(
+      'failed-precondition',
+      'No such item.',
+      { reason: 'unknown-item', itemId },
+    );
+  }
+
+  // Sellability is the server's call, not the shop widget's. verification and
+  // streak_restore were held back in the wallet only, which stopped the app
+  // and nothing else.
+  if (!item.sellable) {
+    throw new HttpsError(
+      'failed-precondition',
+      'This item is not for sale.',
+      { reason: 'not-for-sale', itemId, unavailable: item.unavailable },
+    );
+  }
+
+  // THE PRICE IS THE SERVER'S. `amount` is still required, but only as the
+  // caller stating what it believes the price to be — a checksum against the
+  // catalogue, not an input to it. The charge below reads item.price, so a
+  // caller offering 1 gold for a 250 item cannot underpay even if this check
+  // were removed.
+  //
+  // A mismatch REFUSES rather than quietly charging the server's number. The
+  // two catalogues can drift, and when they do the user is looking at a price
+  // the shop rendered; charging a different one silently would make the UI a
+  // liar. Refusing surfaces the drift where someone has to deal with it.
+  if (!Number.isInteger(claimedAmount) || claimedAmount <= 0) {
+    throw new HttpsError('invalid-argument', 'amount must be a positive integer.');
+  }
+  if (claimedAmount !== item.price) {
+    throw new HttpsError(
+      'failed-precondition',
+      'That price is out of date.',
+      { reason: 'price-mismatch', itemId, price: item.price, offered: claimedAmount },
+    );
+  }
+
+  // Read from the table, never from the request. This is the line that makes
+  // the price server-owned; everything above is diagnosis.
+  const amount = item.price;
+  if (amount > MAX_SPEND) {
+    throw new HttpsError('internal', `Catalogue price for ${itemId} exceeds ${MAX_SPEND}.`);
   }
 
   const userRef = db.collection('users').doc(uid);
@@ -785,34 +892,6 @@ exports.spendGold = onCall({ region: 'europe-west1' }, async (request) => {
 
 // ─────────────────────────── COSMETICS ───────────────────────────────────
 
-/**
- * The cosmetics catalogue: what exists, what slot it occupies, what it costs.
- *
- * This is the SERVER's copy of what the client shows in SampleData.storeItems,
- * and it is a second source of truth — say so plainly rather than pretend
- * otherwise. Keeping it here is not the ideal shape; it is the shape that lets
- * slot-validity be checked at all, because security rules cannot know that
- * cherry_blossom_frame belongs in `frame` and not `postBorder` without
- * hardcoding the same table into the rules and keeping THAT in step too.
- *
- * The way out is to stop having two: move the catalogue into Firestore
- * (store_items/{itemId}, server-written and world-readable) and let both the
- * client's shop and these functions read the one document set. That is a
- * bigger change than this one — seeding, rules, a client read path and an
- * offline story — so it is named here rather than smuggled in.
- *
- * `price` is recorded but NOT yet enforced: spendGold still takes the amount
- * from the caller. See the note on spendGold.
- */
-const COSMETICS = {
-  cherry_blossom_frame: { slot: 'frame', price: 200 },
-  gold_elite: { slot: 'postBorder', price: 250 },
-  rainbow_shimmer: { slot: 'nameEffect', price: 300 },
-};
-
-/// Declared slots. nameEffect has no renderer yet and is listed anyway, so
-/// shipping one later is a client change and not a schema change.
-const COSMETIC_SLOTS = ['frame', 'postBorder', 'nameEffect'];
 
 /**
  * Sets or clears the cosmetic displayed in one slot.
@@ -854,10 +933,17 @@ exports.equipCosmetic = onCall({ region: 'europe-west1' }, async (request) => {
     return { slot, itemId: null };
   }
 
-  if (typeof itemId !== 'string' || !Object.prototype.hasOwnProperty.call(COSMETICS, itemId)) {
+  if (typeof itemId !== 'string' || !Object.prototype.hasOwnProperty.call(STORE_ITEMS, itemId)) {
     throw new HttpsError('invalid-argument', 'Unknown cosmetic.');
   }
-  const entry = COSMETICS[itemId];
+  const entry = STORE_ITEMS[itemId];
+  // No slot at all means it is not a cosmetic (verification, streak_restore)
+  // — nothing to display, so nothing to equip. Note this is NOT gated on
+  // `sellable`: a withdrawn cosmetic somebody already owns stays equippable,
+  // and unequip never reaches here at all.
+  if (!entry.slot) {
+    throw new HttpsError('invalid-argument', `${itemId} is not a cosmetic.`);
+  }
   if (entry.slot !== slot) {
     throw new HttpsError(
       'invalid-argument',

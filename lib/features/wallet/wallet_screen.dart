@@ -239,18 +239,28 @@ class _SpendTab extends ConsumerStatefulWidget {
 }
 
 class _SpendTabState extends ConsumerState<_SpendTab> {
-  /// Items whose purchase CANNOT be delivered, whatever the balance says.
+  /// Items to render as held back rather than buyable.
   ///
-  /// Not "not built yet" — structurally impossible as written. `verification`
-  /// would set users/{uid}.isVerified, which firestore.rules pins false on
-  /// create and admits on no update path; `streak_restore` maps to
-  /// CurrencyController.restoreStreak, which is `copyWith(streak: streak)` —
-  /// a no-op with no callers.
+  /// This is now a DISPLAY HINT, not the gate. The gate moved to the server:
+  /// STORE_ITEMS marks these `sellable: false` and spendGold refuses them
+  /// with `not-for-sale`, which is what actually stops a modified client. It
+  /// used to be the only check, and a set in a widget was never a check at
+  /// all.
   ///
-  /// The cosmetics above them ARE charged, because the ledger entry is a
-  /// receipt Phase 3 can grant from. These two have nothing to grant from, so
-  /// charging for them would be taking real gold for something no future code
-  /// is going to honour. They stay visible and say so.
+  /// It stays because deleting it would trade a clear "Soon" chip for a gold
+  /// button that fails when tapped — the server would refuse correctly and
+  /// the user would still have been invited to try. Keeping it means the
+  /// round trip never happens; keeping it ALONE is what was wrong.
+  ///
+  /// It can drift from the server (this list ships inside the build), and the
+  /// drift is handled rather than prevented: a stale client that offers a
+  /// held-back item gets ItemUnavailableException and says so.
+  ///
+  /// Why these two: `verification` would set users/{uid}.isVerified, which
+  /// firestore.rules pins false on create and admits on no update path;
+  /// `streak_restore` maps to CurrencyController.restoreStreak, a no-op with
+  /// no callers. The cosmetics are charged because their ledger entry is a
+  /// receipt the grant reads from; these two have nothing to grant.
   static const Set<String> _undeliverable = {'verification', 'streak_restore'};
 
   /// The purchase currently in flight, by item id.
@@ -412,6 +422,24 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('${item.name} — ${item.price}🟡 deducted'),
         duration: const Duration(seconds: 2),
+      ));
+    } on ItemUnavailableException catch (e) {
+      // This client offered something the server will not sell — almost
+      // always a build older than the catalogue.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.unavailable == 'withdrawn'
+            ? '${item.name} is no longer available.'
+            : '${item.name} is not available yet.'),
+        duration: const Duration(seconds: 2),
+      ));
+    } on PriceChangedException catch (e) {
+      // Nothing was charged. Saying the new price is more useful than saying
+      // the attempt failed.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${item.name} now costs ${e.price}🟡 — nothing was charged.'),
+        duration: const Duration(seconds: 3),
       ));
     } on AlreadyOwnedException {
       // Reachable without a bug: the inventory stream had not arrived when

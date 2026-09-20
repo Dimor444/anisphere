@@ -34,6 +34,41 @@ class AlreadyOwnedException implements Exception {
   String toString() => 'AlreadyOwnedException($itemId)';
 }
 
+/// The server will not sell this item — it is held back, withdrawn, or not in
+/// the catalogue at all.
+///
+/// Reachable without a bug: a shipped build carries its own copy of the store
+/// list, so a client one release behind can offer something the server has
+/// since pulled. That is a "no longer available", not a "try again".
+class ItemUnavailableException implements Exception {
+  final String itemId;
+
+  /// 'coming-soon', 'withdrawn', or 'unknown' when the server does not know
+  /// the id at all.
+  final String unavailable;
+  const ItemUnavailableException(this.itemId, this.unavailable);
+
+  @override
+  String toString() => 'ItemUnavailableException($itemId, $unavailable)';
+}
+
+/// The price the shop displayed is not the price the server holds.
+///
+/// The server refuses rather than charging its own number, so the user is
+/// never billed something other than what they were shown. Carries the real
+/// price so the UI can say what it is now.
+class PriceChangedException implements Exception {
+  final String itemId;
+  final int price;
+  final int offered;
+  const PriceChangedException(
+      {required this.itemId, required this.price, required this.offered});
+
+  @override
+  String toString() =>
+      'PriceChangedException($itemId: shop said $offered, server says $price)';
+}
+
 /// The equip was refused because the item is not owned.
 ///
 /// Distinct from a fault for the same reason as the others: the answer is to
@@ -112,9 +147,16 @@ class CurrencyService {
   /// Deducts [amount] for [itemId] and returns the new balance.
   ///
   /// The server deducts, grants the item and writes the ledger receipt in one
-  /// transaction, so a success means all three happened. Throws
-  /// [InsufficientGoldException] when the balance is short and
-  /// [AlreadyOwnedException] when the item is already held; every other
+  /// transaction, so a success means all three happened.
+  ///
+  /// [amount] is sent as the price this client DISPLAYED, not as an
+  /// instruction: the server charges its own catalogue price and refuses a
+  /// disagreement with [PriceChangedException] rather than billing a number
+  /// the user was never shown.
+  ///
+  /// Throws [InsufficientGoldException] when the balance is short,
+  /// [AlreadyOwnedException] when the item is already held, and
+  /// [ItemUnavailableException] when the server will not sell it. Every other
   /// failure rethrows as-is, because a refusal the user can act on and a
   /// fault they cannot must not look the same.
   ///
@@ -148,6 +190,20 @@ class CurrencyService {
             );
           case 'already-owned':
             throw AlreadyOwnedException(itemId);
+          case 'not-for-sale':
+            throw ItemUnavailableException(
+              itemId, (details['unavailable'] as String?) ?? 'unknown');
+          case 'unknown-item':
+            // Folded in with not-for-sale on purpose: to a user there is no
+            // difference between "we pulled this" and "we have never heard of
+            // it", and both mean the same thing — it cannot be bought.
+            throw ItemUnavailableException(itemId, 'unknown');
+          case 'price-mismatch':
+            throw PriceChangedException(
+              itemId: itemId,
+              price: (details['price'] as num?)?.toInt() ?? 0,
+              offered: (details['offered'] as num?)?.toInt() ?? amount,
+            );
         }
       }
       debugPrint('[CurrencyService] spendGold failed: [${e.code}] ${e.message}');
