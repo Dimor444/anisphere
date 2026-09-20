@@ -11,8 +11,8 @@ import '../../data/models/user.dart';
 import '../../services/follow_service.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
-import '../../shared/widgets/verified_badge.dart';
 import '../../services/currency_service.dart';
+import '../../shared/widgets/user_name_text.dart';
 
 /// Debounced @handle search in a bottom sheet; resolves to the picked user
 /// (or null). Backed by the shared [FollowService.searchUsers] prefix search
@@ -103,13 +103,12 @@ class _MentionPickerSheetState extends ConsumerState<_MentionPickerSheet> {
                     title: Row(
                       children: [
                         Flexible(
-                          child: Text('@${u.userName}',
-                              style: AppTextStyles.body, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          child: UserHandleText(
+                            user: u,
+                            style: AppTextStyles.body,
+                            verified: u.isVerified,
+                          ),
                         ),
-                        if (u.isVerified) ...[
-                          const SizedBox(width: 4),
-                          const VerifiedBadge(size: BadgeSize.sm),
-                        ],
                       ],
                     ),
                     subtitle: Text(u.displayName,

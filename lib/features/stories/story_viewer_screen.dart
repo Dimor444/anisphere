@@ -11,9 +11,9 @@ import '../../core/utils/haptics.dart';
 import '../../services/story_service.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
-import '../../shared/widgets/verified_badge.dart';
 import 'story_providers.dart';
 import '../../services/currency_service.dart';
+import '../../shared/widgets/user_name_text.dart';
 
 /// Full-screen viewer for one user's active stories: progress bars,
 /// auto-advance (5s per story), tap left/right to navigate, hold to pause,
@@ -261,15 +261,12 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
                             name: user?.nameToShow ?? '…', imageUrl: user?.userAvatar, radius: 18, frame: user?.equippedIn(CosmeticSlot.frame)),
                         const SizedBox(width: 10),
                         Flexible(
-                          child: Text(user?.nameToShow ?? '…',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.subheading),
+                          child: UserNameText(
+                            user: user,
+                            fallback: '…',
+                            style: AppTextStyles.subheading,
+                          ),
                         ),
-                        if (user?.isVerified == true) ...[
-                          const SizedBox(width: 4),
-                          const VerifiedBadge(size: BadgeSize.sm),
-                        ],
                         const SizedBox(width: 6),
                         if (story.createdAt != null)
                           Text(Fmt.timeAgo(story.createdAt!), style: AppTextStyles.captionMuted),

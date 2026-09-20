@@ -18,8 +18,8 @@ import '../../services/dm_service.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
-import '../../shared/widgets/verified_badge.dart';
 import '../../services/currency_service.dart';
+import '../../shared/widgets/user_name_text.dart';
 
 /// The only reactions offered — a fixed row, deliberately no picker.
 const _reactionEmojis = ['❤️', '😂', '😮', '😢', '🔥', '👍'];
@@ -416,19 +416,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                Flexible(
-                  child: Text(name.isEmpty ? ref.tr('animeFanFallback') : name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.subheading),
-                ),
-                if (other?.isVerified == true) ...[
-                  const SizedBox(width: 4),
-                  const VerifiedBadge(size: BadgeSize.sm),
-                ],
-              ]),
-              if (other != null) Text('@${other.userName}', style: AppTextStyles.captionMuted),
+              UserNameText(
+                user: other,
+                fallback: name.isEmpty ? ref.tr('animeFanFallback') : name,
+                style: AppTextStyles.subheading,
+              ),
+              UserHandleText(user: other, style: AppTextStyles.captionMuted),
             ]),
           ),
         ]),

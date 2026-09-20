@@ -16,6 +16,7 @@ import 'gradient_button.dart';
 import 'user_avatar.dart';
 import 'verified_badge.dart';
 import '../../services/currency_service.dart';
+import 'user_name_text.dart';
 
 /// AniScan is hidden from the drawer until it has a server-side proxy.
 ///
@@ -65,14 +66,13 @@ class AppDrawer extends ConsumerWidget {
                     radius: 28,
                   ),
                   const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Text(me?.nameToShow ?? '…', style: AppTextStyles.subheading),
-                      const SizedBox(width: 5),
-                      if (me?.isVerified == true) const VerifiedBadge(size: BadgeSize.sm),
-                    ],
+                  UserNameText(
+                    user: me,
+                    fallback: '…',
+                    style: AppTextStyles.subheading,
+                    badgeGap: 5,
                   ),
-                  Text(me == null ? '' : '@${me.userName}', style: AppTextStyles.captionMuted),
+                  UserHandleText(user: me, style: AppTextStyles.captionMuted),
                   const SizedBox(height: 12),
                   Row(
                     children: [

@@ -14,6 +14,7 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../services/currency_service.dart';
+import '../../shared/widgets/user_name_text.dart';
 
 /// Comments for one Ani Video — bottom sheet over the playing video, same
 /// real-time behavior as the feed's post detail comments.
@@ -211,9 +212,11 @@ class _CommentTile extends ConsumerWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text(name,
-                          style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
-                          overflow: TextOverflow.ellipsis),
+                      child: UserNameText(
+                        user: author,
+                        fallback: comment.userName,
+                        style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+                      ),
                     ),
                     const SizedBox(width: 6),
                     if (comment.createdAt != null)

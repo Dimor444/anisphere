@@ -15,6 +15,7 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/post_card.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../services/currency_service.dart';
+import '../../shared/widgets/user_name_text.dart';
 
 /// Full post + live comments, with a composer pinned at the bottom.
 class PostDetailScreen extends ConsumerStatefulWidget {
@@ -229,9 +230,11 @@ class _CommentTile extends ConsumerWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text(name,
-                          style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
-                          overflow: TextOverflow.ellipsis),
+                      child: UserNameText(
+                        user: author,
+                        fallback: comment.userName,
+                        style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+                      ),
                     ),
                     const SizedBox(width: 6),
                     if (comment.createdAt != null)

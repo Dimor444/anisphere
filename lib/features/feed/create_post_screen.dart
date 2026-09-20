@@ -20,6 +20,7 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../services/currency_service.dart';
+import '../../shared/widgets/user_name_text.dart';
 
 /// Compose a feed post: text (≤500), up to [_CreatePostScreenState._maxImages]
 /// images, optional anime tag, spoiler flag.
@@ -168,7 +169,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         radius: 20,
                       ),
                       const SizedBox(width: 10),
-                      Text(me?.nameToShow ?? '', style: AppTextStyles.subheading),
+                      UserNameText(user: me, style: AppTextStyles.subheading),
                     ],
                   ),
                   const SizedBox(height: 12),

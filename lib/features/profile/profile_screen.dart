@@ -39,6 +39,7 @@ import 'edit_profile_sheet.dart';
 import 'widgets/anime_dna_section.dart';
 import 'widgets/true_fan_section.dart';
 import '../../services/currency_service.dart';
+import '../../shared/widgets/user_name_text.dart';
 
 // ── Header geometry ────────────────────────────────────────────────────────
 // Banner, avatar and action row live in ONE Stack that is sized to contain
@@ -262,7 +263,6 @@ class _ProfileHeader extends ConsumerWidget {
     final name = identity?.nameToShow ?? '—';
     final handle = identity?.userName ?? '';
     final bio = identity?.bio ?? '';
-    final verified = identity?.isVerified ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,15 +369,14 @@ class _ProfileHeader extends ConsumerWidget {
             children: [
               Row(children: [
                 Flexible(
-                  child: Text(name,
-                      style: AppTextStyles.display.copyWith(fontSize: 22),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  child: UserNameText(
+                    user: identity,
+                    fallback: '—',
+                    style: AppTextStyles.display.copyWith(fontSize: 22),
+                    badgeSize: BadgeSize.md,
+                    badgeGap: 6,
+                  ),
                 ),
-                if (verified) ...[
-                  const SizedBox(width: 6),
-                  const VerifiedBadge(size: BadgeSize.md),
-                ],
                 if (isOwn) ...[
                   const SizedBox(width: 8),
                   LevelBadge(level: ref.watch(userProvider).level),
@@ -385,7 +384,7 @@ class _ProfileHeader extends ConsumerWidget {
               ]),
               if (handle.isNotEmpty) ...[
                 const SizedBox(height: 2),
-                Text('@$handle', style: AppTextStyles.captionMuted),
+                UserHandleText(user: identity, style: AppTextStyles.captionMuted),
               ],
               // Empty bio → no row, no gap.
               if (bio.isNotEmpty) ...[

@@ -7,8 +7,8 @@ import '../../core/utils/haptics.dart';
 import '../../data/models/user.dart';
 import 'follow_button.dart';
 import 'user_avatar.dart';
-import 'verified_badge.dart';
 import '../../services/currency_service.dart';
+import 'user_name_text.dart';
 
 /// One user row (followers/following lists, suggestions, search results):
 /// small avatar, name + badge, bio snippet, follow toggle. Tapping the row
@@ -44,21 +44,13 @@ class UserTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(user.nameToShow,
-                            style: AppTextStyles.subheading, overflow: TextOverflow.ellipsis),
-                      ),
-                      if (user.isVerified) ...[
-                        const SizedBox(width: 4),
-                        const VerifiedBadge(size: BadgeSize.sm),
-                      ],
-                    ],
-                  ),
+                  UserNameText(user: user, style: AppTextStyles.subheading),
                   // Handle first (like the profile header), bio tucked after.
-                  Text('@${user.userName}${user.bio.isNotEmpty ? ' · ${user.bio}' : ''}',
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.captionMuted),
+                  UserHandleText(
+                    user: user,
+                    style: AppTextStyles.captionMuted,
+                    suffix: user.bio.isNotEmpty ? ' · ${user.bio}' : '',
+                  ),
                   if (subtitle != null)
                     Text(subtitle!,
                         style: AppTextStyles.captionMuted.copyWith(color: AppColors.primaryLight)),

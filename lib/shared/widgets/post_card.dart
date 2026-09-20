@@ -21,6 +21,7 @@ import 'follow_button.dart';
 import 'user_avatar.dart';
 import 'verified_badge.dart';
 import '../../services/currency_service.dart';
+import 'user_name_text.dart';
 
 /// One feed post. Renders both Firestore posts and sample/demo posts
 /// ([PostData.isLocal]); interactions on local posts stay in-memory.
@@ -243,10 +244,16 @@ class _PostCardState extends ConsumerState<PostCard> {
                           Row(
                             children: [
                               Flexible(
-                                child: Text(authorName,
-                                    style: AppTextStyles.subheading, overflow: TextOverflow.ellipsis),
+                                child: UserNameText(
+                                  user: author,
+                                  fallback: p.userName,
+                                  style: AppTextStyles.subheading,
+                                ),
                               ),
-                              if (authorVerified) ...[
+                              // The denormalized flag still drives the badge
+                              // for local sample posts, which have no author
+                              // document for UserNameText to read.
+                              if (author == null && authorVerified) ...[
                                 const SizedBox(width: 4),
                                 const VerifiedBadge(size: BadgeSize.sm),
                               ],

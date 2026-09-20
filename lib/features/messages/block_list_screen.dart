@@ -12,6 +12,7 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../services/currency_service.dart';
+import '../../shared/widgets/user_name_text.dart';
 
 /// Conversations the signed-in user has blocked. Blocking is per-thread
 /// (the blockedBy array on the conversation doc), so this is the list of
@@ -112,11 +113,13 @@ class _BlockedTileState extends ConsumerState<_BlockedTile> {
         frame: other?.equippedIn(CosmeticSlot.frame),
         radius: 22,
       ),
-      title: Text(name.isEmpty ? ref.tr('animeFanFallback') : name,
-          maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.subheading),
+      title: UserNameText(
+          user: other,
+          fallback: name.isEmpty ? ref.tr('animeFanFallback') : name,
+          style: AppTextStyles.subheading),
       subtitle: other == null
           ? null
-          : Text('@${other.userName}', style: AppTextStyles.captionMuted),
+          : UserHandleText(user: other, style: AppTextStyles.captionMuted),
       trailing: TextButton(
         onPressed: _busy ? null : _unblock,
         child: Text(

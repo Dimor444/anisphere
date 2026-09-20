@@ -23,9 +23,9 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/follow_button.dart';
 import '../../shared/widgets/post_card.dart' show HashtagText;
 import '../../shared/widgets/user_avatar.dart';
-import '../../shared/widgets/verified_badge.dart';
 import 'ani_video_comments_sheet.dart';
 import '../../services/currency_service.dart';
+import '../../shared/widgets/user_name_text.dart';
 
 /// Ani Videos — full-screen vertical short-video feed (`/ani-videos` tab).
 ///
@@ -617,7 +617,6 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
                     Flexible(
                         child: Builder(builder: (context) {
                       final author = identityOf(ref, v.userId);
-                      final handle = author?.userName ?? v.userName;
                       return Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -636,14 +635,17 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Flexible(
-                                    child: Text('@$handle',
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppTextStyles.subheading.copyWith(color: Colors.white)),
+                                    child: UserHandleText(
+                                      user: author,
+                                      fallback: v.userName,
+                                      // Denormalized flag as the fallback:
+                                      // the video row paints before the
+                                      // author doc resolves.
+                                      verified: author?.isVerified ?? v.isVerified,
+                                      style: AppTextStyles.subheading
+                                          .copyWith(color: Colors.white),
+                                    ),
                                   ),
-                                  if (author?.isVerified ?? v.isVerified) ...[
-                                    const SizedBox(width: 4),
-                                    const VerifiedBadge(size: BadgeSize.sm),
-                                  ],
                                 ],
                               ),
                             ),
