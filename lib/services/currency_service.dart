@@ -89,6 +89,38 @@ class CosmeticSlot {
   static const String frame = 'frame';
   static const String postBorder = 'postBorder';
   static const String nameEffect = 'nameEffect';
+
+  /// Which slot an item occupies, or null when it occupies none.
+  ///
+  /// THIS IS A THIRD COPY of knowledge the server already holds in
+  /// STORE_ITEMS, and there is no way around it for a UI that groups owned
+  /// items by slot: the inventory stream returns ids and nothing else, and no
+  /// endpoint answers "what slot is this". Adding `slot` to StoreItem would
+  /// merely move the copy, not remove it.
+  ///
+  /// It is only ever used to ARRANGE things. The server re-checks the slot on
+  /// every equip and refuses a mismatch, so a wrong entry here shows an item
+  /// under the wrong heading — it cannot put a frame in the border slot.
+  ///
+  /// All three copies collapse into one the day the catalogue moves into
+  /// Firestore and both sides read it.
+  static const Map<String, String> _slotOf = {
+    'cherry_blossom_frame': frame,
+    'gold_elite': postBorder,
+    'rainbow_shimmer': nameEffect,
+  };
+
+  static String? of(String itemId) => _slotOf[itemId];
+
+  /// Slots in the order they are presented.
+  static const List<String> all = [frame, postBorder, nameEffect];
+
+  static String label(String slot) => switch (slot) {
+        frame => 'Avatar frame',
+        postBorder => 'Post border',
+        nameEffect => 'Name effect',
+        _ => slot,
+      };
 }
 
 /// Spending AniGold.

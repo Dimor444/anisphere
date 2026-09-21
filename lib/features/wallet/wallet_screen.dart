@@ -37,8 +37,13 @@ class WalletScreen extends ConsumerWidget {
       'plus' => 3,
       _ => 0,
     };
+    // FIVE tabs, and five things move together: this length, the tabs list,
+    // the TabBarView children, and the initialTab switch above. A length that
+    // disagrees with the tab count is the assertion that bit the profile
+    // header — the new tab is APPENDED so every existing index keeps its
+    // meaning and that switch needs no edit.
     return DefaultTabController(
-      length: 4,
+      length: 5,
       initialIndex: initial,
       child: Scaffold(
         appBar: AppBar(
@@ -60,10 +65,18 @@ class WalletScreen extends ConsumerWidget {
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            tabs: [Tab(text: 'Earn'), Tab(text: 'Spend'), Tab(text: 'Recharge'), Tab(text: '💎 AniPlus')],
+            tabs: [
+              Tab(text: 'Earn'),
+              Tab(text: 'Spend'),
+              Tab(text: 'Recharge'),
+              Tab(text: '💎 AniPlus'),
+              Tab(text: 'My Items'),
+            ],
           ),
         ),
-        body: const TabBarView(children: [_EarnTab(), _SpendTab(), _RechargeTab(), _PlusTab()]),
+        body: const TabBarView(
+          children: [_EarnTab(), _SpendTab(), _RechargeTab(), _PlusTab(), _MyItemsTab()],
+        ),
       ),
     );
   }
@@ -229,6 +242,212 @@ class _WheelPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ───────────────────────── MY ITEMS
+
+/// Owning and wearing, made into different things.
+///
+/// A fifth tab rather than a block inside Spend. Spend is where gold leaves;
+/// equipping costs nothing and is a different activity, and folding it in
+/// would bury three slot groups under the shop list, the verification card
+/// and the gacha banner. The bar is already `isScrollable` with
+/// `tabAlignment: start`, so a fifth tab scrolls in rather than crowding the
+/// other four.
+class _MyItemsTab extends ConsumerStatefulWidget {
+  const _MyItemsTab();
+  @override
+  ConsumerState<_MyItemsTab> createState() => _MyItemsTabState();
+}
+
+class _MyItemsTabState extends ConsumerState<_MyItemsTab> {
+  /// The slot whose equip is in flight.
+  ///
+  /// Same shape as the shop's _busyItemId and for the same reason: it
+  /// disables EVERY slot, not just the one tapped. Two slots changing at once
+  /// are two writes to the same user document, and the second would be
+  /// applied against a doc the first had not finished updating. One at a time
+  /// also makes a double tap a no-op rather than two calls.
+  String? _busySlot;
+
+  Future<void> _set(String slot, String? itemId) async {
+    if (_busySlot != null) return;
+    setState(() => _busySlot = slot);
+    Haptics.medium();
+    try {
+      await CurrencyService.instance.equip(slot: slot, itemId: itemId);
+      // Nothing is written locally. equipped lives on users/{uid}, which
+      // myIdentity streams, so the tick moves when the transaction commits —
+      // the UI updating IS the evidence the server agreed.
+    } on NotOwnedException {
+      // Not reachable from this screen, which only offers what the inventory
+      // stream returned. Handled anyway so the server's refusal never
+      // surfaces as a generic failure.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("You don't own that item."),
+        duration: Duration(seconds: 2),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Couldn't change that. Try again."),
+        duration: Duration(seconds: 2),
+      ));
+    } finally {
+      if (mounted) setState(() => _busySlot = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final me = myIdentity(ref);
+    final owned = ownedItemIds(ref);
+
+    // Owned things that belong to no slot — the withdrawn sticker pack today.
+    // Shown rather than dropped: it was bought, it is owned, and a screen
+    // called My Items that silently omits an item would be lying by
+    // arrangement. It is listed without controls because there is nothing to
+    // put it on.
+    final unwearable = owned.where((id) => CosmeticSlot.of(id) == null).toList()..sort();
+
+    return ListView(
+      padding: const EdgeInsets.all(14),
+      children: [
+        for (final slot in CosmeticSlot.all) ...[
+          _slotGroup(slot, owned, me?.equippedIn(slot)),
+          const SizedBox(height: 14),
+        ],
+        if (unwearable.isNotEmpty) ...[
+          const SectionHeader(title: 'Not wearable', padding: EdgeInsets.only(bottom: 10)),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final id in unwearable)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(_titleFor(id), style: AppTextStyles.label),
+                  ),
+                const SizedBox(height: 4),
+                const Text('Owned, but nothing to wear it on.',
+                    style: AppTextStyles.captionMuted),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _slotGroup(String slot, Set<String> owned, String? equipped) {
+    final mine = owned.where((id) => CosmeticSlot.of(id) == slot).toList()..sort();
+    final busy = _busySlot != null;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(CosmeticSlot.label(slot), style: AppTextStyles.subheading),
+          const SizedBox(height: 8),
+          // "None" is always offered, even with nothing owned. Choosing not to
+          // wear a thing you own is a state the server models explicitly — an
+          // absent slot key — so it gets a real control rather than being the
+          // gap left by not picking anything.
+          _option(
+            slot: slot,
+            itemId: null,
+            title: 'None',
+            selected: equipped == null,
+            enabled: !busy,
+          ),
+          for (final id in mine)
+            _option(
+              slot: slot,
+              itemId: id,
+              title: _titleFor(id),
+              selected: equipped == id,
+              enabled: !busy,
+            ),
+          if (mine.isEmpty) ...[
+            const SizedBox(height: 6),
+            // An empty slot is SHOWN, not hidden. Hiding it would mean a user
+            // never learns the slot exists or that the shop sells for it, and
+            // the tab would reflow as items arrive. Empty and visible teaches
+            // the model; absent teaches nothing.
+            const Text('Nothing for this slot yet — the shop has some.',
+                style: AppTextStyles.captionMuted),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _option({
+    required String slot,
+    required String? itemId,
+    required String title,
+    required bool selected,
+    required bool enabled,
+  }) {
+    final pending = _busySlot == slot;
+    return Opacity(
+      opacity: enabled || pending ? 1 : 0.4,
+      child: GestureDetector(
+        onTap: enabled && !selected ? () => _set(slot, itemId) : null,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: selected
+                    ? const Icon(LucideIcons.check, size: 16, color: AppColors.success)
+                    : null,
+              ),
+              Expanded(
+                child: Text(
+                  title,
+                  style: selected
+                      ? AppTextStyles.label.copyWith(color: AppColors.success)
+                      : AppTextStyles.label,
+                ),
+              ),
+              if (pending)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Catalogue name for an owned id, falling back to the id when the item is
+  /// no longer listed — a withdrawn item is still owned and still needs a
+  /// label.
+  String _titleFor(String id) {
+    for (final s in SampleData.storeItems) {
+      if (s.id == id) return s.name;
+    }
+    return id;
+  }
 }
 
 // ───────────────────────── SPEND
