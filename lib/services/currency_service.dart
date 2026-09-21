@@ -69,6 +69,39 @@ class PriceChangedException implements Exception {
       'PriceChangedException($itemId: shop said $offered, server says $price)';
 }
 
+/// Today's spin is already used.
+///
+/// Carries when the next one opens, so the UI can say "come back at" rather
+/// than only "no".
+class AlreadySpunException implements Exception {
+  final DateTime nextSpinAt;
+
+  /// What the earlier spin paid, when the server still has it.
+  final int? prize;
+  const AlreadySpunException({required this.nextSpinAt, this.prize});
+
+  @override
+  String toString() => 'AlreadySpunException(next: $nextSpinAt)';
+}
+
+/// The outcome of a spin, decided entirely by the server.
+class SpinResult {
+  /// Index into the wheel face — what the client rotates to.
+  final int segment;
+
+  /// Gold actually credited. Authoritative even if the painted wheel has
+  /// drifted from the server's table.
+  final int prize;
+  final int balance;
+  final DateTime nextSpinAt;
+  const SpinResult({
+    required this.segment,
+    required this.prize,
+    required this.balance,
+    required this.nextSpinAt,
+  });
+}
+
 /// The equip was refused because the item is not owned.
 ///
 /// Distinct from a fault for the same reason as the others: the answer is to
@@ -174,6 +207,61 @@ class CurrencyService {
       debugPrint('[CurrencyService] equip failed: [${e.code}] ${e.message}');
       rethrow;
     }
+  }
+
+  /// Takes today's free spin.
+  ///
+  /// The server draws, credits and records in one transaction — the client
+  /// sends nothing but the request, which is what makes this the one earn
+  /// path that needs no claim verified. Throws [AlreadySpunException] when
+  /// the day is used.
+  Future<SpinResult> spinWheel() async {
+    try {
+      final result = await FirebaseFunctions.instanceFor(region: _functionsRegion)
+          .httpsCallable('spinWheel')
+          .call<Object?>(<String, Object?>{});
+      final d = result.data;
+      if (d is! Map) throw StateError('spinWheel returned $d');
+      final r = SpinResult(
+        segment: (d['segment'] as num).toInt(),
+        prize: (d['prize'] as num).toInt(),
+        balance: (d['balance'] as num).toInt(),
+        nextSpinAt: DateTime.parse(d['nextSpinAt'] as String),
+      );
+      debugPrint('[CurrencyService] spin: segment ${r.segment}, +${r.prize} '
+          '— balance now ${r.balance}');
+      return r;
+    } on FirebaseFunctionsException catch (e) {
+      final details = e.details;
+      if (e.code == 'failed-precondition' &&
+          details is Map &&
+          details['reason'] == 'already-spun') {
+        throw AlreadySpunException(
+          nextSpinAt: DateTime.parse(details['nextSpinAt'] as String),
+          prize: (details['prize'] as num?)?.toInt(),
+        );
+      }
+      debugPrint('[CurrencyService] spinWheel failed: [${e.code}] ${e.message}');
+      rethrow;
+    }
+  }
+
+  /// Today's spin record, or null when it has not been taken.
+  ///
+  /// The id is derived the same way the server derives it, from the UTC day,
+  /// so this reads exactly the document spinWheel would write. A stream
+  /// rather than a one-shot: the record appears the moment the transaction
+  /// commits, so the wheel locks itself without the screen re-reading.
+  Stream<DateTime?> watchTodaySpin(String uid) {
+    final day = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+    return _db.collection('spins').doc('${uid}_$day').snapshots().map(
+          (snap) => snap.exists ? _nextUtcMidnight() : null,
+        );
+  }
+
+  static DateTime _nextUtcMidnight() {
+    final now = DateTime.now().toUtc();
+    return DateTime.utc(now.year, now.month, now.day).add(const Duration(days: 1));
   }
 
   /// Deducts [amount] for [itemId] and returns the new balance.

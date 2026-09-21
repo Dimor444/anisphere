@@ -157,57 +157,148 @@ class _EarnTab extends StatelessWidget {
   }
 }
 
-/// The Lucky Spin, shown but not live.
+/// The daily spin. The SERVER draws; this only shows the result.
 ///
-/// The draw was `math.Random()` on the device and the payout was a local
-/// addGold, so the prize was decided by the client and the balance it moved
-/// was invented. Against a server-owned balance neither survives: there is no
-/// server-side draw to trust, and nothing may grant gold from the client.
+/// WHY IT CALLS FIRST AND ANIMATES SECOND
 ///
-/// `_spun` was widget state, so leaving the Wallet and returning re-armed it
-/// — this was unbounded free gold, not a daily reward. That is why it is held
-/// back rather than merely rate-limited.
+/// The other order — start spinning, call, settle on the answer — looks
+/// livelier and is worse. If the call fails mid-spin there is nothing to land
+/// on: the wheel either stops dead on a wedge it was never awarded, or keeps
+/// turning while an error appears beside it. A wheel that lands on 100 and
+/// then says "failed" is a worse lie than a moment of stillness.
 ///
-/// The wheel, its face and its layout are deliberately kept. What is gone is
-/// the machinery that pretended to work: the AnimationController, the ticker
-/// mixin and the rotation angle, none of which can move anything now. The
-/// face still renders so the feature reads as pending, not deleted.
-class _LuckySpin extends StatelessWidget {
+/// So: tap disables the button and shows a spinner, the call resolves, and
+/// only then does the wheel turn — to the segment the server named. A failure
+/// happens while the wheel is still, so there is nothing to take back.
+class _LuckySpin extends ConsumerStatefulWidget {
   const _LuckySpin();
+  @override
+  ConsumerState<_LuckySpin> createState() => _LuckySpinState();
+}
 
+class _LuckySpinState extends ConsumerState<_LuckySpin>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 3200));
+  double _angle = 0;
+  bool _calling = false;
+
+  /// The face. Must stay in the same ORDER as SPIN_PRIZES in functions —
+  /// the server returns an index into it. If they drift, the wheel rotates to
+  /// the wrong wedge, which is why the dialog reports the server's prize and
+  /// not the number painted under the pointer.
   static const _prizes = [10, 25, 5, 50, 15, 100, 20, 30];
 
-  void _announce(BuildContext context) {
-    Haptics.light();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Lucky Spin is not available yet.'),
-      duration: Duration(seconds: 2),
-    ));
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Future<void> _spin() async {
+    if (_calling) return;
+    setState(() => _calling = true);
+    Haptics.medium();
+    try {
+      final result = await CurrencyService.instance.spinWheel();
+      if (!mounted) return;
+      await _settleOn(result.segment);
+      if (!mounted) return;
+      Haptics.heavy();
+      // The server's number, not the one under the pointer.
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('🎉 You won!'),
+          content: Row(mainAxisSize: MainAxisSize.min, children: [
+            const AniGoldIcon(size: BadgeSize.lg),
+            const SizedBox(width: 8),
+            Text('+${result.prize} AniGold',
+                style: AppTextStyles.numbersXl(color: AppColors.aniGold)),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Collect')),
+          ],
+        ),
+      );
+    } on AlreadySpunException catch (e) {
+      // Reachable without a bug: two devices, or a tap that raced the stream
+      // arriving. The wheel has not moved.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Already spun today — next spin ${_whenLabel(e.nextSpinAt)}.'),
+        duration: const Duration(seconds: 3),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Couldn't spin. Try again."),
+        duration: Duration(seconds: 2),
+      ));
+    } finally {
+      if (mounted) setState(() => _calling = false);
+    }
+  }
+
+  /// Rotates so [segment] finishes under the pointer, after five whole turns.
+  Future<void> _settleOn(int segment) {
+    final per = 2 * math.pi / _prizes.length;
+    final target = (5 * 2 * math.pi) + (segment * per);
+    final tween = Tween(begin: _angle, end: target)
+        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
+    tween.addListener(() {
+      if (mounted) setState(() => _angle = tween.value);
+    });
+    return _c.forward(from: 0);
+  }
+
+  /// "in 4h" / "in 20m" — relative, because a UTC timestamp means nothing to
+  /// someone reading it in their own timezone.
+  String _whenLabel(DateTime nextUtc) {
+    final left = nextUtc.difference(DateTime.now().toUtc());
+    if (left.inHours >= 1) return 'in ${left.inHours}h';
+    if (left.inMinutes >= 1) return 'in ${left.inMinutes}m';
+    return 'shortly';
   }
 
   @override
   Widget build(BuildContext context) {
+    // Null while loading and when unused; a time when today is spent. The
+    // stream means the wheel locks itself the moment the transaction commits.
+    final nextSpinAt = ref.watch(todaySpinProvider).asData?.value;
+    final used = nextSpinAt != null;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.border)),
       child: Column(children: [
         const Text('🎡 Lucky Spin', style: AppTextStyles.subheading),
         const SizedBox(height: 4),
-        const Text('Not available yet', style: AppTextStyles.captionMuted),
+        Text(
+          used ? 'Next spin ${_whenLabel(nextSpinAt)}' : 'One free spin daily',
+          style: AppTextStyles.captionMuted,
+        ),
         const SizedBox(height: 16),
         SizedBox(
           height: 200,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              CustomPaint(size: const Size(190, 190), painter: _WheelPainter(_prizes)),
+              Transform.rotate(
+                angle: _angle,
+                child: CustomPaint(size: const Size(190, 190), painter: _WheelPainter(_prizes)),
+              ),
               const Positioned(top: 0, child: Icon(LucideIcons.triangle, color: AppColors.secondary, size: 26)),
               Container(width: 44, height: 44, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: Icon(LucideIcons.sparkles, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 20)),
             ],
           ),
         ),
         const SizedBox(height: 16),
-        GradientButton(label: 'Coming Soon', icon: LucideIcons.clock, onPressed: () => _announce(context)),
+        GradientButton(
+          label: _calling ? 'Spinning…' : (used ? 'Spun ✓' : 'SPIN'),
+          icon: used ? LucideIcons.check : LucideIcons.rotateCw,
+          onPressed: (used || _calling) ? null : _spin,
+        ),
       ]),
     );
   }

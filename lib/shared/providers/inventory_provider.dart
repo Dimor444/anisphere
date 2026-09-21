@@ -31,3 +31,17 @@ final myInventoryProvider = StreamProvider.autoDispose<Set<String>>((ref) {
 /// purchase the user can actually make.
 Set<String> ownedItemIds(WidgetRef ref) =>
     ref.watch(myInventoryProvider).asData?.value ?? const <String>{};
+
+/// When today's spin was already taken — the moment the next one opens — or
+/// null when it is still available.
+///
+/// Same shape and same reasons as [myInventoryProvider]: a stream, so the
+/// wheel locks itself the instant the transaction commits rather than waiting
+/// for a re-read; autoDispose and uid-gated, because a keepAlive provider
+/// holding a Firestore listener across a sign-out has already cost us a
+/// permission-denied once.
+final todaySpinProvider = StreamProvider.autoDispose<DateTime?>((ref) {
+  final uid = AuthService.instance.uid;
+  if (uid == null) return Stream.value(null);
+  return CurrencyService.instance.watchTodaySpin(uid);
+});

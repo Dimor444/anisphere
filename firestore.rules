@@ -411,6 +411,28 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // One document per user per UTC day, id `{uid}_{YYYY-MM-DD}`, recording
+    // that the daily spin was taken and what it paid. Written only by the
+    // spinWheel callable, inside the transaction that credits the gold.
+    //
+    // `write: if false` is what makes the allowance real: if a client could
+    // create these, it could not grant itself gold (the balance is still
+    // server-owned) but it COULD burn its own day; and if it could delete
+    // one, it could spin again. Neither is available.
+    //
+    // Owners MAY read their own. The refusal already carries nextSpinAt, so
+    // the client could work without this — but then the wheel looks available
+    // until you tap it and are told no. One point read lets it say "next spin
+    // in 4h" before the tap instead of after, which is the difference between
+    // informing someone and refusing them.
+    //
+    // The id embeds the uid, so ownership is checked against the key itself
+    // rather than a field inside a document the reader has not read yet.
+    match /spins/{spinId} {
+      allow read: if signedIn() && spinId.split('_')[0] == request.auth.uid;
+      allow write: if false;
+    }
+
     // Append-only currency ledger: one entry per balance movement, written
     // ONLY by the spendGold callable (and the grant paths that follow it)
     // through the Admin SDK, which bypasses these rules.

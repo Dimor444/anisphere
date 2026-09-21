@@ -14,6 +14,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+const { randomInt } = require('node:crypto');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
@@ -126,6 +127,19 @@ const FIRESTORE_ID = /^[A-Za-z0-9]{20}$/;
  */
 function startOfUtcDay(now) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/// "YYYY-MM-DD" in UTC — the same day key the streak uses on the client
+/// (CommunityVoteService.dayIdFor) and the rules use in serverDay().
+function utcDayId(now) {
+  return startOfUtcDay(now).toISOString().slice(0, 10);
+}
+
+/// Midnight UTC after [now] — when the next daily allowance opens.
+function nextUtcMidnight(now) {
+  const d = startOfUtcDay(now);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d;
 }
 
 /**
@@ -973,5 +987,127 @@ exports.equipCosmetic = onCall({ region: 'europe-west1' }, async (request) => {
     // would silently unequip everything else.
     tx.update(userRef, { [field]: itemId });
     return { slot, itemId };
+  });
+});
+
+// ─────────────────────────── DAILY SPIN ──────────────────────────────────
+
+const SPINS = 'spins';
+
+/**
+ * The wheel face, in segment order. Index IS the segment the client rotates
+ * to, which is why the order matters as much as the values.
+ *
+ * UNIFORM over eight segments — no weighting. The wheel the user looks at has
+ * eight equal wedges, so equal odds is the only distribution that face can
+ * honestly represent; weighting 100 down to a sliver of its drawn size would
+ * make the picture a lie about the odds. If the payouts ever need tuning, the
+ * wedges have to change size with them.
+ *
+ * Expected value: (10+25+5+50+15+100+20+30)/8 = 255/8 = 31.875 gold per spin,
+ * so roughly 32 a day, or a 200-gold frame in about six days of spinning.
+ */
+const SPIN_PRIZES = [10, 25, 5, 50, 15, 100, 20, 30];
+
+/**
+ * One free spin per UTC day. The server decides the outcome.
+ *
+ * This is the only earn path that can be honest today. Every other one —
+ * quiz scores, episodes watched, posts reacted to — would have the server
+ * paying out on a claim the client made about itself, with nothing recorded
+ * anywhere to check it against. A spin needs nothing from the caller except
+ * the request, so there is no claim to verify.
+ *
+ * WHERE "ALREADY SPUN" LIVES
+ *
+ * spins/{uid}_{YYYY-MM-DD}, a deterministic id, which makes the record
+ * SELF-DEDUPLICATING: a second spin on the same day is the same document, so
+ * "have they spun" is one point read and "spin twice" is not representable.
+ * Read inside the transaction, so two taps racing cannot both draw.
+ *
+ * Note this is NOT the shape upload_grants uses, and deliberately: its cap is
+ * three per day, and a key that encodes only the day cannot hold three of
+ * anything — it has to count. A deterministic key works here precisely
+ * because the allowance is exactly one.
+ */
+exports.spinWheel = onCall({ region: 'europe-west1' }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Sign in to spin.');
+  }
+  const uid = request.auth.uid;
+
+  // The SERVER's clock decides the day. A client-supplied date would let a
+  // caller claim yesterday and spin again.
+  const now = new Date();
+  const day = utcDayId(now);
+  const nextSpinAt = nextUtcMidnight(now);
+
+  const userRef = db.collection('users').doc(uid);
+  const spinRef = db.collection(SPINS).doc(`${uid}_${day}`);
+  const entryRef = db.collection(CURRENCY_LEDGER).doc(uid).collection('entries').doc();
+
+  return db.runTransaction(async (tx) => {
+    // ── READS ────────────────────────────────────────────────────────────
+    const [userSnap, spinSnap] = await tx.getAll(userRef, spinRef);
+
+    if (!userSnap.exists) {
+      throw new HttpsError('not-found', 'No profile for this account.');
+    }
+    if (spinSnap.exists) {
+      throw new HttpsError(
+        'failed-precondition',
+        'You have already spun today.',
+        {
+          reason: 'already-spun',
+          nextSpinAt: nextSpinAt.toISOString(),
+          // What they won last time, so the UI can say so rather than just
+          // refusing.
+          prize: spinSnap.get('prize') ?? null,
+        },
+      );
+    }
+
+    const raw = userSnap.get('aniGold');
+    const before = raw === undefined ? 0 : raw;
+    if (!Number.isInteger(before) || before < 0) {
+      throw new HttpsError('internal', 'Stored balance is not a non-negative integer.');
+    }
+
+    // randomInt, not Math.random: this decides money. It draws from the OS
+    // CSPRNG and is uniform over the range with no modulo bias, which a
+    // `Math.floor(Math.random() * n)` is only accidentally.
+    const segment = randomInt(0, SPIN_PRIZES.length);
+    const prize = SPIN_PRIZES[segment];
+    const after = before + prize;
+
+    // ── WRITES ───────────────────────────────────────────────────────────
+    // One transaction, same reasoning as spendGold: a credit without a
+    // receipt breaks the property that the ledger explains the balance, and
+    // a spin record written separately could be lost, handing out a second
+    // free spin.
+    tx.update(userRef, { aniGold: after });
+    tx.set(entryRef, {
+      userId: uid,
+      kind: 'earn',
+      source: 'daily_spin',
+      currency: 'aniGold',
+      amount: prize,
+      balanceBefore: before,
+      balanceAfter: after,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    tx.set(spinRef, {
+      userId: uid,
+      day,
+      segment,
+      prize,
+      ledgerEntryId: entryRef.id,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    // segment drives the animation; prize is what was actually credited. Both
+    // are returned so the dialog can state the real number even if the
+    // client's painted wheel face has drifted from this table.
+    return { segment, prize, balance: after, nextSpinAt: nextSpinAt.toISOString() };
   });
 });
