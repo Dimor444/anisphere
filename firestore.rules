@@ -411,6 +411,35 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // The catalogue: what the store sells, what it costs, which slot each
+    // cosmetic occupies, and whether it may be sold at all. Defined by
+    // functions/tools/catalogue.json and pushed here by the seed script;
+    // Firestore is what the functions and the client read.
+    //
+    // World-readable to any signed-in user — it is a price list, and the
+    // client has to render it. Server-written only: a client that could edit
+    // this could set its own prices, un-withdraw a pulled item, or move a
+    // frame into the border slot. The Admin SDK bypasses these rules, which
+    // is how the seed writes.
+    //
+    // Withdrawn items REMAIN as rows with sellable:false. Deleting them would
+    // make a real id indistinguishable from a typo, and the ledger and
+    // inventory documents that name it unexplainable.
+    match /store_items/{itemId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Tables that are one atomic thing rather than a set of rows. The spin
+    // prize array is ORDERED and its order is load-bearing — the server
+    // returns an index into it — so it lives in a single document that
+    // arrives whole or not at all, rather than as rows that could be read
+    // partially or out of order.
+    match /config/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // One document per user per UTC day, id `{uid}_{YYYY-MM-DD}`, recording
     // that the daily spin was taken and what it paid. Written only by the
     // spinWheel callable, inside the transaction that credits the gold.

@@ -1,0 +1,71 @@
+{
+  "_comment": [
+    "THE CATALOGUE SOURCE. A human edits this file; git reviews it; the seed",
+    "script pushes it into Firestore. NOTHING reads it at runtime — the",
+    "functions and the client read Firestore, which this file defines.",
+    "",
+    "What lives here is AUTHORITY plus the text needed to name a thing:",
+    "price, slot, sellable, unavailable, name, sub. What does NOT live here",
+    "is art — emoji and gradient stay in the app keyed by itemId, because the",
+    "RENDERER ships in the app too. Moving art would not buy the ability to",
+    "add an item without a release; it would buy the ability to SELL one that",
+    "cannot be delivered, which is the sticker pack all over again.",
+    "",
+    "Withdrawn items stay here as tombstones. A catalogue that cannot name an",
+    "id appearing in its own ledger and inventory documents is broken, and",
+    "the raw slug in My Items is what that looks like from the outside."
+  ],
+  "storeItems": {
+    "cherry_blossom_frame": {
+      "name": "Cherry Blossom Frame",
+      "sub": "Profile frame",
+      "price": 200,
+      "sellable": true,
+      "slot": "frame",
+      "order": 0
+    },
+    "rainbow_shimmer": {
+      "name": "Rainbow Shimmer",
+      "sub": "Username effect",
+      "price": 300,
+      "sellable": true,
+      "slot": "nameEffect",
+      "order": 1
+    },
+    "gold_elite": {
+      "name": "Gold Elite",
+      "sub": "Post border frame",
+      "price": 250,
+      "sellable": true,
+      "slot": "postBorder",
+      "order": 2
+    },
+    "verification": {
+      "name": "Verification ✓",
+      "sub": "Account verification",
+      "price": 444,
+      "sellable": false,
+      "unavailable": "coming-soon",
+      "order": 3
+    },
+    "streak_restore": {
+      "name": "Streak Restore",
+      "sub": "Revive a lost streak",
+      "price": 50,
+      "sellable": false,
+      "unavailable": "coming-soon",
+      "order": 4
+    },
+    "demon_slayer_emotions": {
+      "name": "Demon Slayer Emotions",
+      "sub": "Chat sticker pack",
+      "price": 150,
+      "sellable": false,
+      "unavailable": "withdrawn",
+      "order": 5
+    }
+  },
+  "spinWheel": {
+    "prizes": [10, 25, 5, 50, 15, 100, 20, 30]
+  }
+}
