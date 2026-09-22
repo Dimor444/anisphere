@@ -180,6 +180,9 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 3200));
+  /// Where the wheel is resting. State, not a build-local, so the rebuild
+  /// that todaySpinProvider triggers when the spin record lands leaves the
+  /// wheel where it stopped instead of snapping it back to zero.
   double _angle = 0;
   bool _calling = false;
 
@@ -240,10 +243,36 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
     }
   }
 
-  /// Rotates so [segment] finishes under the pointer, after five whole turns.
+  /// Rotates so [segment]'s CENTRE finishes under the pointer, after at least
+  /// five whole turns.
+  ///
+  /// THE GEOMETRY, because getting it wrong is invisible for two of the eight
+  /// prizes and badly wrong for the other six.
+  ///
+  /// The painter draws wedge i from `i*per - π/2`, sweeping CLOCKWISE (canvas
+  /// angles run clockwise because y points down), so wedge i's centre sits at
+  /// `i*per - π/2 + per/2`. The pointer is at 12 o'clock, `-π/2`. Rotating the
+  /// wheel by θ moves a feature at α to α + θ, so wedge i lands under the
+  /// pointer when:
+  ///
+  ///     (i*per - π/2 + per/2) + θ  ≡  -π/2      =>  θ ≡ -(i*per + per/2)
+  ///
+  /// The sign is the half of this that was wrong: rotating by `+i*per` turns
+  /// the wheel the same way the wedges are numbered, which carries wedge i
+  /// AWAY from the pointer and brings `(8-i) mod 8` to it instead. Only i=0
+  /// and i=4 are their own mirror, so the fault was invisible for exactly the
+  /// prize that was drawn.
+  ///
+  /// The `per/2` is the other half: without it the rotation is a whole number
+  /// of wedges, which puts a SEAM under the pointer every time — ambiguous
+  /// between two prizes rather than pointing at one.
+  ///
+  /// The base is rounded up to whole turns from wherever the wheel is resting,
+  /// so a second spin still travels forward instead of unwinding.
   Future<void> _settleOn(int segment) {
     final per = 2 * math.pi / _prizes.length;
-    final target = (5 * 2 * math.pi) + (segment * per);
+    final base = (_angle / (2 * math.pi)).ceil() * 2 * math.pi;
+    final target = base + (5 * 2 * math.pi) - (segment * per) - (per / 2);
     final tween = Tween(begin: _angle, end: target)
         .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
     tween.addListener(() {
@@ -295,7 +324,9 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
         ),
         const SizedBox(height: 16),
         GradientButton(
-          label: _calling ? 'Spinning…' : (used ? 'Spun ✓' : 'SPIN'),
+          // The icon already carries the tick; a second one in the text read
+          // as "✓ Spun ✓".
+          label: _calling ? 'Spinning…' : (used ? 'Spun' : 'SPIN'),
           icon: used ? LucideIcons.check : LucideIcons.rotateCw,
           onPressed: (used || _calling) ? null : _spin,
         ),
