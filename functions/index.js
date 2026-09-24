@@ -645,10 +645,11 @@ exports.fetchAnimeMeta = onCall(
 
 const CURRENCY_LEDGER = 'currency_ledger';
 
-/// Upper bound on a single spend. Not a product rule — a blast radius, and
-/// now a check on OUR OWN table rather than on the caller: the charge is read
-/// from STORE_ITEMS, so the only way to exceed this is a mistyped price in
-/// this file. It fails loudly as `internal` instead of draining a balance.
+/// Upper bound on a single spend. Not a product rule — a blast radius, and a
+/// check on the CATALOGUE rather than on the caller: the charge is read from
+/// store_items, so the only way to exceed this is a mistyped price in
+/// catalogue.json. It fails loudly as `internal` instead of draining a
+/// balance.
 const MAX_SPEND = 100000;
 
 /// Bound on itemId so a caller cannot write an unbounded string into every
@@ -656,53 +657,78 @@ const MAX_SPEND = 100000;
 const MAX_ITEM_ID_LENGTH = 64;
 
 /**
- * The store catalogue: what exists, what it costs, whether it may be sold,
- * and — for cosmetics — which slot it occupies.
+ * Whether itemId can be used as a Firestore document id at all.
  *
- * This is the SERVER's authority. It is also a second source of truth
- * alongside the client's SampleData.storeItems, which is stated plainly here
- * rather than glossed: price now lives in both places. It is kept because
- * slot-validity has nowhere else to live — security rules cannot know that
- * cherry_blossom_frame belongs in `frame` without hardcoding the same table
- * a third time. The way out is one Firestore-held catalogue both sides read
- * (store_items/{itemId}, server-written, world-readable), which needs
- * seeding, rules, a client read path and an offline story, so it is named
- * here rather than smuggled in.
+ * This gate is new, and it is here because the catalogue moved. While the
+ * table was a constant, `hasOwnProperty` rejected every unrecognised string
+ * BEFORE any reference was built. Now the catalogue IS a lookup, so the
+ * reference is built first — and `.doc('a/b')` throws out of the SDK, which
+ * the caller receives as `internal` instead of a clean unknown-item refusal.
  *
- * WHY WITHDRAWN ITEMS STAY IN THE TABLE
- *
- * demon_slayer_emotions is withdrawn and still listed. Deleting it would make
- * it indistinguishable from a typo: a caller asking for it would be told the
- * item is UNKNOWN, which is false — it existed, people bought it, and their
- * ledger entries and inventory documents still name it. A catalogue that
- * cannot explain an id appearing in its own audit trail is worse than one
- * carrying a tombstone. `unavailable` records WHY it cannot be sold, so
- * "never shipped" and "was sold, then pulled" stay distinguishable.
- *
- * Unequipping is unaffected either way: equipCosmetic's unequip path takes an
- * early return before any catalogue lookup, because it addresses the SLOT,
- * not the item. Somebody holding a withdrawn item can always take it off.
+ * It checks addressability only — slash, the two relative ids, and the
+ * __reserved__ form — and deliberately does NOT impose a naming pattern, so
+ * the catalogue stays free to name its rows.
  */
-const STORE_ITEMS = {
-  // Sellable cosmetics.
-  cherry_blossom_frame: { price: 200, sellable: true, slot: 'frame' },
-  gold_elite: { price: 250, sellable: true, slot: 'postBorder' },
-  rainbow_shimmer: { price: 300, sellable: true, slot: 'nameEffect' },
+function addressableId(itemId) {
+  return !itemId.includes('/') &&
+    itemId !== '.' && itemId !== '..' &&
+    !/^__.*__$/.test(itemId);
+}
 
-  // Held back: real products with no delivery path yet. isVerified is pinned
-  // false by the rules and admitted on no update path; streak_restore maps to
-  // a client no-op with no callers. Both were gated in the wallet widget
-  // only, which is not a gate at all — a modified client could buy either.
-  verification: { price: 444, sellable: false, unavailable: 'coming-soon' },
-  streak_restore: { price: 50, sellable: false, unavailable: 'coming-soon' },
+/// The catalogue, in Firestore. Defined by functions/tools/catalogue.json,
+/// pushed by the seed script, read here and by the client.
+///
+/// There is no hardcoded copy any more, and deliberately no fallback to one.
+/// A fallback would turn a failed or partial seed into a silent divergence —
+/// the server charging one price while the catalogue says another, with
+/// nothing anywhere reporting it. Every read below FAILS CLOSED instead: a
+/// missing document refuses the call and says so.
+const STORE_ITEMS_COLLECTION = 'store_items';
+const CONFIG_COLLECTION = 'config';
+const SPIN_CONFIG_DOC = 'spin_wheel';
 
-  // Withdrawn: sold, then pulled. Never sellable again.
-  demon_slayer_emotions: { price: 150, sellable: false, unavailable: 'withdrawn' },
-};
-
-/// Declared slots. nameEffect has no renderer yet and is listed anyway, so
-/// shipping one later is a client change and not a schema change.
+/// Slots the server accepts. NOT catalogue data, and NOT moved to Firestore.
+///
+/// This is the function's input contract — "is this a slot name I handle" —
+/// and the answer is decided by code, not by data: a new slot needs a branch
+/// in equipCosmetic and a renderer in the client before it means anything.
+/// Making it a document would advertise that a slot can be added by editing
+/// data, which is the same false promise as moving the art would have been.
+///
+/// It has a twin in the client's CosmeticSlot, and that duplication is the
+/// same class as the UTC day-id and the bio length: shared VOCABULARY that
+/// each layer must enforce independently, which a catalogue cannot collapse.
+///
+/// A catalogue row carrying a slot outside this list cannot do harm: the
+/// requested slot is checked against this list first, so a bogus stored slot
+/// simply never matches and the equip refuses.
 const COSMETIC_SLOTS = ['frame', 'postBorder', 'nameEffect'];
+
+/**
+ * Reads and validates one catalogue row inside a transaction.
+ *
+ * Throws rather than returning null, because every caller's next move on a
+ * missing row is to refuse — and a stored row with a bad price is a seeding
+ * fault, not a user error, so it surfaces as `internal` rather than as
+ * something the caller did wrong.
+ */
+function catalogueItem(itemSnap, itemId) {
+  if (!itemSnap.exists) {
+    throw new HttpsError(
+      'failed-precondition',
+      'No such item.',
+      { reason: 'unknown-item', itemId },
+    );
+  }
+  const item = itemSnap.data();
+  if (!Number.isInteger(item.price) || item.price <= 0) {
+    throw new HttpsError('internal', `Catalogue price for ${itemId} is not a positive integer.`);
+  }
+  if (typeof item.sellable !== 'boolean') {
+    throw new HttpsError('internal', `Catalogue sellable for ${itemId} is not a boolean.`);
+  }
+  return item;
+}
 
 /**
  * Deducts AniGold, grants the item, and records why — atomically.
@@ -717,8 +743,8 @@ const COSMETIC_SLOTS = ['frame', 'postBorder', 'nameEffect'];
  *
  * WHAT THE CALLER NO LONGER DECIDES
  *
- * The item must be in STORE_ITEMS, it must be marked sellable, and the amount
- * charged is the catalogue's price. Before this, all three were the client's
+ * The item must exist in store_items, it must be marked sellable, and the
+ * amount charged is the catalogue's price. All three were once the client's
  * to choose: any string bought an inventory document, held-back items were
  * gated in the wallet widget only, and the caller named its own price — a
  * modified client bought a 250-gold border for 1.
@@ -755,76 +781,72 @@ exports.spendGold = onCall({ region: 'europe-west1' }, async (request) => {
   const claimedAmount = request.data && request.data.amount;
   const itemId = request.data && request.data.itemId;
 
-  if (typeof itemId !== 'string' || itemId.length === 0 || itemId.length > MAX_ITEM_ID_LENGTH) {
+  if (typeof itemId !== 'string' || itemId.length === 0 ||
+      itemId.length > MAX_ITEM_ID_LENGTH || !addressableId(itemId)) {
     throw new HttpsError(
       'invalid-argument',
       `itemId must be a non-empty string of at most ${MAX_ITEM_ID_LENGTH} characters.`,
     );
   }
 
-  // The item must exist. Without this, any string minted an inventory
-  // document for itself — `itemId: 'anything'` was a purchase.
-  const item = Object.prototype.hasOwnProperty.call(STORE_ITEMS, itemId)
-    ? STORE_ITEMS[itemId]
-    : null;
-  if (item === null) {
-    throw new HttpsError(
-      'failed-precondition',
-      'No such item.',
-      { reason: 'unknown-item', itemId },
-    );
-  }
-
-  // Sellability is the server's call, not the shop widget's. verification and
-  // streak_restore were held back in the wallet only, which stopped the app
-  // and nothing else.
-  if (!item.sellable) {
-    throw new HttpsError(
-      'failed-precondition',
-      'This item is not for sale.',
-      { reason: 'not-for-sale', itemId, unavailable: item.unavailable },
-    );
-  }
-
-  // THE PRICE IS THE SERVER'S. `amount` is still required, but only as the
-  // caller stating what it believes the price to be — a checksum against the
-  // catalogue, not an input to it. The charge below reads item.price, so a
-  // caller offering 1 gold for a 250 item cannot underpay even if this check
-  // were removed.
-  //
-  // A mismatch REFUSES rather than quietly charging the server's number. The
-  // two catalogues can drift, and when they do the user is looking at a price
-  // the shop rendered; charging a different one silently would make the UI a
-  // liar. Refusing surfaces the drift where someone has to deal with it.
+  // Only SHAPE is checked out here now. Everything that depends on what the
+  // item actually is happens inside the transaction, because that is where
+  // the catalogue is read.
   if (!Number.isInteger(claimedAmount) || claimedAmount <= 0) {
     throw new HttpsError('invalid-argument', 'amount must be a positive integer.');
-  }
-  if (claimedAmount !== item.price) {
-    throw new HttpsError(
-      'failed-precondition',
-      'That price is out of date.',
-      { reason: 'price-mismatch', itemId, price: item.price, offered: claimedAmount },
-    );
-  }
-
-  // Read from the table, never from the request. This is the line that makes
-  // the price server-owned; everything above is diagnosis.
-  const amount = item.price;
-  if (amount > MAX_SPEND) {
-    throw new HttpsError('internal', `Catalogue price for ${itemId} exceeds ${MAX_SPEND}.`);
   }
 
   const userRef = db.collection('users').doc(uid);
   const invRef = userRef.collection('inventory').doc(itemId);
+  const itemRef = db.collection(STORE_ITEMS_COLLECTION).doc(itemId);
   const entryRef = db.collection(CURRENCY_LEDGER).doc(uid).collection('entries').doc();
 
   return db.runTransaction(async (tx) => {
     // ── READS ────────────────────────────────────────────────────────────
     // Firestore forbids a read after the first write in a transaction, so
-    // BOTH reads happen here, before anything is written. getAll fetches them
-    // in one round trip and makes the ordering constraint impossible to break
-    // by accident later — there is no second await further down to move.
-    const [snap, invSnap] = await tx.getAll(userRef, invRef);
+    // EVERY read happens here, before anything is written. getAll fetches all
+    // three in one round trip and makes the ordering constraint impossible to
+    // break by accident later — there is no second await further down to move.
+    const [snap, invSnap, itemSnap] = await tx.getAll(userRef, invRef, itemRef);
+
+    // The catalogue row joins the batch rather than being fetched separately:
+    // three documents in the same round trip the two already cost.
+    //
+    // The refusal ORDER below is unchanged from when this table was a
+    // constant — unknown, then not-for-sale, then price, then profile, then
+    // ownership, then balance — because each step is only meaningful once the
+    // one before it has passed.
+    const item = catalogueItem(itemSnap, itemId);
+
+    // Sellability is the server's call, not the shop widget's.
+    if (!item.sellable) {
+      throw new HttpsError(
+        'failed-precondition',
+        'This item is not for sale.',
+        { reason: 'not-for-sale', itemId, unavailable: item.unavailable ?? null },
+      );
+    }
+
+    // THE PRICE IS THE CATALOGUE'S. `amount` is the caller stating what it
+    // believes the price to be — a checksum, not an input. Its job survived
+    // the move to one source of truth and arguably matters more now: the
+    // client reads a CACHE of the catalogue, so it can be behind, and a
+    // mismatch means the user is looking at a stale price. Charging the real
+    // one silently would make the UI a liar.
+    if (claimedAmount !== item.price) {
+      throw new HttpsError(
+        'failed-precondition',
+        'That price is out of date.',
+        { reason: 'price-mismatch', itemId, price: item.price, offered: claimedAmount },
+      );
+    }
+
+    // Read from the catalogue, never from the request. This is the line that
+    // makes the price server-owned; everything above is diagnosis.
+    const amount = item.price;
+    if (amount > MAX_SPEND) {
+      throw new HttpsError('internal', `Catalogue price for ${itemId} exceeds ${MAX_SPEND}.`);
+    }
 
     if (!snap.exists) {
       throw new HttpsError('not-found', 'No profile for this account.');
@@ -947,29 +969,34 @@ exports.equipCosmetic = onCall({ region: 'europe-west1' }, async (request) => {
     return { slot, itemId: null };
   }
 
-  if (typeof itemId !== 'string' || !Object.prototype.hasOwnProperty.call(STORE_ITEMS, itemId)) {
+  if (typeof itemId !== 'string' || itemId.length === 0 ||
+      itemId.length > MAX_ITEM_ID_LENGTH || !addressableId(itemId)) {
     throw new HttpsError('invalid-argument', 'Unknown cosmetic.');
-  }
-  const entry = STORE_ITEMS[itemId];
-  // No slot at all means it is not a cosmetic (verification, streak_restore)
-  // — nothing to display, so nothing to equip. Note this is NOT gated on
-  // `sellable`: a withdrawn cosmetic somebody already owns stays equippable,
-  // and unequip never reaches here at all.
-  if (!entry.slot) {
-    throw new HttpsError('invalid-argument', `${itemId} is not a cosmetic.`);
-  }
-  if (entry.slot !== slot) {
-    throw new HttpsError(
-      'invalid-argument',
-      `${itemId} goes in the ${entry.slot} slot, not ${slot}.`,
-    );
   }
 
   const invRef = userRef.collection('inventory').doc(itemId);
+  const itemRef = db.collection(STORE_ITEMS_COLLECTION).doc(itemId);
 
   return db.runTransaction(async (tx) => {
-    // Read before write, same constraint as spendGold.
-    const [userSnap, invSnap] = await tx.getAll(userRef, invRef);
+    // Read before write, same constraint as spendGold — and the catalogue row
+    // rides along in the same batch.
+    const [userSnap, invSnap, itemSnap] = await tx.getAll(userRef, invRef, itemRef);
+
+    const entry = catalogueItem(itemSnap, itemId);
+    // No slot at all means it is not a cosmetic (verification, streak_restore)
+    // — nothing to display, so nothing to equip. Note this is NOT gated on
+    // `sellable`: a withdrawn cosmetic somebody already owns stays equippable,
+    // and unequip never reaches here at all.
+    if (!entry.slot) {
+      throw new HttpsError('invalid-argument', `${itemId} is not a cosmetic.`);
+    }
+    if (entry.slot !== slot) {
+      throw new HttpsError(
+        'invalid-argument',
+        `${itemId} goes in the ${entry.slot} slot, not ${slot}.`,
+      );
+    }
+
     if (!userSnap.exists) {
       throw new HttpsError('not-found', 'No profile for this account.');
     }
@@ -994,20 +1021,18 @@ exports.equipCosmetic = onCall({ region: 'europe-west1' }, async (request) => {
 
 const SPINS = 'spins';
 
-/**
- * The wheel face, in segment order. Index IS the segment the client rotates
- * to, which is why the order matters as much as the values.
- *
- * UNIFORM over eight segments — no weighting. The wheel the user looks at has
- * eight equal wedges, so equal odds is the only distribution that face can
- * honestly represent; weighting 100 down to a sliver of its drawn size would
- * make the picture a lie about the odds. If the payouts ever need tuning, the
- * wedges have to change size with them.
- *
- * Expected value: (10+25+5+50+15+100+20+30)/8 = 255/8 = 31.875 gold per spin,
- * so roughly 32 a day, or a 200-gold frame in about six days of spinning.
- */
-const SPIN_PRIZES = [10, 25, 5, 50, 15, 100, 20, 30];
+// The prize table lives in config/spin_wheel, read inside the transaction
+// below. The constraints it must satisfy have not changed by moving:
+//
+//   ORDER IS LOAD-BEARING. The index drawn here is what the client rotates
+//   to, so reordering the stored array silently re-points every wedge.
+//
+//   THE DRAW IS UNIFORM, and the wheel is painted with equal wedges, so the
+//   picture and the odds agree. Weighting a big prize down to a sliver of its
+//   drawn size would make the face a lie; tuning payouts means resizing the
+//   wedges too.
+//
+//   Expected value is the mean of the array — 31.875 for the seeded eight.
 
 /**
  * One free spin per UTC day. The server decides the outcome.
@@ -1044,11 +1069,29 @@ exports.spinWheel = onCall({ region: 'europe-west1' }, async (request) => {
 
   const userRef = db.collection('users').doc(uid);
   const spinRef = db.collection(SPINS).doc(`${uid}_${day}`);
+  const configRef = db.collection(CONFIG_COLLECTION).doc(SPIN_CONFIG_DOC);
   const entryRef = db.collection(CURRENCY_LEDGER).doc(uid).collection('entries').doc();
 
   return db.runTransaction(async (tx) => {
     // ── READS ────────────────────────────────────────────────────────────
-    const [userSnap, spinSnap] = await tx.getAll(userRef, spinRef);
+    const [userSnap, spinSnap, configSnap] = await tx.getAll(userRef, spinRef, configRef);
+
+    // The prize table is ONE document because its order is load-bearing: the
+    // segment returned below is an index into it, and rows read partially or
+    // out of order would land the wheel on a different wedge than was paid.
+    // Fails closed — no hardcoded array to fall back to.
+    if (!configSnap.exists) {
+      throw new HttpsError(
+        'failed-precondition',
+        'The prize wheel is not configured.',
+        { reason: 'catalogue-missing', doc: `${CONFIG_COLLECTION}/${SPIN_CONFIG_DOC}` },
+      );
+    }
+    const prizes = configSnap.get('prizes');
+    if (!Array.isArray(prizes) || prizes.length === 0 ||
+        !prizes.every((p) => Number.isInteger(p) && p > 0)) {
+      throw new HttpsError('internal', 'Stored prize table is not a non-empty array of positive integers.');
+    }
 
     if (!userSnap.exists) {
       throw new HttpsError('not-found', 'No profile for this account.');
@@ -1076,8 +1119,8 @@ exports.spinWheel = onCall({ region: 'europe-west1' }, async (request) => {
     // randomInt, not Math.random: this decides money. It draws from the OS
     // CSPRNG and is uniform over the range with no modulo bias, which a
     // `Math.floor(Math.random() * n)` is only accidentally.
-    const segment = randomInt(0, SPIN_PRIZES.length);
-    const prize = SPIN_PRIZES[segment];
+    const segment = randomInt(0, prizes.length);
+    const prize = prizes[segment];
     const after = before + prize;
 
     // ── WRITES ───────────────────────────────────────────────────────────

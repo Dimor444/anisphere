@@ -13,16 +13,23 @@
  * still sending prices from their bundled list — that is only safe if the two
  * already agree, and this is what proves they do.
  *
- * THE COPIES IT CHECKS — all six, read from the real files, never restated
- * here. A verify script that carried its own copy of the values would be a
- * seventh copy and would agree with itself forever.
+ * THE COPIES IT CHECKS — read from the real files, never restated here. A
+ * verify script that carried its own copy of the values would be one more
+ * copy and would agree with itself forever.
  *
- *   1. STORE_ITEMS            functions/index.js
- *   2. SPIN_PRIZES            functions/index.js
+ *   1. STORE_ITEMS            functions/index.js          pre-Phase 2 only
+ *   2. SPIN_PRIZES            functions/index.js          pre-Phase 2 only
  *   3. SampleData.storeItems  lib/data/sample_data.dart
  *   4. CosmeticSlot._slotOf   lib/services/currency_service.dart
  *   5. _undeliverable         lib/features/wallet/wallet_screen.dart
  *   6. wheel _prizes face     lib/features/wallet/wallet_screen.dart
+ *
+ * 1 and 2 stop existing when Phase 2 lands, and the script detects which
+ * state functions/index.js is in rather than assuming. It does NOT treat
+ * their absence as a pass: it insists on a positive marker of the new state,
+ * because "the regex found nothing" and "the table is gone" must never be
+ * the same observation. 3 to 6 stay hardcoded until Phase 3, and they are
+ * what the checkpoint is for now.
  *
  * IT FAILS LOUDLY WHEN IT CANNOT FIND A TABLE. Every extractor asserts it
  * matched something of the expected shape and exits non-zero otherwise,
@@ -59,6 +66,24 @@ function die(msg) {
 // ── Extractors ────────────────────────────────────────────────────────────
 // Each returns real values parsed from the real file, and dies if the shape
 // it expects is not there.
+
+/**
+ * Which phase functions/index.js is in.
+ *
+ * Determined by POSITIVE markers of both states, never by "the regex found
+ * nothing so it must be gone" — that is precisely the silent failure this
+ * script exists to avoid. A file matching neither marker is an unknown state
+ * and stops the run.
+ */
+function serverPhase() {
+  const src = read('functions/index.js');
+  const hasTable = /const STORE_ITEMS = \{/.test(src);
+  const readsFirestore = /const STORE_ITEMS_COLLECTION = /.test(src);
+  if (hasTable && readsFirestore) die('functions/index.js has BOTH the hardcoded table and the Firestore read');
+  if (hasTable) return 'table';
+  if (readsFirestore) return 'firestore';
+  die('functions/index.js has neither STORE_ITEMS nor STORE_ITEMS_COLLECTION — unknown state');
+}
 
 function serverStoreItems() {
   const src = read('functions/index.js');
@@ -138,16 +163,26 @@ function clientWheelPrizes() {
 // ── Compare ───────────────────────────────────────────────────────────────
 
 (async () => {
-  const srvItems = serverStoreItems();
-  const srvPrizes = serverSpinPrizes();
+  // After Phase 2 the server has no hardcoded copy to compare — it reads the
+  // same Firestore the client will. The CLIENT copies are still hardcoded
+  // until Phase 3, and they are the whole point of the checkpoint now.
+  const phase = serverPhase();
+  const srvItems = phase === 'table' ? serverStoreItems() : null;
+  const srvPrizes = phase === 'table' ? serverSpinPrizes() : null;
   const cliItems = clientStoreItems();
   const cliSlots = clientSlotOf();
   const cliUndel = clientUndeliverable();
   const cliWheel = clientWheelPrizes();
 
+  console.log(`\n  functions/index.js: ${phase === 'table' ? 'hardcoded table (pre-Phase 2)' : 'reads Firestore (Phase 2 done)'}`);
   console.log('\n  extracted:');
-  console.log(`    STORE_ITEMS            ${Object.keys(srvItems).length} items`);
-  console.log(`    SPIN_PRIZES            [${srvPrizes.join(', ')}]`);
+  if (phase === 'table') {
+    console.log(`    STORE_ITEMS            ${Object.keys(srvItems).length} items`);
+    console.log(`    SPIN_PRIZES            [${srvPrizes.join(', ')}]`);
+  } else {
+    console.log('    STORE_ITEMS            — deleted, server reads store_items');
+    console.log('    SPIN_PRIZES            — deleted, server reads config/spin_wheel');
+  }
   console.log(`    SampleData.storeItems  ${Object.keys(cliItems).length} items`);
   console.log(`    _slotOf                ${Object.keys(cliSlots).length} entries`);
   console.log(`    _undeliverable         ${[...cliUndel].join(', ')}`);
@@ -177,19 +212,25 @@ function clientWheelPrizes() {
 
   console.log(`\n  firestore: ${Object.keys(fs_items).length} store_items, prizes [${fs_prizes.join(', ')}]\n`);
 
-  // 1+2. Server table — the authority Phase 2 replaces. Must match exactly.
-  for (const [id, fsIt] of Object.entries(fs_items)) {
-    const s = srvItems[id];
-    if (!s) { gap('STORE_ITEMS', `${id} absent`); continue; }
-    if (s.price !== fsIt.price) bad('STORE_ITEMS', `${id}.price ${s.price} ≠ ${fsIt.price}`);
-    if (s.sellable !== fsIt.sellable) bad('STORE_ITEMS', `${id}.sellable ${s.sellable} ≠ ${fsIt.sellable}`);
-    if ((s.slot ?? null) !== (fsIt.slot ?? null)) bad('STORE_ITEMS', `${id}.slot ${s.slot} ≠ ${fsIt.slot}`);
-    if ((s.unavailable ?? null) !== (fsIt.unavailable ?? null)) bad('STORE_ITEMS', `${id}.unavailable ${s.unavailable} ≠ ${fsIt.unavailable}`);
-  }
-  for (const id of Object.keys(srvItems)) if (!fs_items[id]) bad('STORE_ITEMS', `${id} missing from Firestore`);
-
   const sameArr = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
-  if (!sameArr(srvPrizes, fs_prizes)) bad('SPIN_PRIZES', `[${srvPrizes}] ≠ [${fs_prizes}]`);
+
+  // 1+2. The server's own copies — only while they still exist. Once the
+  // functions read Firestore there is nothing left to disagree with: the
+  // server IS the catalogue, so comparing it to itself would prove nothing.
+  if (phase === 'table') {
+    for (const [id, fsIt] of Object.entries(fs_items)) {
+      const s = srvItems[id];
+      if (!s) { gap('STORE_ITEMS', `${id} absent`); continue; }
+      if (s.price !== fsIt.price) bad('STORE_ITEMS', `${id}.price ${s.price} ≠ ${fsIt.price}`);
+      if (s.sellable !== fsIt.sellable) bad('STORE_ITEMS', `${id}.sellable ${s.sellable} ≠ ${fsIt.sellable}`);
+      if ((s.slot ?? null) !== (fsIt.slot ?? null)) bad('STORE_ITEMS', `${id}.slot ${s.slot} ≠ ${fsIt.slot}`);
+      if ((s.unavailable ?? null) !== (fsIt.unavailable ?? null)) bad('STORE_ITEMS', `${id}.unavailable ${s.unavailable} ≠ ${fsIt.unavailable}`);
+    }
+    for (const id of Object.keys(srvItems)) {
+      if (!fs_items[id]) bad('STORE_ITEMS', `${id} missing from Firestore`);
+    }
+    if (!sameArr(srvPrizes, fs_prizes)) bad('SPIN_PRIZES', `[${srvPrizes}] ≠ [${fs_prizes}]`);
+  }
 
   // 3. Client shop list — name, sub, price. No tombstone, by construction.
   for (const [id, fsIt] of Object.entries(fs_items)) {
