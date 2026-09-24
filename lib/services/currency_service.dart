@@ -37,9 +37,11 @@ class AlreadyOwnedException implements Exception {
 /// The server will not sell this item — it is held back, withdrawn, or not in
 /// the catalogue at all.
 ///
-/// Reachable without a bug: a shipped build carries its own copy of the store
-/// list, so a client one release behind can offer something the server has
-/// since pulled. That is a "no longer available", not a "try again".
+/// Reachable without a bug, two ways: builds from before the catalogue moved
+/// carry their own copy of the store list, and this one renders a CACHED read
+/// of store_items that can be a moment behind the server. Either can offer
+/// something since pulled. That is a "no longer available", not a "try
+/// again".
 class ItemUnavailableException implements Exception {
   final String itemId;
 
@@ -57,6 +59,10 @@ class ItemUnavailableException implements Exception {
 /// The server refuses rather than charging its own number, so the user is
 /// never billed something other than what they were shown. Carries the real
 /// price so the UI can say what it is now.
+///
+/// With one catalogue this no longer means two hand-kept tables disagreeing.
+/// It means the shop rendered a cached read of store_items that the server
+/// has since moved past — which is exactly when the check earns its keep.
 class PriceChangedException implements Exception {
   final String itemId;
   final int price;
@@ -89,8 +95,9 @@ class SpinResult {
   /// Index into the wheel face — what the client rotates to.
   final int segment;
 
-  /// Gold actually credited. Authoritative even if the painted wheel has
-  /// drifted from the server's table.
+  /// Gold actually credited. Authoritative even when the painted face is a
+  /// cached read of config/spin_wheel older than the one the server drew
+  /// from.
   final int prize;
   final int balance;
   final DateTime nextSpinAt;
@@ -116,34 +123,19 @@ class NotOwnedException implements Exception {
 }
 
 /// Cosmetic slots the server recognises. Mirrors COSMETIC_SLOTS in
-/// functions/index.js; `nameEffect` has no renderer yet.
+/// functions/index.js.
+///
+/// VOCABULARY, and deliberately not read from the catalogue. WHICH slot an
+/// item occupies is catalogue data and lives on [CatalogueItem.slot]; which
+/// slots EXIST is decided by code, because each one needs a renderer in this
+/// app and a branch in equipCosmetic before it means anything. That makes
+/// this list a twin of the server's rather than a copy of the catalogue —
+/// the same class as the UTC day-id, enforced by each layer independently.
 class CosmeticSlot {
   CosmeticSlot._();
   static const String frame = 'frame';
   static const String postBorder = 'postBorder';
   static const String nameEffect = 'nameEffect';
-
-  /// Which slot an item occupies, or null when it occupies none.
-  ///
-  /// THIS IS A THIRD COPY of knowledge the server already holds in
-  /// STORE_ITEMS, and there is no way around it for a UI that groups owned
-  /// items by slot: the inventory stream returns ids and nothing else, and no
-  /// endpoint answers "what slot is this". Adding `slot` to StoreItem would
-  /// merely move the copy, not remove it.
-  ///
-  /// It is only ever used to ARRANGE things. The server re-checks the slot on
-  /// every equip and refuses a mismatch, so a wrong entry here shows an item
-  /// under the wrong heading — it cannot put a frame in the border slot.
-  ///
-  /// All three copies collapse into one the day the catalogue moves into
-  /// Firestore and both sides read it.
-  static const Map<String, String> _slotOf = {
-    'cherry_blossom_frame': frame,
-    'gold_elite': postBorder,
-    'rainbow_shimmer': nameEffect,
-  };
-
-  static String? of(String itemId) => _slotOf[itemId];
 
   /// Slots in the order they are presented.
   static const List<String> all = [frame, postBorder, nameEffect];
@@ -154,6 +146,76 @@ class CosmeticSlot {
         nameEffect => 'Name effect',
         _ => slot,
       };
+}
+
+/// One row of store_items: what an item is called, what it costs, and
+/// whether it can be bought.
+///
+/// Art is NOT here. Emoji and gradient ship in the app keyed by [id], because
+/// the renderer ships in the app too.
+class CatalogueItem {
+  /// The document id, and the itemId spendGold is called with.
+  final String id;
+  final String name;
+  final String sub;
+  final int price;
+  final bool sellable;
+
+  /// The cosmetic slot this item occupies, or null when it is not a cosmetic.
+  final String? slot;
+
+  /// Why it cannot be bought — `coming-soon` or `withdrawn` — when
+  /// [sellable] is false.
+  final String? unavailable;
+
+  /// Shop position. Stored rather than implied by id, so reordering the shop
+  /// is a catalogue edit and not a rename.
+  final int order;
+
+  const CatalogueItem({
+    required this.id,
+    required this.name,
+    required this.sub,
+    required this.price,
+    required this.sellable,
+    required this.slot,
+    required this.unavailable,
+    required this.order,
+  });
+
+  /// Parses one document, or returns null when it is malformed.
+  ///
+  /// A malformed row is DROPPED rather than rendered with guesses. The seed
+  /// validates every row before writing, so this is only reachable through a
+  /// hand edit in the console — and the server would refuse to sell that row
+  /// anyway, as `internal`. Offering it here would invite a purchase that is
+  /// certain to fail.
+  static CatalogueItem? fromDoc(String id, Map<String, dynamic> d) {
+    final name = d['name'];
+    final sub = d['sub'];
+    final price = d['price'];
+    final sellable = d['sellable'];
+    final slot = d['slot'];
+    final unavailable = d['unavailable'];
+    final order = d['order'];
+    if (name is! String || sub is! String) return null;
+    if (price is! int || price <= 0) return null;
+    if (sellable is! bool) return null;
+    if (slot != null && slot is! String) return null;
+    if (unavailable != null && unavailable is! String) return null;
+    return CatalogueItem(
+      id: id,
+      name: name,
+      sub: sub,
+      price: price,
+      sellable: sellable,
+      slot: slot as String?,
+      unavailable: unavailable as String?,
+      // Missing order sorts last rather than dropping the row: position is
+      // cosmetic, and a row that is otherwise valid can still be sold.
+      order: order is int ? order : 1 << 30,
+    );
+  }
 }
 
 /// Spending AniGold.
@@ -171,7 +233,82 @@ class CurrencyService {
   /// rather than falling back.
   static const String _functionsRegion = 'europe-west1';
 
+  /// Where the catalogue lives. The same three names as functions/index.js,
+  /// and read the same way: no bundled fallback, because a fallback would
+  /// turn a missing or partial seed into a shop that silently disagrees with
+  /// the server charging for it.
+  static const String _storeItemsCollection = 'store_items';
+  static const String _configCollection = 'config';
+  static const String _spinConfigDoc = 'spin_wheel';
+
   FirebaseFirestore get _db => FirebaseFirestore.instance;
+
+  /// The store catalogue by id, in shop order — or null when there is no
+  /// catalogue to show.
+  ///
+  /// NULL IS NOT EMPTY. An empty result that came from the local cache means
+  /// "nothing cached and no server answer yet" — a first launch offline —
+  /// and rendering that as an empty shop would say the shop sells nothing. An
+  /// empty result from the SERVER is a real, empty catalogue and stays empty.
+  ///
+  /// `includeMetadataChanges` is what lets those two be told apart. Without
+  /// it, a cache answer followed by an identical server answer raises no
+  /// second event, and an unseeded catalogue seen offline first would stay
+  /// "unavailable" forever instead of becoming "empty".
+  ///
+  /// The map is built in [CatalogueItem.order], and Dart map literals keep
+  /// insertion order, so `values` IS the shop's order.
+  Stream<Map<String, CatalogueItem>?> watchCatalogue() => _db
+          .collection(_storeItemsCollection)
+          .snapshots(includeMetadataChanges: true)
+          .map((snap) {
+        if (snap.docs.isEmpty && snap.metadata.isFromCache) return null;
+        final rows = <CatalogueItem>[];
+        for (final d in snap.docs) {
+          final item = CatalogueItem.fromDoc(d.id, d.data());
+          if (item == null) {
+            debugPrint('[CurrencyService] store_items/${d.id} is malformed — not offered');
+            continue;
+          }
+          rows.add(item);
+        }
+        rows.sort((a, b) {
+          final byOrder = a.order.compareTo(b.order);
+          return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
+        });
+        return {for (final r in rows) r.id: r};
+      });
+
+  /// The wheel face, in segment order — or null when there is none to paint.
+  ///
+  /// ORDER IS LOAD-BEARING: spinWheel returns an index into the array it read
+  /// inside its transaction, and the wheel rotates to that index on this one.
+  /// They are the same document, so they agree except for the moment a cached
+  /// face is older than the server's; the dialog reports the server's prize,
+  /// never the number under the pointer, so that moment cannot misstate a
+  /// payout.
+  ///
+  /// Null covers every "cannot paint" case alike — not cached while offline,
+  /// not configured, or malformed — because the wheel does the same thing
+  /// for all three, and a spin would fail in all three.
+  Stream<List<int>?> watchSpinPrizes() => _db
+          .collection(_configCollection)
+          .doc(_spinConfigDoc)
+          .snapshots()
+          .map((snap) {
+        if (!snap.exists) {
+          debugPrint(snap.metadata.isFromCache
+              ? '[CurrencyService] no cached prize wheel — offline?'
+              : '[CurrencyService] $_configCollection/$_spinConfigDoc does not exist');
+          return null;
+        }
+        final raw = snap.data()?['prizes'];
+        if (raw is! List || raw.isEmpty || raw.any((p) => p is! int || p <= 0)) {
+          debugPrint('[CurrencyService] $_configCollection/$_spinConfigDoc.prizes is malformed');
+          return null;
+        }
+        return List<int>.unmodifiable(raw.cast<int>());
+      });
 
   /// Item ids [uid] owns, live.
   ///

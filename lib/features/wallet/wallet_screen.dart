@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/sample_data.dart';
 import '../../services/currency_service.dart';
+import '../../shared/providers/catalogue_provider.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/inventory_provider.dart';
 import '../../shared/providers/user_provider.dart';
@@ -186,12 +188,6 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
   double _angle = 0;
   bool _calling = false;
 
-  /// The face. Must stay in the same ORDER as SPIN_PRIZES in functions —
-  /// the server returns an index into it. If they drift, the wheel rotates to
-  /// the wrong wedge, which is why the dialog reports the server's prize and
-  /// not the number painted under the pointer.
-  static const _prizes = [10, 25, 5, 50, 15, 100, 20, 30];
-
   @override
   void dispose() {
     _c.dispose();
@@ -269,8 +265,17 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
   ///
   /// The base is rounded up to whole turns from wherever the wheel is resting,
   /// so a second spin still travels forward instead of unwinding.
+  ///
+  /// The face is read HERE, after the call returns, not captured when SPIN
+  /// was tapped: the rotation has to be computed against the wedges being
+  /// painted while it runs. If the index has no wedge on this face — a cached
+  /// face shorter than the one the server drew from — the wheel does not
+  /// move at all rather than turning to somewhere arbitrary; the dialog
+  /// still reports the server's prize.
   Future<void> _settleOn(int segment) {
-    final per = 2 * math.pi / _prizes.length;
+    final face = ref.read(spinPrizesProvider).asData?.value;
+    if (face == null || segment < 0 || segment >= face.length) return Future.value();
+    final per = 2 * math.pi / face.length;
     final base = (_angle / (2 * math.pi)).ceil() * 2 * math.pi;
     final target = base + (5 * 2 * math.pi) - (segment * per) - (per / 2);
     final tween = Tween(begin: _angle, end: target)
@@ -297,6 +302,15 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
     final nextSpinAt = ref.watch(todaySpinProvider).asData?.value;
     final used = nextSpinAt != null;
 
+    // The face comes from config/spin_wheel now. Null is every "cannot
+    // paint" case — still loading, offline with nothing cached, missing, or
+    // malformed — and SPIN is disabled for all of them: outside the first
+    // moment of loading, a spin would fail in each one anyway (no network,
+    // or the server refusing the same missing/malformed document).
+    final facing = ref.watch(spinPrizesProvider);
+    final prizes = facing.asData?.value;
+    final loadingFace = !facing.hasValue && !facing.hasError;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.border)),
@@ -304,7 +318,13 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
         const Text('🎡 Lucky Spin', style: AppTextStyles.subheading),
         const SizedBox(height: 4),
         Text(
-          used ? 'Next spin ${_whenLabel(nextSpinAt)}' : 'One free spin daily',
+          used
+              ? 'Next spin ${_whenLabel(nextSpinAt)}'
+              : prizes != null
+                  ? 'One free spin daily'
+                  : loadingFace
+                      ? 'Loading the wheel…'
+                      : "Couldn't load the wheel",
           style: AppTextStyles.captionMuted,
         ),
         const SizedBox(height: 16),
@@ -315,7 +335,9 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
             children: [
               Transform.rotate(
                 angle: _angle,
-                child: CustomPaint(size: const Size(190, 190), painter: _WheelPainter(_prizes)),
+                child: prizes == null
+                    ? const _BlankWheel()
+                    : CustomPaint(size: const Size(190, 190), painter: _WheelPainter(prizes)),
               ),
               const Positioned(top: 0, child: Icon(LucideIcons.triangle, color: AppColors.secondary, size: 26)),
               Container(width: 44, height: 44, decoration: const BoxDecoration(gradient: AppGradients.brand, shape: BoxShape.circle), child: Icon(LucideIcons.sparkles, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 20)),
@@ -326,18 +348,45 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
         GradientButton(
           // The icon already carries the tick; a second one in the text read
           // as "✓ Spun ✓".
-          label: _calling ? 'Spinning…' : (used ? 'Spun' : 'SPIN'),
+          label: _calling
+              ? 'Spinning…'
+              : used
+                  ? 'Spun'
+                  : (prizes == null && !loadingFace ? 'Unavailable' : 'SPIN'),
           icon: used ? LucideIcons.check : LucideIcons.rotateCw,
-          onPressed: (used || _calling) ? null : _spin,
+          onPressed: (used || _calling || prizes == null) ? null : _spin,
         ),
       ]),
     );
   }
 }
 
+/// The wheel's footprint with no face on it.
+///
+/// Neither hidden nor faked. Hiding it would reflow the card and conceal that
+/// the feature exists; painting a bundled default face would be the deleted
+/// copy back again, showing prizes the server might not pay. It is the real
+/// wheel's size, so nothing moves when the face arrives.
+class _BlankWheel extends StatelessWidget {
+  const _BlankWheel();
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 190,
+        height: 190,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.surfaceAlt,
+          border: Border.all(color: AppColors.border, width: 3),
+        ),
+      );
+}
+
 class _WheelPainter extends CustomPainter {
   final List<int> prizes;
   _WheelPainter(this.prizes);
+
+  /// Cycled rather than matched one-to-one: the face is stored data now and
+  /// can have any number of wedges.
   static const _colors = [
     AppColors.primary, AppColors.secondary, AppColors.accent, AppColors.aniGold,
     AppColors.aniGem, Color(0xFF6366F1), Color(0xFFEC4899), Color(0xFFF97316),
@@ -346,9 +395,14 @@ class _WheelPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final radius = size.width / 2;
-    const sweep = 2 * math.pi / 8;
-    for (var i = 0; i < 8; i++) {
-      final paint = Paint()..color = _colors[i]..style = PaintingStyle.fill;
+    // The wedge count is the face's, not a literal. With a stored face a
+    // literal 8 is a hidden copy of the array's length: a shorter face
+    // indexes past its end, a longer one silently drops prizes the server
+    // pays.
+    final n = prizes.length;
+    final sweep = 2 * math.pi / n;
+    for (var i = 0; i < n; i++) {
+      final paint = Paint()..color = _colors[i % _colors.length]..style = PaintingStyle.fill;
       canvas.drawArc(Rect.fromCircle(center: center, radius: radius), i * sweep - math.pi / 2, sweep, true, paint);
       // label
       final angle = i * sweep - math.pi / 2 + sweep / 2;
@@ -362,8 +416,11 @@ class _WheelPainter extends CustomPainter {
     canvas.drawCircle(center, radius, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 3);
   }
 
+  /// The face can change under a mounted wheel — a cached face replaced by
+  /// the server's — and `false` here would go on painting the old one.
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _WheelPainter oldDelegate) =>
+      !listEquals(oldDelegate.prizes, prizes);
 }
 
 // ───────────────────────── MY ITEMS
@@ -425,19 +482,41 @@ class _MyItemsTabState extends ConsumerState<_MyItemsTab> {
   Widget build(BuildContext context) {
     final me = myIdentity(ref);
     final owned = ownedItemIds(ref);
+    final reading = ref.watch(catalogueProvider);
+    final catalogue = reading.asData?.value;
 
-    // Owned things that belong to no slot — the withdrawn sticker pack today.
-    // Shown rather than dropped: it was bought, it is owned, and a screen
-    // called My Items that silently omits an item would be lying by
-    // arrangement. It is listed without controls because there is nothing to
-    // put it on.
-    final unwearable = owned.where((id) => CosmeticSlot.of(id) == null).toList()..sort();
+    // Without the catalogue an owned id cannot be placed: its slot and its
+    // name both live there now. Guessing would file items under the wrong
+    // heading or show slugs, so this says what is missing instead.
+    if (catalogue == null) {
+      if (!reading.hasValue && !reading.hasError) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return Center(
+        child: _CatalogueNotice(reading.hasError
+            ? "Couldn't load your items."
+            : 'Your items need a connection to load.'),
+      );
+    }
+
+    // Owned things this build has nowhere to put: no slot in the catalogue —
+    // the withdrawn sticker pack today — or a slot this build does not know,
+    // which a catalogue ahead of the app can name. Shown rather than dropped:
+    // it was bought, it is owned, and a screen called My Items that silently
+    // omits an item would be lying by arrangement. It is listed without
+    // controls because there is nothing to put it on.
+    bool wearable(String id) {
+      final slot = catalogue[id]?.slot;
+      return slot != null && CosmeticSlot.all.contains(slot);
+    }
+
+    final unwearable = owned.where((id) => !wearable(id)).toList()..sort();
 
     return ListView(
       padding: const EdgeInsets.all(14),
       children: [
         for (final slot in CosmeticSlot.all) ...[
-          _slotGroup(slot, owned, me?.equippedIn(slot)),
+          _slotGroup(slot, owned, me?.equippedIn(slot), catalogue),
           const SizedBox(height: 14),
         ],
         if (unwearable.isNotEmpty) ...[
@@ -455,7 +534,7 @@ class _MyItemsTabState extends ConsumerState<_MyItemsTab> {
                 for (final id in unwearable)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(_titleFor(id), style: AppTextStyles.label),
+                    child: Text(_titleFor(catalogue, id), style: AppTextStyles.label),
                   ),
                 const SizedBox(height: 4),
                 const Text('Owned, but nothing to wear it on.',
@@ -468,8 +547,13 @@ class _MyItemsTabState extends ConsumerState<_MyItemsTab> {
     );
   }
 
-  Widget _slotGroup(String slot, Set<String> owned, String? equipped) {
-    final mine = owned.where((id) => CosmeticSlot.of(id) == slot).toList()..sort();
+  Widget _slotGroup(
+    String slot,
+    Set<String> owned,
+    String? equipped,
+    Map<String, CatalogueItem> catalogue,
+  ) {
+    final mine = owned.where((id) => catalogue[id]?.slot == slot).toList()..sort();
     final busy = _busySlot != null;
 
     return Container(
@@ -499,7 +583,7 @@ class _MyItemsTabState extends ConsumerState<_MyItemsTab> {
             _option(
               slot: slot,
               itemId: id,
-              title: _titleFor(id),
+              title: _titleFor(catalogue, id),
               selected: equipped == id,
               enabled: !busy,
             ),
@@ -561,15 +645,14 @@ class _MyItemsTabState extends ConsumerState<_MyItemsTab> {
     );
   }
 
-  /// Catalogue name for an owned id, falling back to the id when the item is
-  /// no longer listed — a withdrawn item is still owned and still needs a
-  /// label.
-  String _titleFor(String id) {
-    for (final s in SampleData.storeItems) {
-      if (s.id == id) return s.name;
-    }
-    return id;
-  }
+  /// Catalogue name for an owned id.
+  ///
+  /// Withdrawn items keep their catalogue row as a tombstone precisely so this
+  /// resolves: the sticker pack is named here, not shown as its slug. The id
+  /// fallback is only reached when the catalogue has LOST a row it should
+  /// have kept — and a raw slug on screen is the honest symptom of that.
+  String _titleFor(Map<String, CatalogueItem> catalogue, String id) =>
+      catalogue[id]?.name ?? id;
 }
 
 // ───────────────────────── SPEND
@@ -580,29 +663,32 @@ class _SpendTab extends ConsumerStatefulWidget {
 }
 
 class _SpendTabState extends ConsumerState<_SpendTab> {
-  /// Items to render as held back rather than buyable.
+  /// Whether the shop draws an item at all.
   ///
-  /// This is now a DISPLAY HINT, not the gate. The gate moved to the server:
-  /// STORE_ITEMS marks these `sellable: false` and spendGold refuses them
-  /// with `not-for-sale`, which is what actually stops a modified client. It
-  /// used to be the only check, and a set in a widget was never a check at
-  /// all.
+  /// Sellable items, and items held back as `coming-soon` — those stay
+  /// visible with a Soon chip, so people learn they are on the way.
   ///
-  /// It stays because deleting it would trade a clear "Soon" chip for a gold
-  /// button that fails when tapped — the server would refuse correctly and
-  /// the user would still have been invited to try. Keeping it means the
-  /// round trip never happens; keeping it ALONE is what was wrong.
+  /// Withdrawn items are NOT drawn. They are tombstones, kept in the catalogue
+  /// so their ids still have names in My Items and in the ledger, not so they
+  /// can be advertised. An `unavailable` reason this build does not know is
+  /// not drawn either: the only label it has for a held-back item is "Soon",
+  /// and for an unknown reason that would be a guess.
   ///
-  /// It can drift from the server (this list ships inside the build), and the
-  /// drift is handled rather than prevented: a stale client that offers a
-  /// held-back item gets ItemUnavailableException and says so.
+  /// This replaces the bundled held-back set, and it is a DISPLAY decision
+  /// only. What stops a purchase has not moved: spendGold refuses anything
+  /// the catalogue does not mark sellable.
   ///
-  /// Why these two: `verification` would set users/{uid}.isVerified, which
-  /// firestore.rules pins false on create and admits on no update path;
-  /// `streak_restore` maps to CurrencyController.restoreStreak, a no-op with
-  /// no callers. The cosmetics are charged because their ledger entry is a
-  /// receipt the grant reads from; these two have nothing to grant.
-  static const Set<String> _undeliverable = {'verification', 'streak_restore'};
+  /// WHY THE TWO HELD-BACK ITEMS ARE HELD BACK — recorded here because the
+  /// set that used to carry it is gone, and without it flipping `sellable`
+  /// in the catalogue looks harmless. `verification` would set
+  /// users/{uid}.isVerified, which firestore.rules pins false on create and
+  /// admits on no update path; `streak_restore` maps to
+  /// CurrencyController.restoreStreak, a no-op with no callers. Selling
+  /// either would charge for nothing: the cosmetics are charged because their
+  /// ledger entry is a receipt the grant reads from, and these two have
+  /// nothing to grant.
+  static bool _listed(CatalogueItem item) =>
+      item.sellable || item.unavailable == 'coming-soon';
 
   /// The purchase currently in flight, by item id.
   ///
@@ -620,35 +706,33 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
   @override
   Widget build(BuildContext context) {
     _owned = ownedItemIds(ref);
+    final reading = ref.watch(catalogueProvider);
+    final catalogue = reading.asData?.value;
+    final listed = catalogue?.values.where(_listed).toList() ?? const <CatalogueItem>[];
+    final verification = catalogue?['verification'];
+
     return ListView(
       padding: const EdgeInsets.all(14),
       children: [
         const SectionHeader(title: 'Cosmetics', padding: EdgeInsets.only(bottom: 10)),
-        ...SampleData.storeItems.map((s) => Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
-              child: Row(children: [
-                Container(width: 50, height: 50, decoration: BoxDecoration(gradient: LinearGradient(colors: s.gradient), borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Text(s.emoji, style: const TextStyle(fontSize: 24))),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(s.name, style: AppTextStyles.label), Text(s.sub, style: AppTextStyles.captionMuted)])),
-                _buyBtn(s),
-              ]),
-            )),
-        const SectionHeader(title: 'Verification', padding: EdgeInsets.only(top: 8, bottom: 10)),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.verified.withOpacity(0.5))),
-          child: Row(children: [
-            const VerifiedBadge(size: BadgeSize.lg),
-            const SizedBox(width: 12),
-            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Get Verified', style: AppTextStyles.label), Text('Blue verification badge', style: AppTextStyles.captionMuted)])),
-            // The same item as the 'verification' row above, shown again in
-            // its own section. One id, so both render the same held-back
-            // state and neither can be bought behind the other's back.
-            _buyBtn(SampleData.storeItems.firstWhere((s) => s.id == 'verification')),
-          ]),
-        ),
+        ..._cosmetics(reading, listed),
+        // The same item as the 'verification' row above, shown again in its
+        // own section. One catalogue row, so both render the same state and
+        // neither can be bought behind the other's back. It appears only when
+        // that row does, for the same reasons.
+        if (verification != null && _listed(verification)) ...[
+          const SectionHeader(title: 'Verification', padding: EdgeInsets.only(top: 8, bottom: 10)),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.verified.withOpacity(0.5))),
+            child: Row(children: [
+              const VerifiedBadge(size: BadgeSize.lg),
+              const SizedBox(width: 12),
+              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Get Verified', style: AppTextStyles.label), Text('Blue verification badge', style: AppTextStyles.captionMuted)])),
+              _buyBtn(verification),
+            ]),
+          ),
+        ],
         const SizedBox(height: 14),
         GestureDetector(
           onTap: () => context.push('/cards'),
@@ -667,13 +751,56 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
     );
   }
 
-  Widget _buyBtn(StoreItem item) {
-    // Owned is checked FIRST, ahead of the held-back list. Neither of those
-    // two can be bought, so neither should be ownable — but if a backfill
-    // ever grants one, "Owned" is the true thing to say and "Soon" would not
-    // be.
+  /// The cosmetics list, or what stands in for it.
+  ///
+  /// An EMPTY shop is shown only when the server says it is empty. Offline
+  /// with nothing cached is a different state, and says so: "nothing for
+  /// sale" would be a false statement about the catalogue.
+  List<Widget> _cosmetics(
+    AsyncValue<Map<String, CatalogueItem>?> reading,
+    List<CatalogueItem> listed,
+  ) {
+    if (reading.asData?.value == null) {
+      if (!reading.hasValue && !reading.hasError) {
+        return const [
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 28),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ];
+      }
+      return [
+        _CatalogueNotice(reading.hasError
+            ? "Couldn't load the shop."
+            : 'The shop needs a connection to load.'),
+      ];
+    }
+    if (listed.isEmpty) return const [_CatalogueNotice('Nothing in the shop right now.')];
+    return [for (final item in listed) _itemRow(item)];
+  }
+
+  /// One shop row. Words and price from the catalogue, art from the app.
+  Widget _itemRow(CatalogueItem item) {
+    final art = _ItemArt.of(item.id);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
+      child: Row(children: [
+        Container(width: 50, height: 50, decoration: BoxDecoration(gradient: LinearGradient(colors: art.gradient), borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Text(art.emoji, style: const TextStyle(fontSize: 24))),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(item.name, style: AppTextStyles.label), Text(item.sub, style: AppTextStyles.captionMuted)])),
+        _buyBtn(item),
+      ]),
+    );
+  }
+
+  Widget _buyBtn(CatalogueItem item) {
+    // Owned is checked FIRST, ahead of sellability. The held-back items cannot
+    // be bought, so they should not be ownable — but if a backfill ever grants
+    // one, "Owned" is the true thing to say and "Soon" would not be.
     if (_owned.contains(item.id)) return _ownedBtn();
-    if (_undeliverable.contains(item.id)) return _comingSoonBtn(item);
+    if (!item.sellable) return _comingSoonBtn(item);
 
     final busy = _busyItemId != null;
     final mine = _busyItemId == item.id;
@@ -726,7 +853,7 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
 
   /// Visible, priced, and plainly not for sale — the same treatment the
   /// Subscribe button got when AniPlus lost its client-side grant.
-  Widget _comingSoonBtn(StoreItem item) {
+  Widget _comingSoonBtn(CatalogueItem item) {
     return GestureDetector(
       onTap: () {
         Haptics.light();
@@ -750,10 +877,15 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
     );
   }
 
-  Future<void> _buy(StoreItem item) async {
+  Future<void> _buy(CatalogueItem item) async {
     setState(() => _busyItemId = item.id);
     Haptics.medium();
     try {
+      // `amount` is the price THIS ROW DISPLAYED — the same CatalogueItem the
+      // button drew its number from, so the two cannot differ within a build.
+      // It is a checksum, not an instruction: if the cached catalogue is
+      // behind the server's, spendGold refuses with price-mismatch and
+      // nothing is charged.
       await CurrencyService.instance.spendGold(itemId: item.id, amount: item.price);
       if (!mounted) return;
       // No balance is set from here. users/{uid}.aniGold is watched through
@@ -765,8 +897,8 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
         duration: const Duration(seconds: 2),
       ));
     } on ItemUnavailableException catch (e) {
-      // This client offered something the server will not sell — almost
-      // always a build older than the catalogue.
+      // This client offered something the server will not sell — a cached
+      // catalogue a moment behind the server's.
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(e.unavailable == 'withdrawn'
@@ -807,6 +939,52 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
       if (mounted) setState(() => _busyItemId = null);
     }
   }
+}
+
+/// What an item LOOKS like in the shop — the one part of the catalogue that
+/// stays in the app, because the renderer ships in the app too.
+///
+/// Keyed by catalogue id, with a neutral fallback so a row the catalogue has
+/// and this build does not still renders as a row instead of failing.
+///
+/// 'demon_slayer_emotions' has no art because the shop never draws it. It was
+/// WITHDRAWN, and it was never a cosmetic: DMs have a reaction system, not
+/// stickers — one emoji per user per message, and the rule admits any string
+/// of eight characters or fewer with no allowlist, so "owning a pack" gated
+/// nothing a modified client could not already send. Making it real needs
+/// either rules binding reaction values to inventory, or stickers as
+/// messages, which the message create whitelist has no field for. Accounts
+/// that bought it keep their inventory doc and their ledger entries — accurate
+/// history, not rewritten — and its catalogue row stays as a tombstone so My
+/// Items can still name it.
+class _ItemArt {
+  final String emoji;
+  final List<Color> gradient;
+  const _ItemArt(this.emoji, this.gradient);
+
+  static const Map<String, _ItemArt> _byId = {
+    'cherry_blossom_frame': _ItemArt('🌸', [Color(0xFFF472B6), Color(0xFF8B5CF6)]),
+    'rainbow_shimmer': _ItemArt('🌈', [Color(0xFF8B5CF6), Color(0xFF22D3EE)]),
+    'gold_elite': _ItemArt('✨', [Color(0xFFF59E0B), Color(0xFFB45309)]),
+    'verification': _ItemArt('✅', [Color(0xFF3B82F6), Color(0xFF22D3EE)]),
+    'streak_restore': _ItemArt('🔥', [Color(0xFFFB7185), Color(0xFFEF4444)]),
+  };
+
+  static const _ItemArt _fallback =
+      _ItemArt('🏷️', [AppColors.surfaceAlt, AppColors.border]);
+
+  static _ItemArt of(String itemId) => _byId[itemId] ?? _fallback;
+}
+
+/// What a catalogue-driven tab shows in place of the catalogue.
+class _CatalogueNotice extends StatelessWidget {
+  final String text;
+  const _CatalogueNotice(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+        child: Text(text, style: AppTextStyles.captionMuted, textAlign: TextAlign.center),
+      );
 }
 
 // ───────────────────────── RECHARGE

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'models/user_model.dart';
 import 'models/anime_model.dart';
 import 'models/post_model.dart';
@@ -274,27 +273,7 @@ class SampleData {
         const Achievement('Night Owl', '🦉', 'Watch after 2AM 50 times', 'Watching', true, 1, 'Dec 2024'),
       ];
 
-  // ─────────────────────────────────────────── STORE ITEMS
-  //
-  // 'demon_slayer_emotions' (Chat sticker pack, 150) was WITHDRAWN. It was
-  // never a cosmetic: DMs have a reaction system, not stickers — one emoji
-  // per user per message, and the rule admits any string of 8 characters or
-  // fewer with no allowlist, so "owning a pack" gated nothing a modified
-  // client could not already send. Making it real needs either rules binding
-  // permitted reaction values to inventory, or stickers as messages, which
-  // the message create whitelist has no field for.
-  //
-  // Accounts that bought it keep their inventory doc and their ledger
-  // entries: those are accurate history and are not being rewritten. The item
-  // simply no longer appears in the shop.
-  static const List<StoreItem> storeItems = [
-    StoreItem('cherry_blossom_frame', 'Cherry Blossom Frame', 'Profile frame', 200, '🌸', [Color(0xFFF472B6), Color(0xFF8B5CF6)]),
-    StoreItem('rainbow_shimmer', 'Rainbow Shimmer', 'Username effect', 300, '🌈', [Color(0xFF8B5CF6), Color(0xFF22D3EE)]),
-    StoreItem('gold_elite', 'Gold Elite', 'Post border frame', 250, '✨', [Color(0xFFF59E0B), Color(0xFFB45309)]),
-    StoreItem('verification', 'Verification ✓', 'Account verification', 444, '✅', [Color(0xFF3B82F6), Color(0xFF22D3EE)]),
-    StoreItem('streak_restore', 'Streak Restore', 'Revive a lost streak', 50, '🔥', [Color(0xFFFB7185), Color(0xFFEF4444)]),
-  ];
-
+  // ─────────────────────────────────────────── RECHARGE PACKS
   static const List<RechargePack> rechargePacks = [
     RechargePack(100, 0.99, false),
     RechargePack(500, 3.99, true),
@@ -420,20 +399,6 @@ class Achievement {
   final double progress;
   final String progressLabel;
   const Achievement(this.name, this.emoji, this.desc, this.category, this.unlocked, this.progress, this.progressLabel);
-}
-
-class StoreItem {
-  /// Stable slug sent to the spendGold callable as its itemId and recorded in
-  /// the currency ledger. Deliberately NOT derived from [name]: the ledger is
-  /// an audit trail, and a renamed or re-emoji'd item must not change what
-  /// past entries say was bought.
-  final String id;
-  final String name;
-  final String sub;
-  final int price;
-  final String emoji;
-  final List<Color> gradient;
-  const StoreItem(this.id, this.name, this.sub, this.price, this.emoji, this.gradient);
 }
 
 class RechargePack {
