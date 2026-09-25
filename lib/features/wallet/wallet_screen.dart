@@ -124,26 +124,6 @@ class _EarnTab extends StatelessWidget {
         const _ReactionsTask(),
         if (_showUnprovenTasks)
           for (final t in _unprovenTasks) _UnprovenTaskRow(title: t.$1, reward: t.$2),
-        const SectionHeader(title: 'Combo Bonus', padding: EdgeInsets.only(top: 8, bottom: 10)),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(5, (i) {
-              final done = i < 3;
-              return Column(children: [
-                Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(gradient: done ? AppGradients.brand : null, color: done ? null : AppColors.surfaceAlt, shape: BoxShape.circle, border: Border.all(color: done ? Colors.transparent : AppColors.border)),
-                  child: Icon([LucideIcons.eye, LucideIcons.heart, LucideIcons.messageCircle, LucideIcons.share2, LucideIcons.gamepad2][i], size: 18, color: done ? Colors.white : AppColors.textMuted),
-                ),
-                const SizedBox(height: 4),
-                Text(done ? '✓' : '', style: const TextStyle(color: AppColors.success, fontSize: 12)),
-              ]);
-            }),
-          ),
-        ),
         const SectionHeader(title: 'Refer Friends', padding: EdgeInsets.only(top: 16, bottom: 10)),
         Container(
           padding: const EdgeInsets.all(16),
