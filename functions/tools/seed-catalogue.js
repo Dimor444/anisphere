@@ -24,6 +24,10 @@
  *                         new one, which is the exact corruption the single
  *                         document exists to prevent.
  *
+ *   config/daily_tasks    FULLY OVERWRITTEN, for a related reason: a task taken
+ *                         out of the json must stop being offered, and a merge
+ *                         can never remove a field.
+ *
  * It does NOT delete rows that have left the json. A catalogue that deletes
  * is a catalogue that can orphan a ledger entry; retiring an item means
  * setting sellable:false, not removing it.
@@ -36,6 +40,13 @@ const { initializeApp, applicationDefault } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 
 const DRY = process.argv.includes('--dry-run');
+
+// Where the catalogue goes. Declared exactly as functions/index.js declares
+// them, so the drift check reads both the same way and can prove they agree.
+const STORE_ITEMS_COLLECTION = 'store_items';
+const CONFIG_COLLECTION = 'config';
+const SPIN_CONFIG_DOC = 'spin_wheel';
+const DAILY_TASKS_DOC = 'daily_tasks';
 const SRC = path.join(__dirname, 'catalogue.json');
 
 function die(msg) {
@@ -46,11 +57,13 @@ function die(msg) {
 const raw = JSON.parse(fs.readFileSync(SRC, 'utf8'));
 const items = raw.storeItems;
 const prizes = raw.spinWheel && raw.spinWheel.prizes;
+const tasks = raw.dailyTasks;
 
 // Validate BEFORE writing anything. A half-seeded catalogue is worse than an
 // unseeded one: the functions would start refusing real items as unknown.
 if (!items || typeof items !== 'object') die('catalogue.json has no storeItems object.');
 if (!Array.isArray(prizes) || prizes.length === 0) die('catalogue.json has no spinWheel.prizes array.');
+if (!tasks || typeof tasks !== 'object' || Array.isArray(tasks)) die('catalogue.json has no dailyTasks object.');
 
 const SLOTS = ['frame', 'postBorder', 'nameEffect'];
 for (const [id, it] of Object.entries(items)) {
@@ -68,6 +81,17 @@ for (const [id, it] of Object.entries(items)) {
 for (const p of prizes) {
   if (!Number.isInteger(p) || p <= 0) die(`spin prize ${p} must be a positive integer.`);
 }
+// Which task ids are real is the SERVER's to say (TASK_VERIFIERS), not this
+// file's; the drift check proves every id here has a verifier. This only
+// checks shape.
+for (const [id, t] of Object.entries(tasks)) {
+  if (!/^[a-z0-9_]+$/.test(id)) die(`task id "${id}" is not a lowercase slug.`);
+  if (!t || typeof t !== 'object') die(`task ${id} must be an object.`);
+  const extra = Object.keys(t).filter((k) => k !== 'reward' && k !== 'target');
+  if (extra.length) die(`task ${id}: unexpected field(s) ${extra.join(', ')}.`);
+  if (!Number.isInteger(t.reward) || t.reward <= 0) die(`task ${id}: reward must be a positive integer.`);
+  if (!Number.isInteger(t.target) || t.target <= 0) die(`task ${id}: target must be a positive integer.`);
+}
 
 console.log(`\n  catalogue.json → ${Object.keys(items).length} items, ${prizes.length} prizes`);
 for (const [id, it] of Object.entries(items)) {
@@ -75,6 +99,9 @@ for (const [id, it] of Object.entries(items)) {
   console.log(`    ${id.padEnd(24)} ${String(it.slot || '—').padEnd(12)} ${tag}`);
 }
 console.log(`    spin prizes: [${prizes.join(', ')}]`);
+for (const [id, t] of Object.entries(tasks)) {
+  console.log(`    daily task ${id.padEnd(13)} target ${t.target}, reward ${t.reward}g`);
+}
 
 if (DRY) {
   console.log('\n  --dry-run: nothing written.\n');
@@ -87,11 +114,13 @@ const db = getFirestore();
 (async () => {
   const batch = db.batch();
   for (const [id, it] of Object.entries(items)) {
-    batch.set(db.collection('store_items').doc(id), it, { merge: true });
+    batch.set(db.collection(STORE_ITEMS_COLLECTION).doc(id), it, { merge: true });
   }
   // Overwrite, not merge — see the header.
-  batch.set(db.collection('config').doc('spin_wheel'), { prizes });
+  batch.set(db.collection(CONFIG_COLLECTION).doc(SPIN_CONFIG_DOC), { prizes });
+  batch.set(db.collection(CONFIG_COLLECTION).doc(DAILY_TASKS_DOC), tasks);
   await batch.commit();
-  console.log(`\n  ✓ wrote ${Object.keys(items).length} store_items + config/spin_wheel\n`);
+  console.log(`\n  ✓ wrote ${Object.keys(items).length} ${STORE_ITEMS_COLLECTION} + ` +
+    `${CONFIG_COLLECTION}/${SPIN_CONFIG_DOC} + ${CONFIG_COLLECTION}/${DAILY_TASKS_DOC}\n`);
   process.exit(0);
 })().catch((e) => die(e.message));

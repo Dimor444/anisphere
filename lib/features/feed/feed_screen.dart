@@ -26,7 +26,6 @@ class FeedScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
-  bool _showTasks = true;
 
   @override
   void initState() {
@@ -189,8 +188,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       ),
                       const SliverToBoxAdapter(child: StoriesRow()),
                       const SliverToBoxAdapter(child: CurrencyBar()),
-                      if (_showTasks)
-                        SliverToBoxAdapter(child: _DailyTasksCard(onDismiss: () => setState(() => _showTasks = false))),
                       ..._postSlivers(snap),
                       const SliverToBoxAdapter(child: SizedBox(height: 90)),
                     ],
@@ -357,75 +354,6 @@ class _BellButton extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _DailyTasksCard extends ConsumerWidget {
-  final VoidCallback onDismiss;
-  const _DailyTasksCard({required this.onDismiss});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tasks = [
-      ('Watch an episode', 1.0),
-      ('React to 3 posts', 0.66),
-      ('Play True Fan', 0.0),
-    ];
-    return Dismissible(
-      key: const ValueKey('daily-tasks'),
-      direction: DismissDirection.horizontal,
-      onDismissed: (_) => onDismiss(),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [AppColors.surface, AppColors.surfaceAlt]),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text('✅', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 8),
-                Text(ref.tr('dailyTasks'), style: AppTextStyles.subheading),
-                const Spacer(),
-                const Row(children: [GoldTag(40), SizedBox(width: 2)]),
-                const SizedBox(width: 6),
-                const Icon(LucideIcons.x, size: 16, color: AppColors.textMuted),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: tasks.map((t) {
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(t.$1, maxLines: 2, style: AppTextStyles.caption, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(3),
-                          child: LinearProgressIndicator(
-                            value: t.$2,
-                            minHeight: 5,
-                            backgroundColor: AppColors.background,
-                            valueColor: AlwaysStoppedAnimation(t.$2 == 1.0 ? AppColors.success : AppColors.primary),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

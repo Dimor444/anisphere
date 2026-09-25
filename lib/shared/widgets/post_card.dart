@@ -86,7 +86,7 @@ class _PostCardState extends ConsumerState<PostCard> {
       if (wasLiked) {
         await FeedService.instance.unlikePost(widget.post.id, _uid);
       } else {
-        await FeedService.instance.likePost(widget.post.id, _uid);
+        await FeedService.instance.likePost(widget.post.id, _uid, postAuthorId: widget.post.userId);
       }
     } catch (_) {
       if (!mounted) return;

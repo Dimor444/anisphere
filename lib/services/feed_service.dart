@@ -282,11 +282,21 @@ class FeedService {
 
   // ── Likes ──────────────────────────────────────────────────────────────
 
-  Future<void> likePost(String postId, String userId) {
+  /// Likes [postId] as [userId].
+  ///
+  /// `uid` marks the like as one the React-to-posts daily task may count, and
+  /// it is written only when the post is someone else's. The server excludes
+  /// self-likes on its own when a task is claimed; leaving `uid` off here is
+  /// what keeps the progress bar from promising a like the claim will refuse.
+  /// likedAt must be the server timestamp — firestore.rules pins it to
+  /// request.time.
+  Future<void> likePost(String postId, String userId, {required String postAuthorId}) {
     return _guard('like($postId)', () async {
       final batch = _db.batch()
-        ..set(_posts.doc(postId).collection('likes').doc(userId),
-            {'likedAt': FieldValue.serverTimestamp()})
+        ..set(_posts.doc(postId).collection('likes').doc(userId), {
+          'likedAt': FieldValue.serverTimestamp(),
+          if (postAuthorId != userId) 'uid': userId,
+        })
         ..update(_posts.doc(postId), {'likes': FieldValue.increment(1)});
       await batch.commit();
     });

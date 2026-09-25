@@ -67,6 +67,14 @@
         { "fieldPath": "uid", "order": "ASCENDING" },
         { "fieldPath": "issuedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "likes",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "uid", "order": "ASCENDING" },
+        { "fieldPath": "likedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

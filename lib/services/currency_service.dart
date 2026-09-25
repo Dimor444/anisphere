@@ -109,6 +109,66 @@ class SpinResult {
   });
 }
 
+/// A daily task was claimed before it was done — or it looked done here, and
+/// the server's proof disagreed.
+///
+/// The bar counts likes this device can see; the server counts only posts
+/// that still exist and are not the claimer's own. The two disagree when a
+/// liked post was deleted since, so this carries the server's breakdown
+/// rather than a bare "no".
+class TaskNotCompleteException implements Exception {
+  final int counted;
+  final int target;
+  final int ownPosts;
+  final int deletedPosts;
+  const TaskNotCompleteException({
+    required this.counted,
+    required this.target,
+    required this.ownPosts,
+    required this.deletedPosts,
+  });
+
+  @override
+  String toString() => 'TaskNotCompleteException($counted/$target, own $ownPosts, deleted $deletedPosts)';
+}
+
+/// Today's claim for this task is already paid.
+class TaskAlreadyClaimedException implements Exception {
+  final DateTime nextClaimAt;
+  const TaskAlreadyClaimedException(this.nextClaimAt);
+
+  @override
+  String toString() => 'TaskAlreadyClaimedException(next: $nextClaimAt)';
+}
+
+/// A paid claim, as the server reports it.
+class TaskClaim {
+  final String taskId;
+  final int reward;
+  final int balance;
+  const TaskClaim({required this.taskId, required this.reward, required this.balance});
+}
+
+/// One row of config/daily_tasks: what a task pays and how much of it is
+/// needed. Which tasks EXIST is the server's to say (TASK_VERIFIERS); the
+/// wallet draws only the ones it knows how to measure.
+class DailyTask {
+  final String id;
+  final int reward;
+  final int target;
+  const DailyTask({required this.id, required this.reward, required this.target});
+
+  /// Null when the row is malformed — dropped, not drawn with guesses, for
+  /// the reason CatalogueItem.fromDoc gives.
+  static DailyTask? fromMap(String id, Object? d) {
+    if (d is! Map) return null;
+    final reward = d['reward'];
+    final target = d['target'];
+    if (reward is! int || reward <= 0 || target is! int || target <= 0) return null;
+    return DailyTask(id: id, reward: reward, target: target);
+  }
+}
+
 /// The equip was refused because the item is not owned.
 ///
 /// Distinct from a fault for the same reason as the others: the answer is to
@@ -240,6 +300,8 @@ class CurrencyService {
   static const String _storeItemsCollection = 'store_items';
   static const String _configCollection = 'config';
   static const String _spinConfigDoc = 'spin_wheel';
+  static const String _dailyTasksDoc = 'daily_tasks';
+  static const String _taskClaims = 'task_claims';
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
@@ -390,15 +452,108 @@ class CurrencyService {
   /// rather than a one-shot: the record appears the moment the transaction
   /// commits, so the wheel locks itself without the screen re-reading.
   Stream<DateTime?> watchTodaySpin(String uid) {
-    final day = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+    final day = _utcDayId();
     return _db.collection('spins').doc('${uid}_$day').snapshots().map(
           (snap) => snap.exists ? _nextUtcMidnight() : null,
         );
   }
 
-  static DateTime _nextUtcMidnight() {
+  /// Midnight UTC today — the boundary the server's utcDayId uses, so a day
+  /// here is the same day there.
+  static DateTime _startOfUtcDay() {
     final now = DateTime.now().toUtc();
-    return DateTime.utc(now.year, now.month, now.day).add(const Duration(days: 1));
+    return DateTime.utc(now.year, now.month, now.day);
+  }
+
+  static String _utcDayId() => _startOfUtcDay().toIso8601String().substring(0, 10);
+
+  static DateTime _nextUtcMidnight() => _startOfUtcDay().add(const Duration(days: 1));
+
+  // ── Daily tasks ───────────────────────────────────────────────────────────
+
+  /// config/daily_tasks by task id, or null when there is nothing to show —
+  /// missing, not cached while offline, or malformed throughout.
+  Stream<Map<String, DailyTask>?> watchDailyTasks() => _db
+          .collection(_configCollection)
+          .doc(_dailyTasksDoc)
+          .snapshots()
+          .map((snap) {
+        final data = snap.data();
+        if (!snap.exists || data == null) return null;
+        final tasks = <String, DailyTask>{};
+        for (final e in data.entries) {
+          final t = DailyTask.fromMap(e.key, e.value);
+          if (t == null) {
+            debugPrint('[CurrencyService] $_configCollection/$_dailyTasksDoc.${e.key} is malformed — not shown');
+            continue;
+          }
+          tasks[t.id] = t;
+        }
+        return tasks;
+      });
+
+  /// Posts [uid] has liked today, up to [target] — the progress bar's number.
+  ///
+  /// DISPLAY ONLY. It cannot see that a liked post was deleted since, and the
+  /// server re-proves everything when the task is claimed. It does exclude
+  /// the user's own posts, because this client never puts `uid` on a like of
+  /// its own post (FeedService.likePost), so those never match.
+  ///
+  /// Capped at [target] documents: past the target the bar is full, and
+  /// every document beyond it would be a read that changes nothing on screen.
+  /// Video likes share the collection name and are filtered by path, as the
+  /// server does.
+  Stream<int> watchReactionsToday(String uid, int target) => _db
+      .collectionGroup('likes')
+      .where('uid', isEqualTo: uid)
+      .where('likedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfUtcDay()))
+      .limit(target)
+      .snapshots()
+      .map((snap) => snap.docs.where((d) => d.reference.parent.parent?.parent.id == 'posts').length);
+
+  /// Whether today's [taskId] claim is already paid. The record's id is the
+  /// server's own {uid}_{day}_{taskId}, so this reads exactly what
+  /// claimDailyTask writes.
+  Stream<bool> watchTaskClaimed(String uid, String taskId) => _db
+      .collection(_taskClaims)
+      .doc('${uid}_${_utcDayId()}_$taskId')
+      .snapshots()
+      .map((snap) => snap.exists);
+
+  /// Claims today's [taskId]. The server proves the task was done and pays,
+  /// in one transaction; nothing is credited here.
+  Future<TaskClaim> claimDailyTask(String taskId) async {
+    try {
+      final result = await FirebaseFunctions.instanceFor(region: _functionsRegion)
+          .httpsCallable('claimDailyTask')
+          .call<Object?>({'taskId': taskId});
+      final d = result.data;
+      if (d is! Map) throw StateError('claimDailyTask returned $d');
+      final claim = TaskClaim(
+        taskId: d['taskId'] as String,
+        reward: (d['reward'] as num).toInt(),
+        balance: (d['balance'] as num).toInt(),
+      );
+      debugPrint('[CurrencyService] claimed $taskId: +${claim.reward} — balance now ${claim.balance}');
+      return claim;
+    } on FirebaseFunctionsException catch (e) {
+      final details = e.details;
+      if (e.code == 'failed-precondition' && details is Map) {
+        switch (details['reason']) {
+          case 'not-complete':
+            throw TaskNotCompleteException(
+              counted: (details['counted'] as num?)?.toInt() ?? 0,
+              target: (details['target'] as num?)?.toInt() ?? 0,
+              ownPosts: (details['ownPosts'] as num?)?.toInt() ?? 0,
+              deletedPosts: (details['deletedPosts'] as num?)?.toInt() ?? 0,
+            );
+          case 'already-claimed':
+            throw TaskAlreadyClaimedException(DateTime.parse(details['nextClaimAt'] as String));
+        }
+      }
+      debugPrint('[CurrencyService] claimDailyTask failed: [${e.code}] ${e.message}');
+      rethrow;
+    }
   }
 
   /// Deducts [amount] for [itemId] and returns the new balance.

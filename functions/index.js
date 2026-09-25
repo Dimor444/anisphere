@@ -1154,3 +1154,227 @@ exports.spinWheel = onCall({ region: 'europe-west1' }, async (request) => {
     return { segment, prize, balance: after, nextSpinAt: nextSpinAt.toISOString() };
   });
 });
+
+// ─────────────────────────── DAILY TASKS ───────────────────────────────────
+
+const TASK_CLAIMS = 'task_claims';
+const DAILY_TASKS_DOC = 'daily_tasks';
+
+/// Blast radius for a single task reward, the MAX_SPEND of earning: the
+/// reward is read from the catalogue, so the only way past this is a
+/// mistyped number in catalogue.json, and that fails as `internal` instead
+/// of minting it.
+const MAX_TASK_REWARD = 1000;
+
+/// How many of today's likes one claim examines. A claim needs only
+/// `target` good ones, but the first few may be on the claimer's own posts or
+/// on posts since deleted, so it looks a little further than `target`. Past
+/// this the claim reports what it counted rather than scanning a heavy
+/// liker's whole day inside a transaction.
+const REACTION_SCAN_LIMIT = 50;
+
+/**
+ * Tasks the server can VERIFY, by id — code, not catalogue data, for the
+ * same reason COSMETIC_SLOTS is: a task means nothing until something here
+ * can prove it was done. The catalogue says what a task PAYS and how much is
+ * needed; this says whether one exists at all. A catalogue row with no
+ * verifier is refused as unknown, never paid on trust.
+ *
+ * Watching, True Fan and sharing are absent on purpose. Watching and True
+ * Fan need server-run sessions before anything can be proven; sharing has no
+ * signal the server ever sees.
+ */
+const TASK_VERIFIERS = {
+  reactions: verifyReactions,
+};
+
+/**
+ * React to N posts: distinct posts, still existing, not the claimer's own,
+ * liked during the current UTC day.
+ *
+ * WHY A COLLECTION-GROUP QUERY. A like lives under the post it likes, so
+ * "everything one user liked today" crosses every post. The alternative is a
+ * per-user mirror written beside each like — a second copy of the fact that
+ * can disagree with the first. This reads the likes themselves.
+ *
+ * DISTINCT is structural. A like is posts/{postId}/likes/{uid}: one document
+ * per (post, liker), so N documents are N posts, and unliking and re-liking
+ * the same post is still one.
+ *
+ * TODAY is the document's createTime, not likedAt. likedAt finds candidates
+ * through the index, but it has only been pinned to request.time since the
+ * rule that shipped with this function; a like written before then could
+ * carry any date, including a future one planted in advance. createTime is
+ * set by Firestore and nobody can write it.
+ *
+ * VIDEO LIKES share the collection name. Honest clients never put `uid` on
+ * them, but the video like rule accepts any body, so the path is checked
+ * rather than trusted: only a like whose parent is a top-level posts
+ * document counts.
+ *
+ * Every read happens here, before the caller writes anything — the
+ * transaction's read-before-write constraint.
+ */
+async function verifyReactions(tx, uid, dayStart, dayEnd) {
+  const likes = await tx.get(
+    db.collectionGroup('likes')
+      .where('uid', '==', uid)
+      .where('likedAt', '>=', Timestamp.fromDate(dayStart))
+      .where('likedAt', '<', Timestamp.fromDate(dayEnd))
+      .limit(REACTION_SCAN_LIMIT),
+  );
+  const candidates = likes.docs.filter((d) => {
+    const post = d.ref.parent.parent;
+    const created = d.createTime.toDate();
+    return d.id === uid
+      && post !== null
+      && post.parent.id === 'posts'
+      && post.parent.parent === null
+      && created >= dayStart
+      && created < dayEnd;
+  });
+  const posts = candidates.length === 0
+    ? []
+    : await tx.getAll(...candidates.map((d) => d.ref.parent.parent));
+
+  const counted = [];
+  const own = [];
+  const deleted = [];
+  for (const post of posts) {
+    // Self-likes are excluded HERE rather than refused by the like rule. The
+    // post is read anyway to confirm it still exists, so knowing its author
+    // costs nothing; refusing in the rule would break liking your own post
+    // for every build already installed.
+    if (!post.exists) deleted.push(post.id);
+    else if (post.get('userId') === uid) own.push(post.id);
+    else counted.push(post.id);
+  }
+  return { counted, own, deleted };
+}
+
+/**
+ * Pays a daily task, once per UTC day, after proving it was done.
+ *
+ * CLAIMED BY TAP, NOT CREDITED BY TRIGGER. The proof runs once, at the moment
+ * the user asks, inside the same transaction that credits — so there is no
+ * window between "counted" and "paid", and nothing runs on the likes of
+ * people who never open the wallet.
+ *
+ * ONCE PER DAY is the spin's device: the claim record's id is
+ * {uid}_{day}_{taskId}, so a second claim is the same document and is
+ * refused. A deterministic id works because the allowance is exactly one.
+ *
+ * The reward and the target come from config/daily_tasks, seeded from
+ * catalogue.json like the prize wheel, and fail closed when missing.
+ */
+exports.claimDailyTask = onCall({ region: 'europe-west1' }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Sign in to claim a task.');
+  }
+  const uid = request.auth.uid;
+
+  const taskId = request.data && request.data.taskId;
+  if (typeof taskId !== 'string' || !Object.prototype.hasOwnProperty.call(TASK_VERIFIERS, taskId)) {
+    throw new HttpsError('invalid-argument', 'No such task.', { reason: 'unknown-task', taskId: taskId ?? null });
+  }
+  const verify = TASK_VERIFIERS[taskId];
+
+  // The server's clock decides the day, as for the spin.
+  const now = new Date();
+  const day = utcDayId(now);
+  const dayStart = startOfUtcDay(now);
+  const dayEnd = nextUtcMidnight(now);
+
+  const userRef = db.collection('users').doc(uid);
+  const claimRef = db.collection(TASK_CLAIMS).doc(`${uid}_${day}_${taskId}`);
+  const configRef = db.collection(CONFIG_COLLECTION).doc(DAILY_TASKS_DOC);
+  const entryRef = db.collection(CURRENCY_LEDGER).doc(uid).collection('entries').doc();
+
+  return db.runTransaction(async (tx) => {
+    // ── READS ────────────────────────────────────────────────────────────
+    const [userSnap, claimSnap, configSnap] = await tx.getAll(userRef, claimRef, configRef);
+
+    if (!configSnap.exists) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Daily tasks are not configured.',
+        { reason: 'catalogue-missing', doc: `${CONFIG_COLLECTION}/${DAILY_TASKS_DOC}` },
+      );
+    }
+    const task = configSnap.get(taskId);
+    if (task === undefined) {
+      throw new HttpsError('failed-precondition', 'That task is not offered.', { reason: 'not-offered', taskId });
+    }
+    if (!task || !Number.isInteger(task.reward) || task.reward <= 0 || task.reward > MAX_TASK_REWARD ||
+        !Number.isInteger(task.target) || task.target <= 0 || task.target > REACTION_SCAN_LIMIT) {
+      throw new HttpsError('internal', `Stored daily task ${taskId} is malformed.`);
+    }
+
+    if (!userSnap.exists) {
+      throw new HttpsError('not-found', 'No profile for this account.');
+    }
+    // Before the proof, not after: a second claim should cost two reads, not
+    // a scan.
+    if (claimSnap.exists) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Already claimed today.',
+        { reason: 'already-claimed', nextClaimAt: dayEnd.toISOString(), reward: claimSnap.get('reward') ?? null },
+      );
+    }
+
+    const { counted, own, deleted } = await verify(tx, uid, dayStart, dayEnd);
+    if (counted.length < task.target) {
+      // Says WHY, because the bar the user was looking at cannot know about
+      // a post deleted since, and a modified client's self-likes are counted
+      // there too.
+      throw new HttpsError(
+        'failed-precondition',
+        'Not done yet.',
+        {
+          reason: 'not-complete',
+          counted: counted.length,
+          target: task.target,
+          ownPosts: own.length,
+          deletedPosts: deleted.length,
+        },
+      );
+    }
+
+    const raw = userSnap.get('aniGold');
+    const before = raw === undefined ? 0 : raw;
+    if (!Number.isInteger(before) || before < 0) {
+      throw new HttpsError('internal', 'Stored balance is not a non-negative integer.');
+    }
+    const after = before + task.reward;
+
+    // ── WRITES ───────────────────────────────────────────────────────────
+    tx.update(userRef, { aniGold: after });
+    tx.set(entryRef, {
+      userId: uid,
+      kind: 'earn',
+      source: `daily_task_${taskId}`,
+      currency: 'aniGold',
+      amount: task.reward,
+      balanceBefore: before,
+      balanceAfter: after,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    // create, not set: if the record appeared since it was read, the
+    // transaction retries and the read above refuses — a second payout is
+    // not representable either way.
+    tx.create(claimRef, {
+      userId: uid,
+      day,
+      taskId,
+      reward: task.reward,
+      target: task.target,
+      // The evidence: which posts were counted.
+      posts: counted,
+      ledgerEntryId: entryRef.id,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    return { taskId, reward: task.reward, balance: after, nextClaimAt: dayEnd.toISOString() };
+  });
+});

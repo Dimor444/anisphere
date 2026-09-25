@@ -12,6 +12,7 @@ import '../../core/utils/haptics.dart';
 import '../../data/sample_data.dart';
 import '../../services/currency_service.dart';
 import '../../shared/providers/catalogue_provider.dart';
+import '../../shared/providers/daily_task_provider.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/inventory_provider.dart';
 import '../../shared/providers/user_provider.dart';
@@ -85,6 +86,32 @@ class WalletScreen extends ConsumerWidget {
 }
 
 // ───────────────────────── EARN
+
+/// Daily tasks the server cannot prove yet — HIDDEN, not deleted.
+///
+/// Each returns when the thing it needs exists:
+///
+///   Watch an episode — nothing in the app knows an episode was watched.
+///     There is no playback, the Watch-on buttons are inert, and the only
+///     signal is a number the user types into My List. Needs a session with
+///     something that actually observes viewing.
+///
+///   Play True Fan — the client builds the quiz, holds the answer key and
+///     grades itself, and a failed run writes nothing. Needs server-run quiz
+///     sessions: questions issued, answers graded and time measured by the
+///     server.
+///
+///   Share a post — no verifiable signal at all. The share is plain text with
+///     no link, and the OS share sheet reports back to the client only. Needs
+///     share links the server issues and sees opened by someone other than
+///     the sharer.
+///
+/// The rewards beside them were display numbers only. When a task returns,
+/// its reward moves into config/daily_tasks with the reactions task — it does
+/// not come back as a constant here.
+const bool _showUnprovenTasks = bool.fromEnvironment('SHOW_UNPROVEN_DAILY_TASKS');
+const _unprovenTasks = [('Watch an episode', 20), ('Play True Fan', 40), ('Share a post', 10)];
+
 class _EarnTab extends StatelessWidget {
   const _EarnTab();
   @override
@@ -94,22 +121,9 @@ class _EarnTab extends StatelessWidget {
       children: [
         const _LuckySpin(),
         const SectionHeader(title: 'Daily Tasks', padding: EdgeInsets.only(top: 16, bottom: 10)),
-        ...[('Watch an episode', 1.0, 20), ('React to 3 posts', 0.66, 15), ('Play True Fan', 0.0, 40), ('Share a post', 0.0, 10)].map((t) => Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
-              child: Row(children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(t.$1, style: AppTextStyles.label),
-                    const SizedBox(height: 6),
-                    ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: t.$2, minHeight: 5, backgroundColor: AppColors.background, valueColor: AlwaysStoppedAnimation(t.$2 == 1 ? AppColors.success : AppColors.primary))),
-                  ]),
-                ),
-                const SizedBox(width: 12),
-                GoldTag(t.$3),
-              ]),
-            )),
+        const _ReactionsTask(),
+        if (_showUnprovenTasks)
+          for (final t in _unprovenTasks) _UnprovenTaskRow(title: t.$1, reward: t.$2),
         const SectionHeader(title: 'Combo Bonus', padding: EdgeInsets.only(top: 8, bottom: 10)),
         Container(
           padding: const EdgeInsets.all(14),
@@ -421,6 +435,182 @@ class _WheelPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _WheelPainter oldDelegate) =>
       !listEquals(oldDelegate.prizes, prizes);
+}
+
+/// React to N posts — the one daily task the server can prove.
+///
+/// The bar is DISPLAY and the claim is PROOF. The bar counts likes this
+/// device can see, up to the target; claimDailyTask re-checks every one of
+/// them inside the transaction that pays, so a bar that says "done" is a
+/// strong hint, never a promise. The one case where they disagree is a liked
+/// post deleted since, and the refusal says so.
+class _ReactionsTask extends ConsumerStatefulWidget {
+  const _ReactionsTask();
+  @override
+  ConsumerState<_ReactionsTask> createState() => _ReactionsTaskState();
+}
+
+class _ReactionsTaskState extends ConsumerState<_ReactionsTask> {
+  static const _taskId = 'reactions';
+
+  /// The claim in flight. Same guard as the shop's: the server refuses a
+  /// second claim anyway, but a double tap should not be a second call.
+  bool _claiming = false;
+
+  Future<void> _claim(DailyTask task) async {
+    if (_claiming) return;
+    setState(() => _claiming = true);
+    Haptics.medium();
+    try {
+      final claim = await CurrencyService.instance.claimDailyTask(task.id);
+      if (!mounted) return;
+      Haptics.heavy();
+      // Nothing is credited here. The balance moves when users/{uid} does,
+      // and the chip flips when the claim record appears.
+      _snack('+${claim.reward} AniGold — nice reacting!');
+    } on TaskNotCompleteException catch (e) {
+      if (!mounted) return;
+      _snack(_whyNot(e));
+    } on TaskAlreadyClaimedException {
+      if (!mounted) return;
+      _snack('Already claimed today — back tomorrow.');
+    } catch (_) {
+      if (!mounted) return;
+      _snack("Couldn't claim. Try again.");
+    } finally {
+      if (mounted) setState(() => _claiming = false);
+    }
+  }
+
+  String _whyNot(TaskNotCompleteException e) {
+    final reasons = [
+      if (e.deletedPosts > 0)
+        e.deletedPosts == 1 ? 'a post you liked was deleted' : '${e.deletedPosts} posts you liked were deleted',
+      if (e.ownPosts > 0) "likes on your own posts don't count",
+    ];
+    return 'Counted ${e.counted} of ${e.target}${reasons.isEmpty ? '.' : ' — ${reasons.join(', ')}.'}';
+  }
+
+  void _snack(String text) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
+
+  @override
+  Widget build(BuildContext context) {
+    final reading = ref.watch(dailyTasksProvider);
+    final tasks = reading.asData?.value;
+    if (tasks == null) {
+      if (!reading.hasValue && !reading.hasError) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+      return _CatalogueNotice(reading.hasError
+          ? "Couldn't load today's tasks."
+          : "Today's tasks need a connection to load.");
+    }
+    final task = tasks[_taskId];
+    if (task == null) return const _CatalogueNotice('No daily tasks today.');
+
+    final done = ref.watch(reactionsTodayProvider(task.target)).asData?.value ?? 0;
+    final claimReading = ref.watch(taskClaimedProvider(_taskId));
+    final claimed = claimReading.asData?.value ?? false;
+    final complete = done >= task.target;
+    // The Claim button waits for the claim record to be KNOWN, so a task
+    // already paid today never flashes a button whose only answer is "no".
+    final canClaim = claimReading.hasValue && !claimed && complete;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('React to ${task.target} posts', style: AppTextStyles.label),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                // Claimed stays full even if a like is taken back afterwards:
+                // what was paid was paid.
+                value: claimed ? 1.0 : (done / task.target).clamp(0.0, 1.0),
+                minHeight: 5,
+                backgroundColor: AppColors.background,
+                valueColor: AlwaysStoppedAnimation(claimed || complete ? AppColors.success : AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              claimed ? 'Claimed today — back tomorrow' : '${done.clamp(0, task.target)} of ${task.target} liked today',
+              style: AppTextStyles.captionMuted,
+            ),
+          ]),
+        ),
+        const SizedBox(width: 12),
+        if (claimed)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.success.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.success.withOpacity(0.5)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(LucideIcons.check, size: 12, color: AppColors.success),
+              const SizedBox(width: 4),
+              Text('Claimed', style: AppTextStyles.caption.copyWith(color: AppColors.success)),
+            ]),
+          )
+        else if (canClaim)
+          GestureDetector(
+            onTap: _claiming ? null : () => _claim(task),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(gradient: AppGradients.gold, borderRadius: BorderRadius.circular(20)),
+              child: _claiming
+                  ? const SizedBox(
+                      width: 48,
+                      height: 17,
+                      child: Center(
+                        child: SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                      ),
+                    )
+                  : Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text('Claim +${task.reward}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+                      const SizedBox(width: 3),
+                      const Text('🟡', style: TextStyle(fontSize: 12)),
+                    ]),
+            ),
+          )
+        else
+          GoldTag(task.reward),
+      ]),
+    );
+  }
+}
+
+/// A hidden task, drawn only with SHOW_UNPROVEN_DAILY_TASKS for design work.
+/// Even then it shows no progress: it has none to show.
+class _UnprovenTaskRow extends StatelessWidget {
+  final String title;
+  final int reward;
+  const _UnprovenTaskRow({required this.title, required this.reward});
+  @override
+  Widget build(BuildContext context) => Opacity(
+        opacity: 0.5,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
+          child: Row(children: [
+            Expanded(child: Text(title, style: AppTextStyles.label)),
+            const Text('Not provable yet', style: AppTextStyles.captionMuted),
+            const SizedBox(width: 10),
+            GoldTag(reward),
+          ]),
+        ),
+      );
 }
 
 // ───────────────────────── MY ITEMS

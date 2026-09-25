@@ -298,9 +298,26 @@ service cloud.firestore {
                   .hasAny(['likes', 'commentsCount', 'viewCount', 'userId']))
             || counterBump());
 
+      // A like is evidence now — the React-to-posts daily task pays on it —
+      // so its body is pinned rather than trusted:
+      //   likedAt  must be the server's own clock, not any value a client sends
+      //   uid      optional, but the caller when present. Installed builds write
+      //            {likedAt} only and keep working; only likes carrying uid are
+      //            counted, so an old build's likes simply never count.
+      //   the post must exist — before this, a modified client could like
+      //            posts/anything and count them.
+      // Self-likes are allowed here and excluded when a task is claimed: the
+      // claim reads the post anyway, so it costs nothing there, while refusing
+      // them here would break liking your own post on every installed build.
       match /likes/{likeUid} {
         allow read: if signedIn();
-        allow create, delete: if signedIn() && request.auth.uid == likeUid;
+        allow create: if signedIn()
+          && request.auth.uid == likeUid
+          && request.resource.data.keys().hasOnly(['likedAt', 'uid'])
+          && request.resource.data.likedAt == request.time
+          && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid)
+          && exists(/databases/$(database)/documents/posts/$(postId));
+        allow delete: if signedIn() && request.auth.uid == likeUid;
       }
 
       match /comments/{commentId} {
@@ -460,6 +477,23 @@ service cloud.firestore {
     match /spins/{spinId} {
       allow read: if signedIn() && spinId.split('_')[0] == request.auth.uid;
       allow write: if false;
+    }
+
+    // Daily task claims: {uid}_{day}_{taskId}, written only by
+    // claimDailyTask. Same shape and reason as spins — the id is the
+    // once-per-day guarantee, and the owner reads it to show "claimed".
+    match /task_claims/{claimId} {
+      allow read: if signedIn() && claimId.split('_')[0] == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Your OWN likes, across every post, for the daily-task progress bar.
+    // A collection-group query is only ever judged by a recursive rule, and
+    // this one admits only a query filtered to the caller's uid — so it
+    // cannot become "list what anyone else liked today". Reading likes by
+    // path is governed by the rules under posts/ and ani_videos/ as before.
+    match /{path=**}/likes/{likeId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
     // Append-only currency ledger: one entry per balance movement, written

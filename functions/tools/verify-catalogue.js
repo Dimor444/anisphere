@@ -16,7 +16,7 @@
  *                  field that disagrees, or exists on one side only: a
  *                  console edit. The prize array is compared whole, so ORDER
  *                  counts as much as value — the server returns an index
- *                  into it.
+ *                  into it. The daily tasks are compared task by task.
  *
  *                  Values are compared WITH their stored type. The client
  *                  drops a row whose price is not an integer while the server
@@ -27,7 +27,9 @@
  *                  client. Without it the shop draws the fallback and sells
  *                  something this build does not know — the sticker pack in a
  *                  new form. Every slot a row names must exist in every slot
- *                  list, or the server refuses to equip what it sold.
+ *                  list, or the server refuses to equip what it sold. Every
+ *                  daily task must have a verifier on the server, or it could
+ *                  be shown and never paid.
  *
  *   VOCABULARY     The slot lists kept on purpose — COSMETIC_SLOTS on the
  *                  server, CosmeticSlot on the client, SLOTS in the seed —
@@ -150,13 +152,17 @@ function sourceFile() {
   }
   const items = raw && raw.storeItems;
   const spin = raw && raw.spinWheel;
+  const tasks = raw && raw.dailyTasks;
   if (!items || typeof items !== 'object' || Object.keys(items).length === 0) {
     die(`${FILES.source} has no storeItems`);
   }
   if (!spin || !Array.isArray(spin.prizes) || spin.prizes.length === 0) {
     die(`${FILES.source} has no spinWheel.prizes`);
   }
-  return { items, spin };
+  if (!tasks || typeof tasks !== 'object' || Array.isArray(tasks) || Object.keys(tasks).length === 0) {
+    die(`${FILES.source} has no dailyTasks`);
+  }
+  return { items, spin, tasks };
 }
 
 /** Ids with an art entry — the keys of _ItemArt._byId. The fallback is not art. */
@@ -167,6 +173,18 @@ function artIds() {
     /^\s*'([a-z0-9_]+)':\s*_ItemArt\(/m,
     'client art map (_ItemArt._byId)',
     /_ItemArt\(/,
+  );
+  return new Set(found.map((m) => m[1]));
+}
+
+/** Task ids the server can verify — the keys of TASK_VERIFIERS. */
+function serverTaskIds() {
+  const found = entries(
+    read(FILES.server), FILES.server,
+    /const TASK_VERIFIERS = \{([^}]*)\};/,
+    /^\s*([a-z0-9_]+):\s*verify\w+,?\s*$/m,
+    'server TASK_VERIFIERS',
+    /^\s*\w+\s*:/m,
   );
   return new Set(found.map((m) => m[1]));
 }
@@ -193,23 +211,22 @@ function collectionNames() {
   const client = read(FILES.client);
   const seed = read(FILES.seed);
   const val = (src, where, re, what) => declaration(src, where, re, what)[1];
-  const seedConfig = declaration(seed, FILES.seed, /batch\.set\(db\.collection\('([^']+)'\)\.doc\('([^']+)'\)/, 'seed config write');
+  // The server and the seed declare the same constants the same way.
+  const js = (src, where) => ({
+    items: val(src, where, /const STORE_ITEMS_COLLECTION = '([^']+)';/, 'STORE_ITEMS_COLLECTION'),
+    config: val(src, where, /const CONFIG_COLLECTION = '([^']+)';/, 'CONFIG_COLLECTION'),
+    spinDoc: val(src, where, /const SPIN_CONFIG_DOC = '([^']+)';/, 'SPIN_CONFIG_DOC'),
+    tasksDoc: val(src, where, /const DAILY_TASKS_DOC = '([^']+)';/, 'DAILY_TASKS_DOC'),
+  });
   return {
-    server: {
-      items: val(server, FILES.server, /const STORE_ITEMS_COLLECTION = '([^']+)';/, 'STORE_ITEMS_COLLECTION'),
-      config: val(server, FILES.server, /const CONFIG_COLLECTION = '([^']+)';/, 'CONFIG_COLLECTION'),
-      spinDoc: val(server, FILES.server, /const SPIN_CONFIG_DOC = '([^']+)';/, 'SPIN_CONFIG_DOC'),
-    },
+    server: js(server, FILES.server),
     client: {
       items: val(client, FILES.client, /static const String _storeItemsCollection = '([^']+)';/, '_storeItemsCollection'),
       config: val(client, FILES.client, /static const String _configCollection = '([^']+)';/, '_configCollection'),
       spinDoc: val(client, FILES.client, /static const String _spinConfigDoc = '([^']+)';/, '_spinConfigDoc'),
+      tasksDoc: val(client, FILES.client, /static const String _dailyTasksDoc = '([^']+)';/, '_dailyTasksDoc'),
     },
-    seed: {
-      items: val(seed, FILES.seed, /batch\.set\(db\.collection\('([^']+)'\)\.doc\(id\)/, 'seed store_items write'),
-      config: seedConfig[1],
-      spinDoc: seedConfig[2],
-    },
+    seed: js(seed, FILES.seed),
   };
 }
 
@@ -233,16 +250,21 @@ async function readFirestore(names) {
     setTimeout(() => reject(new Error(`no answer in ${FIRESTORE_TIMEOUT_MS / 1000}s`)), FIRESTORE_TIMEOUT_MS).unref();
   });
   try {
-    const [itemsSnap, spinSnap] = await Promise.race([
+    const [itemsSnap, spinSnap, tasksSnap] = await Promise.race([
       Promise.all([
         db.collection(names.items).get(),
         db.collection(names.config).doc(names.spinDoc).get(),
+        db.collection(names.config).doc(names.tasksDoc).get(),
       ]),
       deadline,
     ]);
     const items = {};
     itemsSnap.forEach((d) => { items[d.id] = d.data(); });
-    return { items, spin: spinSnap.exists ? spinSnap.data() : null };
+    return {
+      items,
+      spin: spinSnap.exists ? spinSnap.data() : null,
+      tasks: tasksSnap.exists ? tasksSnap.data() : null,
+    };
   } catch (e) {
     return die(`could not read Firestore: ${e.message}`);
   } finally {
@@ -297,16 +319,45 @@ function checkDrift(file, live) {
 
   if (live.spin === null) {
     drift('config/spin_wheel: not in Firestore — the seed has not been run');
+  } else {
+    for (const k of union(Object.keys(file.spin), Object.keys(live.spin))) {
+      const a = canon(file.spin[k], false);
+      const b = canon(live.spin[k], true);
+      if (a === b) continue;
+      const reordered = k === 'prizes' && Array.isArray(live.spin.prizes) &&
+        canon([...file.spin.prizes].sort(), false) === canon([...live.spin.prizes].sort(), true);
+      drift(`spin_wheel.${k}: file ${a}, Firestore ${b}` +
+        (reordered ? ' — same prizes, different ORDER: the wheel would land on the wrong wedge' : ''));
+    }
+  }
+
+  if (live.tasks === null) {
+    drift('config/daily_tasks: not in Firestore — the seed has not been run');
     return;
   }
-  for (const k of union(Object.keys(file.spin), Object.keys(live.spin))) {
-    const a = canon(file.spin[k], false);
-    const b = canon(live.spin[k], true);
-    if (a === b) continue;
-    const reordered = k === 'prizes' && Array.isArray(live.spin.prizes) &&
-      canon([...file.spin.prizes].sort(), false) === canon([...live.spin.prizes].sort(), true);
-    drift(`spin_wheel.${k}: file ${a}, Firestore ${b}` +
-      (reordered ? ' — same prizes, different ORDER: the wheel would land on the wrong wedge' : ''));
+  for (const id of union(Object.keys(file.tasks), Object.keys(live.tasks))) {
+    const f = file.tasks[id];
+    const l = live.tasks[id];
+    if (l === undefined) { drift(`daily task ${id}: in catalogue.json, not in Firestore — the seed has not been run since it was added`); continue; }
+    if (f === undefined) { drift(`daily task ${id}: in Firestore, not in catalogue.json — added by hand, outside review`); continue; }
+    if (l === null || typeof l !== 'object' || Array.isArray(l)) { drift(`daily task ${id}: file ${canon(f, false)}, Firestore ${canon(l, true)}`); continue; }
+    for (const k of union(Object.keys(f), Object.keys(l))) {
+      const a = canon(f[k], false);
+      const b = canon(l[k], true);
+      if (a !== b) drift(`daily task ${id}.${k}: file ${a}, Firestore ${b}`);
+    }
+  }
+}
+
+function checkTasks(taskCopies, verifiers) {
+  const unverifiable = new Map();
+  for (const [source, tasks] of taskCopies) {
+    for (const id of Object.keys(tasks)) {
+      if (!verifiers.has(id)) unverifiable.set(id, [...(unverifiable.get(id) || []), source]);
+    }
+  }
+  for (const [id, sources] of unverifiable) {
+    findings.undeliverable.push(`daily task ${id} (${sources.join(', ')}) has no verifier in ${FILES.server} TASK_VERIFIERS — it could be shown and never paid`);
   }
 }
 
@@ -343,7 +394,7 @@ function checkVocabulary(slotLists, names) {
     const missing = slotLists.filter(([, s]) => !s.has(slot)).map(([list]) => list);
     if (missing.length) flag(`slot "${slot}" is missing from ${missing.join(' and ')}`);
   }
-  for (const key of ['items', 'config', 'spinDoc']) {
+  for (const key of ['items', 'config', 'spinDoc', 'tasksDoc']) {
     const seen = Object.entries(names).map(([layer, n]) => `${layer} "${n[key]}"`);
     if (new Set(Object.values(names).map((n) => n[key])).size > 1) {
       flag(`the ${key} name disagrees — ${seen.join(', ')}; this script reads the server's`);
@@ -400,12 +451,15 @@ function printSection(key) {
     ['client CosmeticSlot.all', clientSlots()],
     ['seed SLOTS', quotedList(FILES.seed, /const SLOTS = \[([^\]]*)\];/, 'seed SLOTS')],
   ];
+  const verifiers = serverTaskIds();
   const names = collectionNames();
   const serverNames = names.server;
 
   console.log('\n  catalogue drift check');
   console.log('\n  read:');
-  console.log(`    catalogue.json   ${Object.keys(file.items).length} items, prizes [${file.spin.prizes.join(', ')}]`);
+  console.log(`    catalogue.json   ${Object.keys(file.items).length} items, prizes [${file.spin.prizes.join(', ')}], ` +
+    `tasks ${Object.keys(file.tasks).join(', ')}`);
+  console.log(`    task verifiers   ${[...verifiers].join(', ')}`);
   console.log(`    art map          ${art.size} ids — ${[...art].join(', ')}`);
   for (const [list, slots] of slotLists) console.log(`    ${list.padEnd(24)} [${[...slots].join(', ')}]`);
 
@@ -418,14 +472,16 @@ function printSection(key) {
       : `production ${PROJECT_ID}`;
     live = await readFirestore(serverNames);
     const prizes = live.spin === null ? 'MISSING' : `prizes ${canon(live.spin.prizes, true)}`;
+    const tasks = live.tasks === null ? 'MISSING' : Object.keys(live.tasks).join(', ');
     console.log(`    Firestore        ${target}: ${Object.keys(live.items).length} ${serverNames.items}, ` +
-      `${serverNames.config}/${serverNames.spinDoc} ${prizes}`);
+      `${serverNames.config}/${serverNames.spinDoc} ${prizes}, ${serverNames.config}/${serverNames.tasksDoc} ${tasks}`);
     checkDrift(file, live);
   }
 
   const copies = [['catalogue.json', file.items]];
   if (live) copies.push(['Firestore', live.items]);
   checkDelivery(copies, art, slotLists);
+  checkTasks(live ? [['catalogue.json', file.tasks], ['Firestore', live.tasks || {}]] : [['catalogue.json', file.tasks]], verifiers);
   checkVocabulary(slotLists, names);
 
   for (const key of ['drift', 'undeliverable', 'vocabulary']) printSection(key);
@@ -437,6 +493,6 @@ function printSection(key) {
   }
   console.log(local
     ? '\n  ✓ clean against the file. Drift was NOT checked — Firestore was not read.\n'
-    : '\n  ✓ clean — Firestore matches catalogue.json, every sellable id has art, and the slot lists agree.\n');
+    : '\n  ✓ clean — Firestore matches catalogue.json, every sellable id has art, every task has a verifier, and the slot lists agree.\n');
   process.exit(0);
 })().catch((e) => die(e.stack || e.message));

@@ -13,7 +13,11 @@
     "",
     "Withdrawn items stay here as tombstones. A catalogue that cannot name an",
     "id appearing in its own ledger and inventory documents is broken, and",
-    "the raw slug in My Items is what that looks like from the outside."
+    "the raw slug in My Items is what that looks like from the outside.",
+    "",
+    "dailyTasks says what a task PAYS and how much of it is needed. Which",
+    "tasks EXIST is the server's to decide (TASK_VERIFIERS in functions/",
+    "index.js): a row here with no verifier is refused, never paid on trust."
   ],
   "storeItems": {
     "cherry_blossom_frame": {
@@ -67,5 +71,11 @@
   },
   "spinWheel": {
     "prizes": [10, 25, 5, 50, 15, 100, 20, 30]
+  },
+  "dailyTasks": {
+    "reactions": {
+      "reward": 15,
+      "target": 3
+    }
   }
 }
