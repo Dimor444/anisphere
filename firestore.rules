@@ -380,9 +380,17 @@ service cloud.firestore {
                   .hasAny(['likes', 'commentsCount', 'shareCount', 'viewCount', 'userId']))
             || videoCounterBump());
 
+      // uid: optional, but the caller when present — the same contract as
+      // post likes. Installed builds write {likedAt} only and keep working.
+      // It is the field that lets an account's likes be found across every
+      // video (a collection-group query cannot filter on a document id), so a
+      // uid naming anyone else would plant a like in THEIR deletion.
       match /likes/{likeUid} {
         allow read: if signedIn();
-        allow create, delete: if signedIn() && request.auth.uid == likeUid;
+        allow create: if signedIn()
+          && request.auth.uid == likeUid
+          && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid);
+        allow delete: if signedIn() && request.auth.uid == likeUid;
       }
 
       match /comments/{commentId} {
@@ -747,12 +755,17 @@ service cloud.firestore {
 
       // Membership — self-keyed, server-stamped, join/leave only. Each write
       // here fires the trigger that owns the parent's memberCount.
+      // uid: optional, but the member themselves when present — installed
+      // builds write {joinedAt} only and keep joining. It exists so an
+      // account's memberships can be found across every room, which a
+      // collection-group query cannot do from the document id alone.
       match /members/{uid} {
         allow read: if signedIn();
         allow create: if signedIn()
           && request.auth.uid == uid
-          && request.resource.data.keys().hasOnly(['joinedAt'])
-          && request.resource.data.joinedAt == request.time;
+          && request.resource.data.keys().hasOnly(['joinedAt', 'uid'])
+          && request.resource.data.joinedAt == request.time
+          && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid);
         allow delete: if signedIn() && request.auth.uid == uid;
         allow update: if false;
       }

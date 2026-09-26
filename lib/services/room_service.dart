@@ -30,6 +30,13 @@ class RoomService {
   CollectionReference<Map<String, dynamic>> _members(String roomId) =>
       _rooms.doc(roomId).collection('members');
 
+  /// A membership document. `uid` repeats the document id on purpose: it is
+  /// what lets one account's memberships be found across every room — a
+  /// collection-group query cannot filter on the id itself — and the rules
+  /// pin it to the member.
+  static Map<String, Object> _membership(String uid) =>
+      {'joinedAt': FieldValue.serverTimestamp(), 'uid': uid};
+
   Future<String> _uid() async => (await AuthService.instance.initAuth()).uid;
 
   Future<T> _guard<T>(String op, Future<T> Function() body) async {
@@ -94,7 +101,7 @@ class RoomService {
       final roomRef = _rooms.doc();
       final batch = _db.batch()
         ..set(roomRef, room.toCreateMap())
-        ..set(_members(roomRef.id).doc(uid), {'joinedAt': FieldValue.serverTimestamp()});
+        ..set(_members(roomRef.id).doc(uid), _membership(uid));
       await batch.commit().timeout(writeTimeout);
       return roomRef.id;
     });
@@ -114,7 +121,7 @@ class RoomService {
       // The get() is bounded too: don't rely on it happening to throw when
       // the backend is unreachable — that's incidental, not a guarantee.
       if ((await ref.get().timeout(writeTimeout)).exists) return;
-      await ref.set({'joinedAt': FieldValue.serverTimestamp()}).timeout(writeTimeout);
+      await ref.set(_membership(uid)).timeout(writeTimeout);
     });
   }
 

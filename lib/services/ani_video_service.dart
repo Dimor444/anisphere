@@ -392,11 +392,17 @@ class AniVideoService {
 
   // ── Likes ──────────────────────────────────────────────────────────────
 
+  /// Likes [videoId] as [userId].
+  ///
+  /// `uid` repeats the document id so an account's likes can be found across
+  /// every video — a collection-group query cannot filter on the id itself.
+  /// Unlike a post like it is written even on your own video: no daily task
+  /// counts video likes, so the only thing it signals is whose like this is.
   Future<void> likeVideo(String videoId, String userId) {
     return _guard('like($videoId)', () async {
       final batch = _db.batch()
         ..set(_videos.doc(videoId).collection('likes').doc(userId),
-            {'likedAt': FieldValue.serverTimestamp()})
+            {'likedAt': FieldValue.serverTimestamp(), 'uid': userId})
         ..update(_videos.doc(videoId), {'likes': FieldValue.increment(1)});
       await batch.commit();
     });
