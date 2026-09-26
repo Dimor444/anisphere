@@ -120,34 +120,10 @@ class _EarnTab extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       children: [
         const _LuckySpin(),
-        const SectionHeader(title: 'Daily Tasks', padding: EdgeInsets.only(top: 16, bottom: 10)),
+        const SectionHeader(title: "Today's task", padding: EdgeInsets.only(top: 16, bottom: 10)),
         const _ReactionsTask(),
         if (_showUnprovenTasks)
           for (final t in _unprovenTasks) _UnprovenTaskRow(title: t.$1, reward: t.$2),
-        const SectionHeader(title: 'Refer Friends', padding: EdgeInsets.only(top: 16, bottom: 10)),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(gradient: AppGradients.purpleCyan, borderRadius: BorderRadius.circular(16)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Invite friends = 50🟡 each', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first))),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(color: Colors.black.withOpacity(0.25), borderRadius: BorderRadius.circular(12)),
-              child: Row(children: [
-                Text('YUKI-X8F2', style: AppTextStyles.numbersLg(color: Colors.white)),
-                const Spacer(),
-                GestureDetector(onTap: () {}, child: const Icon(LucideIcons.copy, color: Colors.white, size: 18)),
-                const SizedBox(width: 14),
-                GestureDetector(onTap: () {}, child: const Icon(LucideIcons.share2, color: Colors.white, size: 18)),
-              ]),
-            ),
-            const SizedBox(height: 12),
-            Text('3 / 10 invited — next milestone: 200🟡', style: AppTextStyles.caption.copyWith(color: AppGradients.onFill(AppGradients.purpleCyan.colors.first))),
-            const SizedBox(height: 6),
-            ClipRRect(borderRadius: BorderRadius.circular(4), child: const LinearProgressIndicator(value: 0.3, minHeight: 7, backgroundColor: Colors.black26, valueColor: AlwaysStoppedAnimation(Colors.white))),
-          ]),
-        ),
       ],
     );
   }
