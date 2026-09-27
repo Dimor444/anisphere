@@ -189,14 +189,18 @@ class FollowService {
     return isReservedHandle(candidate) ? '' : candidate;
   }
 
-  /// True when [handle] is legal and free (or already the caller's own).
+  /// True when [handle] is legal and free — or already the caller's own, held
+  /// or retired by them. A handle anyone else retired, and a deleted
+  /// account's tombstone, are never free.
   Future<bool> isUserNameAvailable(String handle) {
     return _guard('isUserNameAvailable($handle)', () async {
       final h = handle.trim().toLowerCase();
       if (!handlePattern.hasMatch(h) || isReservedHandle(h)) return false;
       final doc = await _usernames.doc(h).get();
       if (!doc.exists) return true;
-      return doc.data()?['uid'] == await _uid();
+      final me = await _uid();
+      final data = doc.data();
+      return data?['uid'] == me || data?['retiredBy'] == me;
     });
   }
 
@@ -216,10 +220,17 @@ class FollowService {
   }
 
   /// Atomically claim [handle] for the signed-in user: create
-  /// usernames/{handle}, point users/{uid}.userName(+Lower) at it, and
-  /// release the previously claimed handle. One transaction, so the rules'
-  /// getAfter(usernames/{handle}) check sees the fresh registry doc and the
-  /// handle can never change without its claim.
+  /// usernames/{handle} (or reclaim it, if they retired it themselves), point
+  /// users/{uid}.userName(+Lower) at it, and RETIRE the previously claimed
+  /// handle. One transaction, so the rules' getAfter(usernames/{handle})
+  /// check sees the fresh registry doc and the handle can never change
+  /// without its claim.
+  ///
+  /// Retired, not released. The old handle stays on everything written under
+  /// it — posts, comments, videos, leaderboard entries keep their own copy —
+  /// so releasing it would let the next person to claim it appear under this
+  /// user's old content. A retired handle can be taken back by the user who
+  /// retired it and by nobody else.
   ///
   /// Throws [UserNameTakenException] when someone else holds it; other
   /// failures (offline, rules) rethrow as-is.
@@ -235,7 +246,9 @@ class FollowService {
         final newClaim = await tx.get(_usernames.doc(h));
         if (newClaim.exists) {
           if (newClaim.data()?['uid'] == uid) return; // already mine — no-op
-          throw UserNameTakenException(h);
+          // Retired by me: taking it back is allowed. By anyone else, or a
+          // deleted account's tombstone: taken.
+          if (newClaim.data()?['retiredBy'] != uid) throw UserNameTakenException(h);
         }
         final me = await tx.get(_users.doc(uid));
         final old = (me.data()?['userNameLower'] as String? ?? '').trim();
@@ -247,7 +260,10 @@ class FollowService {
         tx.set(_usernames.doc(h), {'uid': uid});
         tx.update(_users.doc(uid), {'userName': h, 'userNameLower': h});
         if (oldClaim != null && oldClaim.exists && oldClaim.data()?['uid'] == uid) {
-          tx.delete(oldClaim.reference);
+          tx.set(oldClaim.reference, {
+            'retiredBy': uid,
+            'retiredAt': FieldValue.serverTimestamp(),
+          });
         }
       });
       debugPrint('[FollowService] claimed @$h for $uid');

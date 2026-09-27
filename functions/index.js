@@ -13,6 +13,7 @@ const { onDocumentCreated, onDocumentDeleted } = require('firebase-functions/v2/
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { randomInt } = require('node:crypto');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
@@ -1377,4 +1378,176 @@ exports.claimDailyTask = onCall({ region: 'europe-west1' }, async (request) => {
 
     return { taskId, reward: task.reward, balance: after, nextClaimAt: dayEnd.toISOString() };
   });
+});
+
+// ─────────────────────────── ACCOUNT DELETION ──────────────────────────────
+
+const ACCOUNT_DELETIONS = 'account_deletions';
+const USERNAMES = 'usernames';
+
+/**
+ * The deletion job's phases, in order. The callable completes the first two;
+ * the rest belong to the worker, which does not exist yet. They are listed
+ * here so the job document's `phase` has one vocabulary from the start.
+ *
+ *   created      0a  the job exists — the COMMIT POINT. Everything after it is
+ *                    retried until done; nothing before it has happened.
+ *   accepted     0b–0e done: handles tombstoned, Auth disabled and revoked,
+ *                    profile document deleted.
+ *   r2 · dmImages · dmMessages · followEdges · marks · content · records ·
+ *   counters · profileTree · sweep · done
+ *                    the worker's steps 1–10, in the order that loses nothing.
+ */
+const DELETION_PHASES = [
+  'created', 'accepted',
+  'r2', 'dmImages', 'dmMessages', 'followEdges', 'marks', 'content',
+  'records', 'counters', 'profileTree', 'sweep', 'done',
+];
+
+/**
+ * Turns every handle [uid] holds or has retired into a tombstone.
+ *
+ * A tombstone is { retiredAt } and nothing else. With no uid and no
+ * retiredBy, no rule path can claim it, reclaim it or delete it: a create on
+ * an existing document is an update, the update rule needs one of those two
+ * fields to name the caller, and handles are never deleted. So it is
+ * unclaimable forever without any rule that mentions tombstones.
+ *
+ * Queried, not read off the profile: the profile may already be gone on a
+ * retry, and a handle claimed in the last moments would not be on it anyway.
+ */
+async function tombstoneHandles(uid) {
+  const registry = db.collection(USERNAMES);
+  const [active, retired] = await Promise.all([
+    registry.where('uid', '==', uid).get(),
+    registry.where('retiredBy', '==', uid).get(),
+  ]);
+  const now = FieldValue.serverTimestamp();
+  const docs = [
+    ...active.docs.map((d) => [d.ref, { retiredAt: now }]),
+    // A handle retired earlier keeps the moment it was retired.
+    ...retired.docs.map((d) => [d.ref, { retiredAt: d.get('retiredAt') ?? now }]),
+  ];
+  for (let i = 0; i < docs.length; i += 400) {
+    const batch = db.batch();
+    for (const [ref, data] of docs.slice(i, i + 400)) batch.set(ref, data);
+    await batch.commit();
+  }
+  return docs.map(([ref]) => ref.id);
+}
+
+/**
+ * Disables the Auth user and revokes its refresh tokens.
+ *
+ * Disabling stops any new sign-in and any token refresh; revoking ends the
+ * sessions already out there. Neither ends the ID token a client already
+ * holds — that stays valid until it expires, up to an hour — which is what
+ * the users-create guard and the worker's final sweep are for.
+ *
+ * An Auth user that is already gone is success: a retry after a previous
+ * attempt deleted it has nothing left to lock.
+ */
+async function lockAuth(uid) {
+  const auth = getAuth();
+  try {
+    await auth.updateUser(uid, { disabled: true });
+    await auth.revokeRefreshTokens(uid);
+  } catch (e) {
+    if (e.code !== 'auth/user-not-found') throw e;
+  }
+}
+
+/**
+ * Starts deleting the caller's account. Steps 0a–0e of the order, and only
+ * those — the account is made unreachable here; the bulk of the deletion is
+ * the worker's.
+ *
+ * 0a IS THE COMMIT POINT. If creating the job fails, nothing has happened and
+ * the caller is told so. Once the job exists the deletion is committed: every
+ * later step is idempotent, a failure is recorded on the job rather than
+ * thrown, and the phase stays `created` so the step is finished by a retry —
+ * the caller's own within the hour its ID token still verifies, or the
+ * worker's, which begins by completing any job still at `created`. The caller
+ * is told the request was accepted either way, because either way the account
+ * is going: after 0c it cannot be used, whatever else failed.
+ *
+ * `confirm: 'DELETE'` is required so no stray call — a mis-wired button, a
+ * replayed request body — can start this.
+ *
+ * No worker exists yet. A job left at `created` today stays there until it
+ * does; the account is locked and the profile may still be visible.
+ */
+exports.deleteAccount = onCall({ region: 'europe-west1' }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Sign in to delete an account.');
+  }
+  if (!request.data || request.data.confirm !== 'DELETE') {
+    throw new HttpsError('invalid-argument', 'Deletion must be confirmed.', { reason: 'unconfirmed' });
+  }
+  const uid = request.auth.uid;
+  const jobRef = db.collection(ACCOUNT_DELETIONS).doc(uid);
+
+  // ── 0a ─────────────────────────────────────────────────────────────────
+  // The job, and with it the users-create guard in firestore.rules, which
+  // refuses to re-create this profile for as long as the job exists.
+  try {
+    await jobRef.create({
+      uid,
+      phase: 'created',
+      // The worker's resume point inside its current phase. Opaque to
+      // everything but the worker.
+      cursor: null,
+      requestedAt: FieldValue.serverTimestamp(),
+      // Set when 0c succeeds. The final sweep waits an hour past this, so
+      // an ID token issued before the revocation has expired.
+      revokedAt: null,
+      handles: [],
+      anonymous: request.auth.token.firebase?.sign_in_provider === 'anonymous',
+      attempts: 0,
+      lastError: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    if (e.code !== 6 /* ALREADY_EXISTS */) {
+      throw new HttpsError('internal', 'Could not start the deletion. Nothing was changed.');
+    }
+    // A repeat call. Past `created` the pre-steps are done and the worker
+    // owns the job — running them again could only move it backwards.
+    const job = await jobRef.get();
+    if (job.get('phase') !== 'created') {
+      return { status: 'accepted', complete: true, phase: job.get('phase') };
+    }
+  }
+
+  // ── 0b–0e ──────────────────────────────────────────────────────────────
+  const failures = [];
+  const step = async (name, fn) => {
+    try {
+      return await fn();
+    } catch (e) {
+      failures.push(`${name}: ${e.message}`);
+      return undefined;
+    }
+  };
+
+  // 0b and 0c are independent; 0e follows both. (0d is firestore.rules.)
+  const [handles, locked] = await Promise.all([
+    step('handles', () => tombstoneHandles(uid)),
+    step('auth', async () => { await lockAuth(uid); return true; }),
+  ]);
+  // Only the document. Its subcollections — the follow graph among them —
+  // are the index the worker's later steps read from.
+  await step('profile', () => db.collection('users').doc(uid).delete());
+
+  const complete = failures.length === 0;
+  await jobRef.update({
+    phase: complete ? 'accepted' : 'created',
+    ...(handles && handles.length ? { handles: FieldValue.arrayUnion(...handles) } : {}),
+    ...(locked ? { revokedAt: FieldValue.serverTimestamp() } : {}),
+    attempts: FieldValue.increment(1),
+    lastError: complete ? null : failures.join('; '),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  return { status: 'accepted', complete, phase: complete ? 'accepted' : 'created' };
 });

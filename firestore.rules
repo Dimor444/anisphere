@@ -123,7 +123,14 @@ service cloud.firestore {
       // unreachable today — they are kept as a guard for the day someone adds
       // either field to the whitelist and does not think about the value.
       allow read: if signedIn();
+      // Never while the account is being deleted. The Auth user is disabled
+      // and revoked at once, but an ID token already issued stays valid for up
+      // to an hour, and the app's ensureProfile re-creates a missing profile
+      // on launch — this is what keeps a deleted account from coming back in
+      // that hour. One read per profile creation, which happens once per
+      // account.
       allow create: if signedIn() && request.auth.uid == userId
+        && !exists(/databases/$(database)/documents/account_deletions/$(userId))
         && request.resource.data.keys().hasOnly([
           'userId', 'userName', 'userNameLower', 'displayName', 'userAvatar',
           'bio', 'isVerified', 'isPlus', 'isPrivate', 'countryCode',
@@ -235,6 +242,26 @@ service cloud.firestore {
           'anonymous', 'null', 'undefined'
         ];
       }
+      // A handle is never freed. Posts, comments, videos and leaderboard
+      // entries each keep a copy of the handle they were written under, so a
+      // handle given to someone new would put them under a stranger's old
+      // content. The doc moves through three shapes instead:
+      //   { uid }                    held
+      //   { retiredBy, retiredAt }   left by renaming — only retiredBy may reclaim
+      //   { retiredAt }              the account was deleted — nobody, ever
+      // The tombstone needs no rule of its own: it has neither field the
+      // update paths below require, and nothing may delete.
+      function retiring() {
+        return resource.data.get('uid', null) == request.auth.uid
+          && request.resource.data.keys().hasOnly(['retiredBy', 'retiredAt'])
+          && request.resource.data.retiredBy == request.auth.uid
+          && request.resource.data.retiredAt == request.time;
+      }
+      function reclaiming() {
+        return resource.data.get('retiredBy', null) == request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid'])
+          && request.resource.data.uid == request.auth.uid;
+      }
       allow read: if signedIn();
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['uid'])
@@ -245,9 +272,10 @@ service cloud.firestore {
         // are never claimable — display-handle squat + impersonation bait.
         && !name.matches('^anifan_[a-z0-9]{6}$')
         && !name.matches('^anisphere.*');
-      // Releasing a handle (moving to a new one) — owner only.
-      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
-      allow update: if false;
+      allow update: if signedIn() && (retiring() || reclaiming());
+      // Deleting used to be how a rename released the old handle, which made
+      // it claimable by anyone the same instant.
+      allow delete: if false;
     }
 
     // ── Feed ──────────────────────────────────────────────────────────────
@@ -493,6 +521,14 @@ service cloud.firestore {
     match /task_claims/{claimId} {
       allow read: if signedIn() && claimId.split('_')[0] == request.auth.uid;
       allow write: if false;
+    }
+
+    // Account deletion jobs, one per uid, written only by deleteAccount and
+    // the worker that follows it. No client reads its own: once it exists the
+    // account is already being taken apart. Its EXISTENCE is still read — by
+    // the users create rule, which rules functions may do regardless of this.
+    match /account_deletions/{uid} {
+      allow read, write: if false;
     }
 
     // Your OWN likes, across every post, for the daily-task progress bar.
