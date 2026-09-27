@@ -11,12 +11,16 @@
 
 const { onDocumentCreated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onTaskDispatched } = require('firebase-functions/v2/tasks');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
-const { randomInt } = require('node:crypto');
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getFunctions } = require('firebase-admin/functions');
+const { getStorage } = require('firebase-admin/storage');
+const { getFirestore, FieldValue, FieldPath, Timestamp } = require('firebase-admin/firestore');
+const { randomInt, randomUUID } = require('node:crypto');
+const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 initializeApp();
@@ -1409,22 +1413,27 @@ const ACCOUNT_DELETIONS = 'account_deletions';
 const USERNAMES = 'usernames';
 
 /**
- * The deletion job's phases, in order. The callable completes the first two;
- * the rest belong to the worker, which does not exist yet. They are listed
- * here so the job document's `phase` has one vocabulary from the start.
+ * The deletion job's phases, in order — the vocabulary of `phase` on the job
+ * document, and exactly what the callable and the worker write.
  *
  *   created      0a  the job exists — the COMMIT POINT. Everything after it is
  *                    retried until done; nothing before it has happened.
  *   accepted     0b–0e done: handles tombstoned, Auth disabled and revoked,
  *                    profile document deleted.
  *   r2 · dmImages · dmMessages · followEdges · marks · content · records ·
- *   counters · profileTree · sweep · done
- *                    the worker's steps 1–10, in the order that loses nothing.
+ *   counters · profileTree
+ *                    the worker's steps 1–9, run twice: pass 1 at once, pass 2
+ *                    after sweepWait.
+ *   sweepWait    waits until revokedAt + 65 minutes, when the last ID token
+ *                    issued before revocation has expired.
+ *   final        step 10: tombstone any handle claimed in the window, delete
+ *                    the Auth user, delete this job. There is no `done` phase —
+ *                    a finished job no longer exists.
  */
 const DELETION_PHASES = [
   'created', 'accepted',
   'r2', 'dmImages', 'dmMessages', 'followEdges', 'marks', 'content',
-  'records', 'counters', 'profileTree', 'sweep', 'done',
+  'records', 'counters', 'profileTree', 'sweepWait', 'final',
 ];
 
 /**
@@ -1481,6 +1490,47 @@ async function lockAuth(uid) {
 }
 
 /**
+ * Steps 0b–0e: tombstone the handles, lock the Auth user, delete the profile
+ * document. Shared by the callable and by the worker, which begins by
+ * finishing any job the callable left at `created`.
+ *
+ * Every step is idempotent. A failure is recorded on the job, not thrown, and
+ * leaves the phase at `created` so the next attempt repeats the steps.
+ * Returns whether all of them succeeded.
+ */
+async function acceptJob(uid, jobRef) {
+  const failures = [];
+  const step = async (name, fn) => {
+    try {
+      return await fn();
+    } catch (e) {
+      failures.push(`${name}: ${e.message}`);
+      return undefined;
+    }
+  };
+
+  // 0b and 0c are independent; 0e follows both. (0d is firestore.rules.)
+  const [handles, locked] = await Promise.all([
+    step('handles', () => tombstoneHandles(uid)),
+    step('auth', async () => { await lockAuth(uid); return true; }),
+  ]);
+  // Only the document. Its subcollections — the follow graph among them —
+  // are the index the worker's later steps read from.
+  await step('profile', () => db.collection('users').doc(uid).delete());
+
+  const complete = failures.length === 0;
+  await jobRef.update({
+    phase: complete ? 'accepted' : 'created',
+    ...(handles && handles.length ? { handles: FieldValue.arrayUnion(...handles) } : {}),
+    ...(locked ? { revokedAt: FieldValue.serverTimestamp() } : {}),
+    attempts: FieldValue.increment(1),
+    lastError: complete ? null : failures.join('; '),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return complete;
+}
+
+/**
  * Starts deleting the caller's account. Steps 0a–0e of the order, and only
  * those — the account is made unreachable here; the bulk of the deletion is
  * the worker's.
@@ -1497,8 +1547,7 @@ async function lockAuth(uid) {
  * `confirm: 'DELETE'` is required so no stray call — a mis-wired button, a
  * replayed request body — can start this.
  *
- * No worker exists yet. A job left at `created` today stays there until it
- * does; the account is locked and the profile may still be visible.
+ * Then it enqueues the worker (processAccountDeletion), which does the rest.
  */
 exports.deleteAccount = onCall({ region: 'europe-west1' }, async (request) => {
   if (!request.auth) {
@@ -1543,34 +1592,690 @@ exports.deleteAccount = onCall({ region: 'europe-west1' }, async (request) => {
   }
 
   // ── 0b–0e ──────────────────────────────────────────────────────────────
-  const failures = [];
-  const step = async (name, fn) => {
-    try {
-      return await fn();
-    } catch (e) {
-      failures.push(`${name}: ${e.message}`);
-      return undefined;
-    }
-  };
+  const complete = await acceptJob(uid, jobRef);
 
-  // 0b and 0c are independent; 0e follows both. (0d is firestore.rules.)
-  const [handles, locked] = await Promise.all([
-    step('handles', () => tombstoneHandles(uid)),
-    step('auth', async () => { await lockAuth(uid); return true; }),
-  ]);
-  // Only the document. Its subcollections — the follow graph among them —
-  // are the index the worker's later steps read from.
-  await step('profile', () => db.collection('users').doc(uid).delete());
-
-  const complete = failures.length === 0;
-  await jobRef.update({
-    phase: complete ? 'accepted' : 'created',
-    ...(handles && handles.length ? { handles: FieldValue.arrayUnion(...handles) } : {}),
-    ...(locked ? { revokedAt: FieldValue.serverTimestamp() } : {}),
-    attempts: FieldValue.increment(1),
-    lastError: complete ? null : failures.join('; '),
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  // Hand the rest to the worker. Failing to enqueue is not failing to
+  // delete: the job exists, and the daily sweep re-enqueues any job that
+  // stops moving.
+  try {
+    await enqueueDeletion(uid);
+  } catch (e) {
+    await jobRef.update({ lastError: `enqueue: ${e.message}` }).catch(() => {});
+  }
 
   return { status: 'accepted', complete, phase: complete ? 'accepted' : 'created' };
 });
+
+// ─────────────────────── ACCOUNT DELETION — THE WORKER ─────────────────────
+//
+// Steps 1–10 of the order, as a Cloud Tasks job that saves its phase and a
+// cursor after every page, re-enqueues itself before its time runs out, and
+// can be killed at any instant and resumed by the next task.
+//
+//   pass 1: r2 → dmImages → dmMessages → followEdges → marks → content →
+//           records → counters → profileTree → sweepWait
+//   pass 2: the same nine phases again, once the revoked token has expired
+//           (revokedAt + 65 min), to catch whatever it wrote in that hour
+//   final:  tombstone any handle claimed in the window, delete the Auth user,
+//           delete the job
+//
+// Every phase is idempotent: deletes of absent documents succeed, recording an
+// affected parent merges, counters are applied as increment(actual − stored).
+// What is NOT naturally safe is two tasks running one job at once, which a
+// lease on the job document prevents.
+
+const DELETION_WORKER = 'processAccountDeletion';
+const DELETION_QUEUE = `locations/europe-west1/functions/${DELETION_WORKER}`;
+const WORKER_TIMEOUT_SECONDS = 540;
+const PASS_PHASES = DELETION_PHASES.slice(
+  DELETION_PHASES.indexOf('r2'), DELETION_PHASES.indexOf('profileTree') + 1);
+
+// A job is stalled when nothing has touched it for this long. Healthy jobs
+// write updatedAt after every page; a failing one writes it on every retry.
+const STALL_AFTER_MS = 6 * 60 * 60 * 1000;
+// Re-enqueues by the daily sweep before a job is declared stuck.
+const MAX_STALLS = 3;
+
+// Overridable in the EMULATOR ONLY, so a test can walk the whole job in
+// seconds. In production these are fixed: nothing can shorten the sweep's
+// wait or point R2 somewhere else.
+const EMULATED = process.env.FUNCTIONS_EMULATOR === 'true';
+const emulatorInt = (name, fallback) => {
+  const v = EMULATED ? Number(process.env[name]) : NaN;
+  return Number.isInteger(v) && v > 0 ? v : fallback;
+};
+// 60 minutes: an ID token issued the moment before revocation lasts an hour
+// and cannot be refreshed. 5 more: clock skew and requests already in flight.
+const SWEEP_DELAY_SECONDS = emulatorInt('DELETION_SWEEP_DELAY_SECONDS', 65 * 60);
+// Seven of the nine minutes; the rest is for saving the cursor and enqueueing.
+const WORKER_BUDGET_MS = emulatorInt('DELETION_BUDGET_MS', 420 * 1000);
+const PAGE = emulatorInt('DELETION_PAGE', 300);
+const LEASE_MS = (WORKER_TIMEOUT_SECONDS + 60) * 1000;
+
+const affectedRef = (uid, parentPath) => db.collection(ACCOUNT_DELETIONS).doc(uid)
+  .collection('affected').doc(parentPath.replace(/\//g, '|'));
+
+/** A DM header preview, exactly as the client writes one (dm_service.dart). */
+function dmPreview(message) {
+  const text = (message.get('text') || '').trim();
+  if (text) {
+    let end = Math.min(text.length, 120);
+    if (end < text.length && (text.charCodeAt(end - 1) & 0xFC00) === 0xD800) end--;
+    return text.slice(0, end);
+  }
+  return message.get('imageUrl') ? '📷 Photo' : '';
+}
+
+function r2Client() {
+  const override = EMULATED ? process.env.R2_ENDPOINT_OVERRIDE : '';
+  return new S3Client({
+    region: 'auto',
+    endpoint: override || `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    forcePathStyle: Boolean(override),
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY_ID.value(),
+      secretAccessKey: R2_SECRET_ACCESS_KEY.value(),
+    },
+  });
+}
+
+// The Admin SDK's Cloud Tasks client authenticates every request, the
+// emulator's included, though the emulator ignores the token. An emulator run
+// may have no credential to mint one with — this repo's are sealed from
+// credentials on purpose — so in the EMULATOR ONLY the queue is reached
+// through a second app whose credential returns a placeholder. Production
+// uses the default app. A second app, not the default one, because Firestore
+// on the default app refuses any credential but a real one.
+let emulatorTasksApp = null;
+function deletionQueue() {
+  if (!EMULATED) return getFunctions().taskQueue(DELETION_QUEUE);
+  emulatorTasksApp = emulatorTasksApp || initializeApp({
+    projectId: process.env.GCLOUD_PROJECT,
+    credential: { getAccessToken: async () => ({ access_token: 'emulator', expires_in: 3600 }) },
+  }, 'emulator-tasks');
+  return getFunctions(emulatorTasksApp).taskQueue(DELETION_QUEUE);
+}
+
+async function enqueueDeletion(uid, delaySeconds = 0) {
+  await deletionQueue().enqueue({ uid }, delaySeconds > 0 ? { scheduleDelaySeconds: delaySeconds } : {});
+}
+
+/** Commits [ops] (functions of a batch) in batches the size of a page. */
+async function inBatches(items, apply) {
+  for (let i = 0; i < items.length; i += 400) {
+    const batch = db.batch();
+    for (const item of items.slice(i, i + 400)) apply(batch, item);
+    await batch.commit();
+  }
+}
+
+// ── The phases ─────────────────────────────────────────────────────────────
+// Each takes ctx = { uid, cursor, save(cursor), spent() } and returns true when
+// the phase is complete, false when it ran out of time. It saves its cursor
+// after every page, so the next task resumes from that page, not from zero.
+//
+// The budget is checked AFTER each page, never before the first: every task
+// makes progress. Checked first, a page slower than the budget — or a budget
+// already spent by the time the lease is taken — would re-enqueue a task that
+// did nothing, forever.
+
+/**
+ * 1 · R2. Listed by prefix, not through deleteVideoObjects: that refuses
+ * without the video's Firestore document and never sees an upload that was
+ * abandoned before its document existed. The listing shrinks as it deletes,
+ * so resuming is re-listing; the cursor only counts.
+ */
+async function phaseR2(ctx) {
+  const s3 = r2Client();
+  const prefix = `ani_videos/${ctx.uid}/`;
+  let deleted = (ctx.cursor && ctx.cursor.deleted) || 0;
+  for (;;) {
+    const page = await s3.send(new ListObjectsV2Command({
+      Bucket: R2_BUCKET, Prefix: prefix, MaxKeys: Math.min(PAGE, 1000),
+    }));
+    const keys = (page.Contents || []).map((o) => o.Key);
+    if (keys.length === 0) return true;
+    // One DeleteObject per key, the call deleteVideoObjects already proves
+    // against R2, rather than DeleteObjects and its checksum requirements.
+    for (let i = 0; i < keys.length; i += 20) {
+      await Promise.all(keys.slice(i, i + 20).map((Key) =>
+        s3.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key }))));
+    }
+    deleted += keys.length;
+    await ctx.save({ deleted });
+    if (ctx.spent()) return false;
+  }
+}
+
+/** The next conversation [uid] is in, after [afterCid]. */
+async function nextConversation(uid, afterCid) {
+  let q = db.collection('conversations').where('participants', 'array-contains', uid)
+    .orderBy(FieldPath.documentId()).limit(1);
+  if (afterCid) q = q.startAfter(afterCid);
+  const snap = await q.get();
+  return snap.empty ? null : snap.docs[0];
+}
+
+/**
+ * 2 · DM images, found through their message docs — the only record of who
+ * sent which image. This MUST precede phase 3: once those messages are gone,
+ * nothing says which files in the conversation's folder are theirs, and no
+ * client may delete a DM image at all.
+ *
+ * Cursor { after, cid, mid }: the last conversation finished, and the
+ * position inside the one in progress.
+ */
+async function phaseDmImages(ctx) {
+  const bucket = getStorage().bucket();
+  let { after = null, cid = null, mid = null } = ctx.cursor || {};
+  for (;;) {
+    const conv = cid ? db.collection('conversations').doc(cid) : (await nextConversation(ctx.uid, after))?.ref;
+    if (!conv) return true;
+    cid = conv.id;
+    let q = conv.collection('messages').where('senderId', '==', ctx.uid)
+      .orderBy(FieldPath.documentId()).limit(PAGE);
+    if (mid) q = q.startAfter(mid);
+    const page = await q.get();
+    await Promise.all(page.docs.filter((m) => m.get('imageUrl')).map((m) =>
+      bucket.file(`dm_images/${cid}/${m.id}.jpg`).delete({ ignoreNotFound: true })));
+    if (page.size < PAGE) {
+      after = cid; cid = null; mid = null;
+    } else {
+      mid = page.docs[page.size - 1].id;
+    }
+    await ctx.save({ after, cid, mid });
+    if (ctx.spent()) return false;
+  }
+}
+
+/**
+ * One conversation's side of phase 3. Returns false if time ran out part-way;
+ * every step shrinks what the next attempt finds, so re-running it is safe.
+ */
+async function scrubConversation(convSnap, uid, spent) {
+  const conv = convSnap.ref;
+  const msgs = conv.collection('messages');
+  const other = (convSnap.get('participants') || []).find((p) => p !== uid) || null;
+
+  // Both sides gone: nothing is left for anyone, so the whole conversation
+  // goes — the other side's messages and images with it.
+  const otherGone = other && (
+    (convSnap.get('deletedParticipants') || []).includes(other) ||
+    (await db.collection(ACCOUNT_DELETIONS).doc(other).get()).exists);
+  if (otherGone) {
+    await db.recursiveDelete(conv);
+    await getStorage().bucket().deleteFiles({ prefix: `dm_images/${conv.id}/` });
+    return true;
+  }
+
+  for (;;) {
+    const mine = await msgs.where('senderId', '==', uid).limit(PAGE).get();
+    if (mine.empty) break;
+    await inBatches(mine.docs, (b, d) => b.delete(d.ref));
+    if (spent()) return false;
+  }
+  const reactionKey = new FieldPath('reactions', uid);
+  for (;;) {
+    const reacted = await msgs.where(reactionKey, '>=', '').limit(PAGE).get();
+    if (reacted.empty) break;
+    await inBatches(reacted.docs, (b, d) => b.update(d.ref, reactionKey, FieldValue.delete()));
+    if (spent()) return false;
+  }
+
+  // The header, in a transaction with the newest message left, so a message
+  // the survivor sends meanwhile is not overwritten by an older preview.
+  // blockedBy gains the deleted uid: the existing message rule refuses any
+  // new message while blockedBy is non-empty, and only a participant can
+  // remove their own uid from it — so the conversation is closed for good
+  // with no rule change. deletedParticipants is what lets the app say
+  // "Deleted account" rather than a blank name.
+  await db.runTransaction(async (tx) => {
+    const latest = await tx.get(msgs.orderBy('createdAt', 'desc').limit(1));
+    const last = latest.docs[0];
+    tx.update(conv, {
+      lastMessage: last ? dmPreview(last) : '',
+      lastSenderId: last ? last.get('senderId') : '',
+      [`lastReadAt.${uid}`]: FieldValue.delete(),
+      blockedBy: FieldValue.arrayUnion(uid),
+      deletedParticipants: FieldValue.arrayUnion(uid),
+    });
+  });
+  return true;
+}
+
+/** 3 · DM messages, reactions and headers. Cursor { after }: the last finished. */
+async function phaseDmMessages(ctx) {
+  let after = (ctx.cursor && ctx.cursor.after) || null;
+  for (;;) {
+    const conv = await nextConversation(ctx.uid, after);
+    if (!conv) return true;
+    if (!(await scrubConversation(conv, ctx.uid, ctx.spent))) return false;
+    after = conv.id;
+    await ctx.save({ after });
+    if (ctx.spent()) return false;
+  }
+}
+
+/**
+ * 4 · Follow edges in OTHER people's documents: users/{them}/followers/{uid}
+ * and users/{them}/following/{uid}. Their own following/ and followers/ lists
+ * are the only index of those edges, which is why this precedes phase 9. Each
+ * edge's owner is recorded for phase 8 in the same batch that deletes it.
+ *
+ * Cursor { list, after }: which list, and the last edge done in it.
+ */
+async function phaseFollowEdges(ctx) {
+  let { list = 'following', after = null } = ctx.cursor || {};
+  const lists = {
+    // I follow them → their followers/ holds me, their followerCount counts me.
+    following: { mirror: 'followers', field: 'followerCount' },
+    // They follow me → their following/ holds me, their followingCount counts me.
+    followers: { mirror: 'following', field: 'followingCount' },
+  };
+  for (;;) {
+    let q = db.collection('users').doc(ctx.uid).collection(list).orderBy(FieldPath.documentId()).limit(PAGE);
+    if (after) q = q.startAfter(after);
+    const page = await q.get();
+    const { mirror, field } = lists[list];
+    await inBatches(page.docs, (b, d) => {
+      const them = db.collection('users').doc(d.id);
+      b.set(affectedRef(ctx.uid, them.path),
+        { path: them.path, counts: { [field]: { sub: mirror } } }, { merge: true });
+      b.delete(them.collection(mirror).doc(ctx.uid));
+    });
+    if (page.size < PAGE) {
+      if (list === 'followers') return true;
+      list = 'followers'; after = null;
+    } else {
+      after = page.docs[page.size - 1].id;
+    }
+    await ctx.save({ list, after });
+    if (ctx.spent()) return false;
+  }
+}
+
+/**
+ * 5 · Their marks in other people's spaces: likes, comments, votes, story
+ * views, room memberships. Each counted parent is recorded in the same batch
+ * that deletes the mark — the marks are the only record of which counters to
+ * fix.
+ *
+ * Cursor { part, after }: the kind in progress, and the last document path
+ * done. The owner is checked against the document id, not just the field.
+ */
+async function phaseMarks(ctx) {
+  const uid = ctx.uid;
+  const parts = ['likes', 'comments', 'votes', 'viewers', 'members'];
+  let { part = 'likes', after = null } = ctx.cursor || {};
+  const next = async () => {
+    const i = parts.indexOf(part);
+    if (i === parts.length - 1) return true;
+    part = parts[i + 1]; after = null;
+    await ctx.save({ part, after });
+    return false;
+  };
+
+  for (;;) {
+    let q;
+    if (part === 'likes') q = db.collectionGroup('likes').where('uid', '==', uid);
+    else if (part === 'comments') q = db.collectionGroup('comments').where('userId', '==', uid);
+    else if (part === 'votes') q = db.collectionGroup('votes').where('userId', '==', uid);
+    else if (part === 'members') q = db.collectionGroup('members').where('uid', '==', uid);
+    // Story views carry no owner field; the id is the viewer. Stories are
+    // short-lived, so this scan stays small once expired stories are cleaned.
+    else q = db.collectionGroup('viewers');
+    q = q.orderBy(FieldPath.documentId()).limit(PAGE);
+    if (after) q = q.startAfter(after);
+    const page = await q.get();
+
+    await inBatches(page.docs, (b, d) => {
+      const parent = d.ref.parent.parent;
+      if (part === 'likes' && d.id === uid && parent) {
+        b.set(affectedRef(uid, parent.path), { path: parent.path, counts: { likes: { sub: 'likes' } } }, { merge: true });
+        b.delete(d.ref);
+      } else if (part === 'comments' && parent) {
+        b.set(affectedRef(uid, parent.path),
+          { path: parent.path, counts: { commentsCount: { sub: 'comments' } } }, { merge: true });
+        b.delete(d.ref);
+      } else if (part === 'votes' && d.id.startsWith(`${uid}_`)) {
+        const day = d.get('dayId') || d.ref.parent.parent.id;
+        const anime = d.get('anilist_id');
+        if (Number.isInteger(anime)) {
+          const tally = `community_votes/${day}/tally/${anime}`;
+          b.set(affectedRef(uid, tally), {
+            path: tally,
+            counts: { voteCount: { collection: `community_votes/${day}/votes`, field: 'anilist_id', value: anime } },
+          }, { merge: true });
+        }
+        b.delete(d.ref);
+      } else if ((part === 'members' || part === 'viewers') && d.id === uid) {
+        // Member counts fix themselves: the room trigger recomputes.
+        b.delete(d.ref);
+      }
+    });
+
+    if (page.size < PAGE) {
+      if (await next()) return true;
+    } else {
+      after = page.docs[page.size - 1].ref.path;
+      await ctx.save({ part, after });
+    }
+    if (ctx.spent()) return false;
+  }
+}
+
+/**
+ * 6 · Their own content, recursively — with everything beneath it, other
+ * people's likes and comments included — then the Storage prefixes. The
+ * public leaderboard entries go first: they carry a copy of the name.
+ * Cursor { part }; every query shrinks as it deletes.
+ */
+async function phaseContent(ctx) {
+  const uid = ctx.uid;
+  const parts = [
+    ['trueFan', () => db.collection('trueFanScores').where('userId', '==', uid)],
+    ['posts', () => db.collection('posts').where('userId', '==', uid)],
+    ['videos', () => db.collection('ani_videos').where('userId', '==', uid)],
+    ['stories', () => db.collection('stories').where('uid', '==', uid)],
+    ['rooms', () => db.collection('rooms').where('hostUid', '==', uid)],
+  ];
+  let part = (ctx.cursor && ctx.cursor.part) || 'trueFan';
+  for (let i = parts.findIndex(([name]) => name === part); i >= 0 && i < parts.length; i++) {
+    part = parts[i][0];
+    for (;;) {
+      const page = await parts[i][1]().limit(20).get();
+      if (page.empty) break;
+      for (const d of page.docs) await db.recursiveDelete(d.ref);
+      await ctx.save({ part });
+      if (ctx.spent()) return false;
+    }
+  }
+  const bucket = getStorage().bucket();
+  for (const prefix of ['posts', 'post_images', 'stories', 'ani_videos']) {
+    await bucket.deleteFiles({ prefix: `${prefix}/${uid}/` });
+  }
+  return true;
+}
+
+/**
+ * 7 · Private records. Reports they FILED keep the report and lose
+ * reporterId: a victim deleting their account must not erase the report
+ * against the person they reported. Cursor { part }; each query shrinks.
+ */
+async function phaseRecords(ctx) {
+  const uid = ctx.uid;
+  const idRange = (collection) => db.collection(collection).orderBy(FieldPath.documentId())
+    .startAt(`${uid}_`).endAt(`${uid}_`);
+  const parts = ['reports', 'ledger', 'spins', 'taskClaims', 'grants'];
+  let part = (ctx.cursor && ctx.cursor.part) || 'reports';
+  for (let i = parts.indexOf(part); i >= 0 && i < parts.length; i++) {
+    part = parts[i];
+    if (part === 'ledger') {
+      await db.recursiveDelete(db.collection(CURRENCY_LEDGER).doc(uid));
+      await ctx.save({ part });
+      continue;
+    }
+    for (;;) {
+      const q = part === 'reports' ? db.collection('reports').where('reporterId', '==', uid)
+        : part === 'spins' ? idRange(SPINS)
+          : part === 'taskClaims' ? idRange(TASK_CLAIMS)
+            : db.collection(GRANTS).where('uid', '==', uid);
+      const page = await q.limit(PAGE).get();
+      if (page.empty) break;
+      await inBatches(page.docs, (b, d) => (part === 'reports'
+        ? b.update(d.ref, { reporterId: FieldValue.delete() })
+        : b.delete(d.ref)));
+      await ctx.save({ part });
+      if (ctx.spent()) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * 8 · Recompute every recorded counter, as increment(actual − stored), in a
+ * transaction per parent: a second run computes zero, and a like landing
+ * meanwhile conflicts on the parent and retries rather than being lost.
+ * Cursor { after }: the last affected record done.
+ */
+async function phaseCounters(ctx) {
+  let after = (ctx.cursor && ctx.cursor.after) || null;
+  const records = db.collection(ACCOUNT_DELETIONS).doc(ctx.uid).collection('affected');
+  for (;;) {
+    let q = records.orderBy(FieldPath.documentId()).limit(PAGE);
+    if (after) q = q.startAfter(after);
+    const page = await q.get();
+    for (const rec of page.docs) {
+      const { path, counts } = rec.data();
+      const parent = db.doc(path);
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(parent);
+        if (!snap.exists) return;
+        const updates = {};
+        for (const [field, spec] of Object.entries(counts || {})) {
+          const source = spec.sub ? parent.collection(spec.sub)
+            : db.collection(spec.collection).where(spec.field, '==', spec.value);
+          const actual = (await tx.get(source.count())).data().count;
+          const stored = Number.isInteger(snap.get(field)) ? snap.get(field) : 0;
+          if (actual !== stored) updates[field] = FieldValue.increment(actual - stored);
+        }
+        if (Object.keys(updates).length) tx.update(parent, updates);
+      });
+    }
+    if (page.size < PAGE) return true;
+    after = page.docs[page.size - 1].id;
+    await ctx.save({ after });
+    if (ctx.spent()) return false;
+  }
+}
+
+/** 9 · users/{uid} and everything left beneath it. */
+async function phaseProfileTree(ctx) {
+  await db.recursiveDelete(db.collection('users').doc(ctx.uid));
+  return true;
+}
+
+const PHASE_RUNNERS = {
+  r2: phaseR2, dmImages: phaseDmImages, dmMessages: phaseDmMessages, followEdges: phaseFollowEdges,
+  marks: phaseMarks, content: phaseContent, records: phaseRecords, counters: phaseCounters,
+  profileTree: phaseProfileTree,
+};
+
+/**
+ * Takes the job's lease, or returns why not: null when the job no longer
+ * exists (finished), false when another task holds it. The lease outlives
+ * the function's timeout, so a crashed holder's lease expires on its own.
+ */
+async function acquireLease(jobRef, holder) {
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(jobRef);
+    if (!snap.exists) return null;
+    const until = snap.get('leaseUntil');
+    if (until && until.toMillis() > Date.now() && snap.get('leaseHolder') !== holder) return false;
+    tx.update(jobRef, {
+      leaseHolder: holder,
+      leaseUntil: Timestamp.fromMillis(Date.now() + LEASE_MS),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return snap.data();
+  });
+}
+
+/**
+ * One task's worth of the job. Returns what the handler should do next:
+ * 'requeue' (with a delay for the sweep's wait), 'done', 'gone' or 'leased'.
+ */
+async function runDeletion(uid) {
+  const deadline = Date.now() + WORKER_BUDGET_MS;
+  const spent = () => Date.now() >= deadline;
+  const jobRef = db.collection(ACCOUNT_DELETIONS).doc(uid);
+  const holder = randomUUID();
+  const job = await acquireLease(jobRef, holder);
+  if (job === null) return { outcome: 'gone' };
+  if (job === false) return { outcome: 'leased' };
+
+  let finished = false;
+  let { phase, cursor = null, pass = 1 } = job;
+  const log = (event, extra = {}) =>
+    console.log(JSON.stringify({ event, uid, phase, pass, ...extra }));
+  const save = async (next) => {
+    cursor = next;
+    await jobRef.update({ cursor: next, updatedAt: FieldValue.serverTimestamp() });
+    log('deletion-progress', { cursor: next });
+  };
+  const advance = async (next) => {
+    phase = next; cursor = null;
+    await jobRef.update({ phase, cursor: null, pass, updatedAt: FieldValue.serverTimestamp() });
+    log('deletion-phase');
+  };
+
+  try {
+    for (;;) {
+      if (phase === 'created') {
+        // The callable left it partway. Finish its steps before anything else.
+        if (!(await acceptJob(uid, jobRef))) throw new Error('pre-steps (0b–0e) still incomplete');
+        phase = 'accepted';
+        continue;
+      }
+      if (phase === 'accepted') { await advance('r2'); continue; }
+
+      const i = PASS_PHASES.indexOf(phase);
+      if (i >= 0) {
+        const done = await PHASE_RUNNERS[phase]({ uid, cursor, save, spent });
+        if (!done) return { outcome: 'requeue' };
+        if (i < PASS_PHASES.length - 1) await advance(PASS_PHASES[i + 1]);
+        else await advance(pass === 1 ? 'sweepWait' : 'final');
+        if (spent()) return { outcome: 'requeue' };
+        continue;
+      }
+
+      if (phase === 'sweepWait') {
+        const revokedAt = (await jobRef.get()).get('revokedAt');
+        if (!revokedAt) throw new Error('sweepWait without revokedAt');
+        const wait = Math.ceil((revokedAt.toMillis() + SWEEP_DELAY_SECONDS * 1000 - Date.now()) / 1000);
+        if (wait > 0) return { outcome: 'requeue', delaySeconds: wait };
+        pass = 2;
+        await advance('r2');
+        continue;
+      }
+
+      if (phase === 'final') {
+        // A handle claimed with the still-valid token, then the Auth user,
+        // then the job with its affected/ records. Each step repeats safely.
+        await tombstoneHandles(uid);
+        try {
+          await getAuth().deleteUser(uid);
+        } catch (e) {
+          if (e.code !== 'auth/user-not-found') throw e;
+        }
+        await db.recursiveDelete(jobRef);
+        finished = true;
+        log('deletion-complete');
+        return { outcome: 'done' };
+      }
+
+      throw new Error(`unknown phase ${phase}`);
+    }
+  } finally {
+    // Released BEFORE the handler enqueues the next task, or that task would
+    // find the lease held and give up.
+    if (!finished) {
+      await jobRef.update({ leaseHolder: null, leaseUntil: null }).catch(() => {});
+    }
+  }
+}
+
+/**
+ * The worker. One task runs the job for up to its budget, saves, and
+ * enqueues the next.
+ *
+ * FAILURE: an error is recorded on the job (lastError, failures) and
+ * rethrown, so Cloud Tasks retries the same task with backoff — the retry
+ * resumes from the saved cursor. Lease contention is rethrown too, without
+ * being recorded: a task that finds another holding the job retries until
+ * that lease is released or expires, so a crashed holder cannot strand it.
+ * After maxAttempts Cloud Tasks drops the task; the job then stops updating
+ * and the daily sweep takes over.
+ */
+exports.processAccountDeletion = onTaskDispatched(
+  {
+    region: 'europe-west1',
+    timeoutSeconds: WORKER_TIMEOUT_SECONDS,
+    memory: '512MiB',
+    secrets: [R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY],
+    // 1, 2, 4, 8, 16 minutes, then hourly: about six hours of attempts.
+    retryConfig: { maxAttempts: 10, minBackoffSeconds: 60, maxBackoffSeconds: 3600, maxDoublings: 4 },
+    // Deletion is rare and heavy; a handful at once bounds the load a burst
+    // of requests can put on Firestore and R2.
+    rateLimits: { maxConcurrentDispatches: 5, maxDispatchesPerSecond: 1 },
+  },
+  async (req) => {
+    const uid = req.data && req.data.uid;
+    if (typeof uid !== 'string' || uid.length === 0 || uid.includes('/')) {
+      console.error(JSON.stringify({ severity: 'ERROR', event: 'deletion-bad-task', data: req.data }));
+      return; // unretryable; acknowledging it is the only useful answer
+    }
+    const jobRef = db.collection(ACCOUNT_DELETIONS).doc(uid);
+    let result;
+    try {
+      result = await runDeletion(uid);
+    } catch (e) {
+      await jobRef.update({
+        lastError: `${e.message}`.slice(0, 500),
+        failures: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      }).catch(() => {});
+      console.error(JSON.stringify({ severity: 'ERROR', event: 'deletion-failed', uid, error: e.message }));
+      throw e;
+    }
+    if (result.outcome === 'leased') throw new Error(`deletion ${uid}: lease held by another task`);
+    if (result.outcome === 'requeue') await enqueueDeletion(uid, result.delaySeconds || 0);
+  },
+);
+
+/**
+ * The daily sweep: re-enqueues any job that has stopped moving, and makes a
+ * job that cannot finish impossible to miss.
+ *
+ * Stalled = updatedAt older than six hours. A healthy job touches it after
+ * every page and a failing one on every retry, so six quiet hours means
+ * nothing is working on it — its task was lost, or Cloud Tasks gave up.
+ * A job waiting out the sweep delay is not stalled.
+ *
+ * After MAX_STALLS re-enqueues the job is marked `stuck` and stays stuck:
+ * it is left for a person, and logged at ERROR on every sweep until someone
+ * looks — a log-based alert on event "deletion-stuck" turns that into a page.
+ */
+exports.sweepAccountDeletions = onSchedule(
+  { schedule: 'every 24 hours', timeZone: 'Etc/UTC', region: 'europe-west1' },
+  async () => {
+    const cutoff = Timestamp.fromMillis(Date.now() - STALL_AFTER_MS);
+    const stale = await db.collection(ACCOUNT_DELETIONS).where('updatedAt', '<', cutoff).get();
+    for (const doc of stale.docs) {
+      const job = doc.data();
+      if (job.status === 'stuck') {
+        console.error(JSON.stringify({
+          severity: 'ERROR', event: 'deletion-stuck', uid: doc.id,
+          phase: job.phase, lastError: job.lastError || null, failures: job.failures || 0,
+        }));
+        continue;
+      }
+      if (job.phase === 'sweepWait' && job.revokedAt &&
+          job.revokedAt.toMillis() + SWEEP_DELAY_SECONDS * 1000 > Date.now()) continue;
+
+      const stalls = (job.stalls || 0) + 1;
+      if (stalls > MAX_STALLS) {
+        await doc.ref.update({ status: 'stuck', stuckAt: FieldValue.serverTimestamp() });
+        console.error(JSON.stringify({
+          severity: 'ERROR', event: 'deletion-stuck', uid: doc.id,
+          phase: job.phase, lastError: job.lastError || null, failures: job.failures || 0,
+        }));
+        continue;
+      }
+      await doc.ref.update({ stalls, updatedAt: FieldValue.serverTimestamp() });
+      await enqueueDeletion(doc.id);
+      console.warn(JSON.stringify({ severity: 'WARNING', event: 'deletion-requeued', uid: doc.id, phase: job.phase, stalls }));
+    }
+  },
+);
