@@ -188,7 +188,13 @@ class AniVideoService {
   /// exists. A refusal for quota is translated into
   /// [UploadCapExceededException] so the UI can say why instead of offering a
   /// retry that cannot succeed.
-  Future<_UploadGrant> _requestUploadUrls(String videoId, int contentLength) async {
+  ///
+  /// `not-found` means this account has no profile. For a legitimate user that
+  /// is the startup ensureProfile having failed — it is fire-and-forget and
+  /// does not retry — so the profile is created and the request made once
+  /// more. For an account being deleted the rules refuse to re-create the
+  /// profile, ensureProfile throws, and the upload fails as it should.
+  Future<_UploadGrant> _requestUploadUrls(String videoId, int contentLength, {bool retried = false}) async {
     try {
       final result = await FirebaseFunctions.instanceFor(region: _functionsRegion)
           .httpsCallable('requestVideoUploadUrl')
@@ -199,6 +205,10 @@ class AniVideoService {
       // resource-exhausted is the quota, out-of-range is the size cap.
       if (e.code == 'resource-exhausted' || e.code == 'out-of-range') {
         throw UploadCapExceededException(e.message ?? 'Upload limit reached.');
+      }
+      if (e.code == 'not-found' && !retried) {
+        await FollowService.instance.ensureProfile();
+        return _requestUploadUrls(videoId, contentLength, retried: true);
       }
       rethrow;
     }

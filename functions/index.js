@@ -220,6 +220,17 @@ exports.requestVideoUploadUrl = onCall(
     }
 
     const userDoc = await db.collection('users').doc(uid).get();
+    // No profile, no upload. tierOf would read a missing profile as "not plus"
+    // and carry on — which is how an account being deleted, whose profile is
+    // gone but whose ID token lives up to an hour past revocation, could still
+    // be handed a url that lands an object in R2 after the deletion has swept
+    // it. The other callables that spend or earn already refuse here; this
+    // one is the same refusal. A legitimate user can reach it only when the
+    // app's fire-and-forget ensureProfile failed at launch, and the client
+    // answers not-found by creating the profile and asking once more.
+    if (!userDoc.exists) {
+      throw new HttpsError('not-found', 'No profile for this account.');
+    }
     const tier = tierOf(request.auth, userDoc);
     const caps = TIER_CAPS[tier];
 
@@ -965,8 +976,20 @@ exports.equipCosmetic = onCall({ region: 'europe-west1' }, async (request) => {
   // Unequip needs no ownership check — giving something up is always allowed,
   // and it stays allowed for an item that was later withdrawn from the
   // catalogue, which is exactly when someone most needs to take it off.
+  //
+  // update() on a document that does not exist fails, so a missing profile
+  // was already refused — but as an unhandled error. It gets the same
+  // not-found as every other path, from the failure itself: checking first
+  // would cost a read and still leave the profile free to vanish in between.
   if (itemId === null) {
-    await userRef.update({ [field]: FieldValue.delete() });
+    try {
+      await userRef.update({ [field]: FieldValue.delete() });
+    } catch (e) {
+      if (e.code === 5 /* NOT_FOUND */) {
+        throw new HttpsError('not-found', 'No profile for this account.');
+      }
+      throw e;
+    }
     return { slot, itemId: null };
   }
 

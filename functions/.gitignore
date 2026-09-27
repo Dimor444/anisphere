@@ -1,3 +1,8 @@
 node_modules/
 *.log
 .firebase/
+
+# Secrets for the functions emulator (defineSecret values, read from here when
+# the emulator runs). Real R2 keys go in this file for local testing, so it
+# must never be committed.
+.secret.local
