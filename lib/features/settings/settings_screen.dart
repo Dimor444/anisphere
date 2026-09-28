@@ -46,17 +46,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (_loggingOut) return;
     Haptics.medium();
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dCtx) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text("You'll need to sign in again to get back to your account."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.tr('cancel'))),
-          TextButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('Log out')),
-        ],
-      ),
-    );
+    final confirmed = AuthService.instance.isGuest
+        ? await _confirmGuestSignOut()
+        : await showDialog<bool>(
+            context: context,
+            builder: (dCtx) => AlertDialog(
+              title: const Text('Log out?'),
+              content: const Text("You'll need to sign in again to get back to your account."),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.tr('cancel'))),
+                TextButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('Log out')),
+              ],
+            ),
+          );
     if (confirmed != true || !mounted) return;
 
     setState(() => _loggingOut = true);
@@ -73,6 +75,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
     if (!mounted) return;
     context.go('/onboarding');
+  }
+
+  /// A guest cannot sign back in — there is no credential to sign in WITH —
+  /// so signing out abandons the account with everything it posted still
+  /// online and nobody able to remove it. Said plainly, with deletion
+  /// offered in the same breath. True for every account today: guest is the
+  /// only identity there is.
+  ///
+  /// Returns true only for "Sign out anyway". "Delete account" opens the
+  /// delete page instead and reports false, so the sign-out does not run.
+  Future<bool> _confirmGuestSignOut() async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        title: Text(ref.tr('guestSignOutTitle')),
+        content: Text(ref.tr('guestSignOutBody')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(ref.tr('cancel'))),
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx, 'delete'),
+            child: Text(ref.tr('deleteAccount'), style: const TextStyle(color: AppColors.error)),
+          ),
+          TextButton(onPressed: () => Navigator.pop(dCtx, 'signout'), child: Text(ref.tr('signOutAnyway'))),
+        ],
+      ),
+    );
+    if (choice == 'delete' && mounted) context.push('/delete-account');
+    return choice == 'signout';
   }
 
   @override
@@ -156,6 +186,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       )
                     : Text('Logout', style: AppTextStyles.subheading.copyWith(color: AppColors.error)),
               ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Center(
+            child: TextButton.icon(
+              onPressed: _loggingOut
+                  ? null
+                  : () {
+                      Haptics.medium();
+                      context.push('/delete-account');
+                    },
+              icon: const Icon(LucideIcons.trash2, size: 16, color: AppColors.error),
+              label: Text(ref.tr('deleteAccount'),
+                  style: AppTextStyles.body.copyWith(color: AppColors.error, fontWeight: FontWeight.w600)),
             ),
           ),
         ],

@@ -95,9 +95,14 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
     // Re-count only when the thread moved OR my read mark did (markRead from
     // the chat screen must clear the dot live) — every snapshot rebuilds the
     // list, and re-running an aggregation per rebuild would be waste.
+    //
+    // Or when the counterpart's account was deleted: their messages are gone,
+    // so the dot they left must go too, and the header rewrite that says so
+    // leaves updatedAt alone (the thread keeps its place in the list).
     if (old.convo.updatedAt != widget.convo.updatedAt ||
         old.convo.id != widget.convo.id ||
-        old.convo.lastReadBy(widget.me) != widget.convo.lastReadBy(widget.me)) {
+        old.convo.lastReadBy(widget.me) != widget.convo.lastReadBy(widget.me) ||
+        old.convo.otherIsDeleted(widget.me) != widget.convo.otherIsDeleted(widget.me)) {
       _unread = _fetchUnread();
     }
   }
@@ -108,7 +113,8 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
     final otherUid = convo.otherUid(widget.me);
     // Live users/{uid} doc; '' fallbacks paint a placeholder row until the
     // first snapshot lands (or the counterpart's account is gone).
-    final other = identityOf(ref, otherUid);
+    final deleted = convo.otherIsDeleted(widget.me);
+    final other = deleted ? null : identityOf(ref, otherUid);
     final name = other?.nameToShow ?? '';
 
     return InkWell(
@@ -120,12 +126,15 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           children: [
-            UserAvatar(
-              name: name.isEmpty ? '?' : name,
-              imageUrl: other?.userAvatar,
-              frame: other?.equippedIn(CosmeticSlot.frame),
-              radius: 26,
-            ),
+            if (deleted)
+              const DeletedUserAvatar(radius: 26)
+            else
+              UserAvatar(
+                name: name.isEmpty ? '?' : name,
+                imageUrl: other?.userAvatar,
+                frame: other?.equippedIn(CosmeticSlot.frame),
+                radius: 26,
+              ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -134,10 +143,16 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
                   Row(children: [
                     Flexible(
                       child: Text(
-                        name.isEmpty ? ref.tr('animeFanFallback') : name,
+                        deleted
+                            ? ref.tr('deletedAccount')
+                            : name.isEmpty
+                                ? ref.tr('animeFanFallback')
+                                : name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.subheading,
+                        style: deleted
+                            ? AppTextStyles.subheading.copyWith(color: AppColors.textMuted)
+                            : AppTextStyles.subheading,
                       ),
                     ),
                     if (other?.isVerified == true) ...[

@@ -211,3 +211,20 @@ class _UserAvatarState extends State<UserAvatar>
     return 1 - x;
   }
 }
+
+/// Stands in for [UserAvatar] where the account behind it was deleted: no
+/// initials, no seeded gradient, no frame — nothing that reads as a person
+/// still being there.
+class DeletedUserAvatar extends StatelessWidget {
+  final double radius;
+  const DeletedUserAvatar({super.key, this.radius = 24});
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: AppColors.surfaceAlt,
+      child: Icon(Icons.person_off_outlined, size: radius, color: AppColors.textMuted),
+    );
+  }
+}

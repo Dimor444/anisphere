@@ -405,56 +405,67 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final me = _me;
     final otherUid = (me == null) ? '' : (_convo?.otherUid(me) ?? '');
-    final other = otherUid.isEmpty ? null : identityOf(ref, otherUid);
+    // A deleted counterpart has no profile left to look up, and the block and
+    // report actions have nobody to act on — the thread is already frozen
+    // server-side, so the menu goes with the identity.
+    final deleted = me != null && (_convo?.otherIsDeleted(me) ?? false);
+    final other = (otherUid.isEmpty || deleted) ? null : identityOf(ref, otherUid);
     final name = other?.nameToShow ?? '';
 
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(children: [
-          UserAvatar(name: name.isEmpty ? '?' : name, imageUrl: other?.userAvatar, radius: 17, frame: other?.equippedIn(CosmeticSlot.frame)),
+          if (deleted)
+            const DeletedUserAvatar(radius: 17)
+          else
+            UserAvatar(name: name.isEmpty ? '?' : name, imageUrl: other?.userAvatar, radius: 17, frame: other?.equippedIn(CosmeticSlot.frame)),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              UserNameText(
-                user: other,
-                fallback: name.isEmpty ? ref.tr('animeFanFallback') : name,
-                style: AppTextStyles.subheading,
-              ),
-              UserHandleText(user: other, style: AppTextStyles.captionMuted),
-            ]),
+            child: deleted
+                ? Text(ref.tr('deletedAccount'),
+                    style: AppTextStyles.subheading.copyWith(color: AppColors.textMuted))
+                : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    UserNameText(
+                      user: other,
+                      fallback: name.isEmpty ? ref.tr('animeFanFallback') : name,
+                      style: AppTextStyles.subheading,
+                    ),
+                    UserHandleText(user: other, style: AppTextStyles.captionMuted),
+                  ]),
           ),
         ]),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(LucideIcons.ellipsis, size: 20),
-            color: AppColors.surface,
-            onSelected: (v) => v == 'block' ? _toggleBlock() : _reportUser(),
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'block',
-                child: Row(children: [
-                  const Icon(LucideIcons.ban, size: 17, color: AppColors.textSecondary),
-                  const SizedBox(width: 10),
-                  Text(
-                    ref.tr((me != null && (_convo?.blockedBy.contains(me) ?? false))
-                        ? 'unblock'
-                        : 'block'),
-                    style: AppTextStyles.body,
-                  ),
-                ]),
-              ),
-              PopupMenuItem(
-                value: 'report',
-                child: Row(children: [
-                  const Icon(LucideIcons.flag, size: 17, color: AppColors.error),
-                  const SizedBox(width: 10),
-                  Text(ref.tr('reportUser'),
-                      style: AppTextStyles.body.copyWith(color: AppColors.error)),
-                ]),
-              ),
-            ],
-          ),
+          if (!deleted)
+            PopupMenuButton<String>(
+              icon: const Icon(LucideIcons.ellipsis, size: 20),
+              color: AppColors.surface,
+              onSelected: (v) => v == 'block' ? _toggleBlock() : _reportUser(),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'block',
+                  child: Row(children: [
+                    const Icon(LucideIcons.ban, size: 17, color: AppColors.textSecondary),
+                    const SizedBox(width: 10),
+                    Text(
+                      ref.tr((me != null && (_convo?.blockedBy.contains(me) ?? false))
+                          ? 'unblock'
+                          : 'block'),
+                      style: AppTextStyles.body,
+                    ),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'report',
+                  child: Row(children: [
+                    const Icon(LucideIcons.flag, size: 17, color: AppColors.error),
+                    const SizedBox(width: 10),
+                    Text(ref.tr('reportUser'),
+                        style: AppTextStyles.body.copyWith(color: AppColors.error)),
+                  ]),
+                ),
+              ],
+            ),
         ],
       ),
       body: _body(me),
@@ -479,6 +490,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
     final messages = _ordered;
     final blocked = _convo?.isBlocked ?? false;
+    final deleted = _convo?.otherIsDeleted(me) ?? false;
 
     return Column(children: [
       Expanded(
@@ -513,7 +525,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 },
               ),
       ),
-      if (blocked) const _BlockedBanner() else _composer(),
+      // Deleted is checked first: the worker also puts the deleted uid in
+      // blockedBy, so the blocked banner would otherwise claim a block that
+      // nobody on this side made.
+      if (deleted)
+        const _DeletedAccountBanner()
+      else if (blocked)
+        const _BlockedBanner()
+      else
+        _composer(),
     ]);
   }
 
@@ -796,6 +816,33 @@ class _PendingDots extends StatelessWidget {
             .fadeIn(delay: (i * 180).ms, duration: 400.ms)
             .scaleXY(begin: 0.6, end: 1, duration: 400.ms);
       }),
+    );
+  }
+}
+
+/// Shown in place of the composer once the counterpart's account is deleted.
+/// The rules already refuse sends — the deleted uid sits in blockedBy — so
+/// this only says why.
+class _DeletedAccountBanner extends ConsumerWidget {
+  const _DeletedAccountBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.person_off_outlined, size: 18, color: AppColors.textMuted),
+          const SizedBox(height: 6),
+          Text(ref.tr('accountNoLongerExists'),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body
+                  .copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+        ]),
+      ),
     );
   }
 }

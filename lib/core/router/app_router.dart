@@ -42,6 +42,7 @@ import '../../features/profile/profile_screen.dart';
 import '../../features/profile/time_capsule_screen.dart';
 import '../../features/profile/wrapped_screen.dart';
 import '../../features/seasonal/seasonal_screen.dart';
+import '../../features/settings/delete_account_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/shell/main_shell.dart';
 import '../../features/trending/trending_detail_screen.dart';
@@ -108,6 +109,7 @@ final appRouter = GoRouter(
     _top('/notifications', (c, s) => const NotificationsScreen()),
     _top('/wallet', (c, s) => WalletScreen(initialTab: s.uri.queryParameters['tab'])),
     _top('/settings', (c, s) => const SettingsScreen()),
+    _top('/delete-account', (c, s) => const DeleteAccountScreen()),
     _top('/challenges', (c, s) => const ChallengesScreen()),
     _top('/seasonal', (c, s) => const SeasonalScreen()),
     _top('/achievements', (c, s) => const AchievementsScreen()),

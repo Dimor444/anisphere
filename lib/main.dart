@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -58,7 +59,10 @@ Future<void> main() async {
     await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
     FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
     await FirebaseStorage.instance.useStorageEmulator('127.0.0.1', 9199);
-    debugPrint('>>> BACKEND: EMULATOR (127.0.0.1 — auth:9099 firestore:8080 storage:9199)');
+    // Every callable lives in europe-west1. Without this an emulator build
+    // calls the PRODUCTION callables with an emulator-minted token.
+    FirebaseFunctions.instanceFor(region: 'europe-west1').useFunctionsEmulator('127.0.0.1', 5001);
+    debugPrint('>>> BACKEND: EMULATOR (127.0.0.1 — auth:9099 firestore:8080 storage:9199 functions:5001)');
     debugPrint('>>> An emulator-minted auth session is INVALID against production: '
         'uninstall the app before switching backends.');
   } else {

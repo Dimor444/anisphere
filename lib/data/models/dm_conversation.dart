@@ -33,6 +33,12 @@ class DmConversation {
   /// message creates for BOTH sides (enforced by rules).
   final List<String> blockedBy;
 
+  /// Participants whose accounts were deleted. Written only by the deletion
+  /// worker, which also adds the uid to [blockedBy] — so the thread is
+  /// already frozen by the rules; this is what lets the survivor be told why
+  /// rather than shown a block that nobody on their side made.
+  final List<String> deletedParticipants;
+
   const DmConversation({
     required this.id,
     required this.participants,
@@ -42,6 +48,7 @@ class DmConversation {
     this.lastSenderId = '',
     this.lastReadAt = const {},
     this.blockedBy = const [],
+    this.deletedParticipants = const [],
   });
 
   /// Deterministic conversation id for a pair of uids, order-independent.
@@ -52,6 +59,9 @@ class DmConversation {
       participants.firstWhere((p) => p != me, orElse: () => '');
 
   bool get isBlocked => blockedBy.isNotEmpty;
+
+  /// Whether [me]'s counterpart has deleted their account.
+  bool otherIsDeleted(String me) => deletedParticipants.contains(otherUid(me));
 
   DateTime? lastReadBy(String uid) => lastReadAt[uid];
 
@@ -72,6 +82,10 @@ class DmConversation {
       },
       blockedBy:
           (d['blockedBy'] as List?)?.whereType<String>().toList() ?? const [],
+      deletedParticipants: (d['deletedParticipants'] as List?)
+              ?.whereType<String>()
+              .toList() ??
+          const [],
     );
   }
 

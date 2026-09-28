@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,6 +19,32 @@ class SignedOutException implements Exception {
   String toString() =>
       'SignedOutException: signed out deliberately; no identity until the '
       'user picks one (sign in, or Continue as Guest).';
+}
+
+/// Why [AuthService.deleteAccount] did not end the session. Each value is a
+/// different promise to the user, so the screen maps each to its own message.
+enum AccountDeletionFailure {
+  /// The server could not be reached before anything was sent. Nothing was
+  /// changed.
+  unreachable,
+
+  /// The server rejected the request before its commit point. Nothing was
+  /// changed.
+  refused,
+
+  /// The request may have reached the commit point — a timeout, a dropped
+  /// connection, a server fault mid-request — and the account still works,
+  /// so there is no telling. Retrying is safe: a repeat call on a deletion
+  /// that was already accepted answers "accepted" without redoing anything.
+  unconfirmed,
+}
+
+class AccountDeletionException implements Exception {
+  const AccountDeletionException(this.failure, this.detail);
+  final AccountDeletionFailure failure;
+  final String detail;
+  @override
+  String toString() => 'AccountDeletionException(${failure.name}): $detail';
 }
 
 /// App identity. The email/password UI is not wired to FirebaseAuth yet, so a
@@ -233,6 +261,10 @@ class AuthService {
   /// mint clears the memo, matching [initAuth] — the sign-in screen offers a
   /// retry, and a poisoned memo would make every retry fail forever.
   Future<User> signInAsGuest() async {
+    // A cache wipe from a deletion may still be running. The wipe cannot
+    // survive a session starting underneath it — see [clearLocalData].
+    final clearing = _clearingLocalData;
+    if (clearing != null) await clearing;
     await _setSignedOut(false);
     return _pending = () async {
       try {
@@ -289,6 +321,11 @@ class AuthService {
   Future<void> signOut() async {
     _pending = null;
     await _setSignedOut(true);
+    await _endSession();
+  }
+
+  /// The half of [signOut] after the flag, shared with [deleteAccount].
+  Future<void> _endSession() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       for (final key in _userScopedPrefKeys) {
@@ -298,6 +335,154 @@ class AuthService {
       debugPrint('[AuthService] prefs wipe on sign-out failed (continuing): $e');
     }
     await _auth.signOut();
+  }
+
+  static const String _functionsRegion = 'europe-west1';
+
+  /// Long enough for a cold start plus the callable's own steps, short enough
+  /// that a hung request becomes an answer while the user is still looking.
+  static const Duration _deletionTimeout = Duration(seconds: 30);
+
+  /// Callable codes that are answered before the handler reaches its commit
+  /// point: the platform's own rejections (no function, no quota, App Check,
+  /// no token) and the handler's argument checks. Everything else could have
+  /// come from after it, and is [AccountDeletionFailure.unconfirmed].
+  ///
+  /// `internal` is deliberately NOT here although the handler's own "could
+  /// not start" failure uses it — an uncaught fault after the commit point
+  /// arrives as `internal` too, and the two are indistinguishable on the wire.
+  static const Set<String> _refusedBeforeCommit = {
+    'unauthenticated',
+    'invalid-argument',
+    'permission-denied',
+    'failed-precondition',
+    'not-found',
+    'unimplemented',
+    'resource-exhausted',
+  };
+
+  /// Deletes the signed-in account, then ends the session.
+  ///
+  /// ORDER: connectivity check, flag, call, then [_endSession].
+  ///
+  /// The check is a forced token refresh. It proves the server is reachable
+  /// before anything is sent — the only point at which "nothing was changed"
+  /// is certain rather than likely — and it hands the call a token with a
+  /// full hour on it, so the call cannot fail on a refresh halfway through.
+  ///
+  /// The flag goes BEFORE the call for the reason it goes first in
+  /// [signOut]: once the server has disabled the account, nothing on this
+  /// device may mint a replacement guest. A process killed mid-call leaves it
+  /// set, so the next launch opens on onboarding instead of silently swapping
+  /// identities. If the server never got that far, Continue as Guest signs
+  /// the SAME guest back in — signInAnonymously returns the current anonymous
+  /// user when there is one.
+  ///
+  /// A failed call is not proof the account survived: the response can be
+  /// lost after the server committed. So every failure re-checks the
+  /// credential first. Dead means the server got as far as disabling it, and
+  /// that is success. Alive means the flag is cleared and the failure thrown.
+  ///
+  /// Does NOT clear the offline cache — see [clearLocalData] for why that
+  /// waits until the signed-in screens are gone.
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AccountDeletionException(
+          AccountDeletionFailure.refused, 'no session');
+    }
+
+    final preflight = await _credentialState(user);
+    if (preflight == _Credential.unreachable) {
+      throw const AccountDeletionException(
+          AccountDeletionFailure.unreachable, 'token refresh failed');
+    }
+    if (preflight == _Credential.dead) {
+      // Already disabled: an earlier attempt committed and its answer never
+      // arrived. Nothing is left to call; finish the sign-out.
+      debugPrint('[AuthService] deleteAccount: credential already dead — '
+          'ending the session');
+      _pending = null;
+      await _setSignedOut(true);
+      await _endSession();
+      return;
+    }
+
+    _pending = null;
+    await _setSignedOut(true);
+    try {
+      await FirebaseFunctions.instanceFor(region: _functionsRegion)
+          .httpsCallable('deleteAccount',
+              options: HttpsCallableOptions(timeout: _deletionTimeout))
+          .call<Map<String, dynamic>>({'confirm': 'DELETE'});
+    } catch (e) {
+      if (await _credentialState(user) == _Credential.dead) {
+        debugPrint('[AuthService] deleteAccount: call failed ($e) but the '
+            'account is disabled — the server committed; ending the session');
+      } else {
+        await _setSignedOut(false);
+        final code = e is FirebaseFunctionsException ? e.code : 'unknown';
+        debugPrint('[AuthService] deleteAccount failed: [$code] $e');
+        throw AccountDeletionException(
+          _refusedBeforeCommit.contains(code)
+              ? AccountDeletionFailure.refused
+              : AccountDeletionFailure.unconfirmed,
+          '[$code] $e',
+        );
+      }
+    }
+    await _endSession();
+  }
+
+  /// A forced refresh, read three ways. Only [deadCredentialCodes] count as
+  /// dead — the same allowlist [initAuth] trusts — and every other failure
+  /// is "could not tell", never "gone".
+  Future<_Credential> _credentialState(User user) async {
+    try {
+      await user.getIdToken(true).timeout(validationTimeout);
+      return _Credential.alive;
+    } on FirebaseAuthException catch (e) {
+      if (deadCredentialCodes.contains(e.code)) return _Credential.dead;
+      debugPrint('[AuthService] credential check: [${e.code}] ${e.message}');
+      return _Credential.unreachable;
+    } catch (e) {
+      debugPrint('[AuthService] credential check: $e');
+      return _Credential.unreachable;
+    }
+  }
+
+  Future<void>? _clearingLocalData;
+
+  /// Terminates Firestore and wipes its on-disk cache, so a deleted account's
+  /// documents and unsent writes do not stay on the handset.
+  ///
+  /// Call it AFTER the signed-in screens are gone. `clearPersistence` only
+  /// works on an instance that is terminated or not started, and terminating
+  /// drops the native instance — so any Firestore call that lands between the
+  /// two steps starts a fresh instance and the wipe is refused. A screen still
+  /// mounted is the likeliest source of that call. One refusal is retried
+  /// after a second terminate; a second is logged and the cache stays.
+  ///
+  /// No restart is needed afterwards: the next Firestore call builds a new
+  /// native instance from the settings the Dart side still holds, emulator
+  /// host included. [signInAsGuest] waits for this to finish.
+  Future<void> clearLocalData() =>
+      _clearingLocalData ??= _clearLocalData().whenComplete(() {
+        _clearingLocalData = null;
+      });
+
+  Future<void> _clearLocalData() async {
+    final firestore = FirebaseFirestore.instance;
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      try {
+        await firestore.terminate();
+        await firestore.clearPersistence();
+        debugPrint('[AuthService] offline cache cleared');
+        return;
+      } catch (e) {
+        debugPrint('[AuthService] offline cache wipe, attempt $attempt: $e');
+      }
+    }
   }
 
   /// Sets the flag in memory and mirrors it to disk.
@@ -324,3 +509,5 @@ class AuthService {
     }
   }
 }
+
+enum _Credential { alive, dead, unreachable }

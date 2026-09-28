@@ -102,21 +102,27 @@ class _BlockedTileState extends ConsumerState<_BlockedTile> {
   @override
   Widget build(BuildContext context) {
     final otherUid = widget.convo.otherUid(widget.me);
-    final other = otherUid.isEmpty ? null : identityOf(ref, otherUid);
+    final deleted = widget.convo.otherIsDeleted(widget.me);
+    final other = (otherUid.isEmpty || deleted) ? null : identityOf(ref, otherUid);
     final name = other?.nameToShow ?? '';
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: UserAvatar(
-        name: name.isEmpty ? '?' : name,
-        imageUrl: other?.userAvatar,
-        frame: other?.equippedIn(CosmeticSlot.frame),
-        radius: 22,
-      ),
-      title: UserNameText(
-          user: other,
-          fallback: name.isEmpty ? ref.tr('animeFanFallback') : name,
-          style: AppTextStyles.subheading),
+      leading: deleted
+          ? const DeletedUserAvatar(radius: 22)
+          : UserAvatar(
+              name: name.isEmpty ? '?' : name,
+              imageUrl: other?.userAvatar,
+              frame: other?.equippedIn(CosmeticSlot.frame),
+              radius: 22,
+            ),
+      title: deleted
+          ? Text(ref.tr('deletedAccount'),
+              style: AppTextStyles.subheading.copyWith(color: AppColors.textMuted))
+          : UserNameText(
+              user: other,
+              fallback: name.isEmpty ? ref.tr('animeFanFallback') : name,
+              style: AppTextStyles.subheading),
       subtitle: other == null
           ? null
           : UserHandleText(user: other, style: AppTextStyles.captionMuted),
