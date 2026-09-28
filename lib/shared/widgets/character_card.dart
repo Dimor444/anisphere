@@ -16,7 +16,6 @@ import '../../data/models/card_model.dart';
 /// Example:
 /// ```dart
 /// CharacterCard(
-///   imagePath: 'assets/images/cards/frieren.png',
 ///   characterName: 'Frieren',
 ///   seriesName: 'Frieren',
 ///   rarity: CardRarity.legendary,
@@ -25,7 +24,7 @@ import '../../data/models/card_model.dart';
 /// )
 /// ```
 class CharacterCard extends StatelessWidget {
-  /// Remote artwork (preferred when set, e.g. AniList CDN).
+  /// Remote artwork (preferred when set).
   final String? imageUrl;
 
   /// Bundled asset artwork — offline fallback if [imageUrl] is null/fails.

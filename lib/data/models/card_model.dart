@@ -21,11 +21,11 @@ class CardModel {
   final int power;
   final bool owned;
 
-  /// Remote character artwork (e.g. AniList CDN). Preferred when set.
+  /// Remote character artwork. Preferred when set; no card sets it today.
   final String? imageUrl;
 
-  /// Bundled artwork asset (e.g. 'assets/images/cards/frieren.png').
-  /// Used as an offline fallback if [imageUrl] is null or fails to load.
+  /// Bundled artwork asset — offline fallback if [imageUrl] is null or fails
+  /// to load. No card sets it today, so every card draws its [emoji].
   final String? imagePath;
 
   const CardModel({

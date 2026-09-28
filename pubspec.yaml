@@ -78,7 +78,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/images/cards/
     - assets/lottie/
     - assets/icons/
   # Vendored variable fonts — fully offline (run tool/fetch_fonts.sh to refresh).

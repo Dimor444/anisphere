@@ -313,18 +313,18 @@ class SampleData {
 
   // ─────────────────────────────────────────── CARDS
   static const List<CardModel> cards = [
-    CardModel(id: 'cd1', character: 'Frieren', anime: 'Frieren', rarity: CardRarity.legendary, emoji: '🧝‍♀️', power: 9800, owned: true, imagePath: 'assets/images/cards/frieren.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b176754-PCnpqIOkjhFk.png'),
-    CardModel(id: 'cd2', character: 'Gojo Satoru', anime: 'Jujutsu Kaisen', rarity: CardRarity.legendary, emoji: '🔮', power: 9900, owned: true, imagePath: 'assets/images/cards/gojo.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b127691-9zqh1xpIubn7.png'),
-    CardModel(id: 'cd3', character: 'Levi', anime: 'Attack on Titan', rarity: CardRarity.epic, emoji: '⚔️', power: 8700, owned: true, imagePath: 'assets/images/cards/levi.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b45627-CR68RyZmddGG.png'),
-    CardModel(id: 'cd4', character: 'Denji', anime: 'Chainsaw Man', rarity: CardRarity.epic, emoji: '🪚', power: 8200, owned: true, imagePath: 'assets/images/cards/denji.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b130102-FO1VHNnEnLlB.png'),
-    CardModel(id: 'cd5', character: 'Thorfinn', anime: 'Vinland Saga', rarity: CardRarity.rare, emoji: '🪓', power: 7100, owned: true, imagePath: 'assets/images/cards/thorfinn.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b10138-zOPrka0ddZOR.png'),
-    CardModel(id: 'cd6', character: 'Anya', anime: 'Spy x Family', rarity: CardRarity.rare, emoji: '🥜', power: 6600, owned: true, imagePath: 'assets/images/cards/anya.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b138100-4Li0tWRCa5bQ.png'),
-    CardModel(id: 'cd7', character: 'Tanjiro', anime: 'Demon Slayer', rarity: CardRarity.epic, emoji: '🗡️', power: 8400, owned: false, imagePath: 'assets/images/cards/tanjiro.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b126071-BTNEc1nRIv68.png'),
-    CardModel(id: 'cd8', character: 'Sung Jinwoo', anime: 'Solo Leveling', rarity: CardRarity.legendary, emoji: '⚡', power: 9600, owned: false, imagePath: 'assets/images/cards/sung_jinwoo.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b129928-BCEjVaP0AQSw.png'),
-    CardModel(id: 'cd9', character: 'Killua', anime: 'Hunter x Hunter', rarity: CardRarity.epic, emoji: '⚡', power: 8500, owned: false, imagePath: 'assets/images/cards/killua.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b27-Z5O02kQUydpT.jpg'),
-    CardModel(id: 'cd10', character: 'Naruto', anime: 'Naruto', rarity: CardRarity.rare, emoji: '🍥', power: 7400, owned: false, imagePath: 'assets/images/cards/naruto.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b17-phjcWCkRuIhu.png'),
-    CardModel(id: 'cd11', character: 'Power', anime: 'Chainsaw Man', rarity: CardRarity.common, emoji: '🩸', power: 5200, owned: false, imagePath: 'assets/images/cards/power.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b137079-6yLEUYR3bmpr.png'),
-    CardModel(id: 'cd12', character: 'Zenitsu', anime: 'Demon Slayer', rarity: CardRarity.common, emoji: '⚡', power: 5400, owned: false, imagePath: 'assets/images/cards/zenitsu.png', imageUrl: 'https://s4.anilist.co/file/anilistcdn/character/large/b129131-FZrQ7lSlxmEr.png'),
+    CardModel(id: 'cd1', character: 'Frieren', anime: 'Frieren', rarity: CardRarity.legendary, emoji: '🧝‍♀️', power: 9800, owned: true),
+    CardModel(id: 'cd2', character: 'Gojo Satoru', anime: 'Jujutsu Kaisen', rarity: CardRarity.legendary, emoji: '🔮', power: 9900, owned: true),
+    CardModel(id: 'cd3', character: 'Levi', anime: 'Attack on Titan', rarity: CardRarity.epic, emoji: '⚔️', power: 8700, owned: true),
+    CardModel(id: 'cd4', character: 'Denji', anime: 'Chainsaw Man', rarity: CardRarity.epic, emoji: '🪚', power: 8200, owned: true),
+    CardModel(id: 'cd5', character: 'Thorfinn', anime: 'Vinland Saga', rarity: CardRarity.rare, emoji: '🪓', power: 7100, owned: true),
+    CardModel(id: 'cd6', character: 'Anya', anime: 'Spy x Family', rarity: CardRarity.rare, emoji: '🥜', power: 6600, owned: true),
+    CardModel(id: 'cd7', character: 'Tanjiro', anime: 'Demon Slayer', rarity: CardRarity.epic, emoji: '🗡️', power: 8400, owned: false),
+    CardModel(id: 'cd8', character: 'Sung Jinwoo', anime: 'Solo Leveling', rarity: CardRarity.legendary, emoji: '⚡', power: 9600, owned: false),
+    CardModel(id: 'cd9', character: 'Killua', anime: 'Hunter x Hunter', rarity: CardRarity.epic, emoji: '⚡', power: 8500, owned: false),
+    CardModel(id: 'cd10', character: 'Naruto', anime: 'Naruto', rarity: CardRarity.rare, emoji: '🍥', power: 7400, owned: false),
+    CardModel(id: 'cd11', character: 'Power', anime: 'Chainsaw Man', rarity: CardRarity.common, emoji: '🩸', power: 5200, owned: false),
+    CardModel(id: 'cd12', character: 'Zenitsu', anime: 'Demon Slayer', rarity: CardRarity.common, emoji: '⚡', power: 5400, owned: false),
   ];
 
   // ─────────────────────────────────────────── TRUE FAN QUIZ
