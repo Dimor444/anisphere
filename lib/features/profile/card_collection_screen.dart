@@ -10,6 +10,24 @@ import '../../data/sample_data.dart';
 import '../../shared/widgets/character_card.dart';
 import '../../shared/widgets/gradient_button.dart';
 
+/// Whether Card Collection exists at all: the `/cards` route and every link
+/// to it (drawer, profile quick button, the wallet's Gacha banner).
+///
+/// Nothing on the screen was the user's. "6 / 12 collected · 50%" and the six
+/// cards marked owned came from SampleData, shown to a brand-new guest who
+/// owns nothing, and every card is a licensed character. The packs — Standard
+/// (50🟡) and Premium (120🟡) — opened for nothing, since no gold moved, pulled
+/// five random sample cards, and "Add all to collection" closed the screen
+/// without adding any: the count never moved. With the packs gone, all that
+/// was left was the claim about the user's collection.
+///
+/// Coming back needs: a server-side pull (the odds decided where the client
+/// cannot choose its own cards), the price charged through spendGold with a
+/// catalogue entry per pack, and an owned-cards record the pull writes and
+/// this screen reads — plus cards that are not licensed characters. The
+/// screen is kept, not deleted.
+const bool kCardCollectionEnabled = false;
+
 class CardCollectionScreen extends StatelessWidget {
   const CardCollectionScreen({super.key});
   @override

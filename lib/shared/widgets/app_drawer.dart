@@ -7,6 +7,7 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
+import '../../features/profile/card_collection_screen.dart';
 import '../providers/identity_provider.dart';
 import '../providers/language_provider.dart';
 import '../providers/user_provider.dart';
@@ -105,14 +106,15 @@ class AppDrawer extends ConsumerWidget {
                   _tile(LucideIcons.wallet, ref.tr('wallet'), () => go('/wallet')),
                   _tile(LucideIcons.globe, ref.tr('observatory'), () => go('/observatory')),
                   _tile(LucideIcons.radio, ref.tr('fmRadio'), () => go('/fm-radio')),
-                  _tile(LucideIcons.layers, ref.tr('cardCollection'), () => go('/cards')),
+                  if (kCardCollectionEnabled)
+                    _tile(LucideIcons.layers, ref.tr('cardCollection'), () => go('/cards')),
                   if (kAniScanEnabled)
                     _tile(LucideIcons.scanLine, 'AniScan', () => go('/aniscan')),
                   _tile(LucideIcons.settings, ref.tr('settings'), () => go('/settings')),
                 ],
               ),
             ),
-            if (!user.isPlusUser)
+            if (!(me?.isPlus ?? false))
               Padding(
                 padding: const EdgeInsets.all(14),
                 child: GradientButton(

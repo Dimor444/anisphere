@@ -9,7 +9,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/models/anime_model.dart';
 import '../../data/sample_data.dart';
-import '../../shared/providers/user_provider.dart';
+import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/anime_card.dart';
 import '../../shared/widgets/anime_cover_image.dart';
 import '../../shared/widgets/aniplus_paywall.dart';

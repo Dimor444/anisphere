@@ -118,7 +118,8 @@ final appRouter = GoRouter(
     _top('/my-list/:id', (c, s) => MyListDetailScreen(anilistId: int.tryParse(s.pathParameters['id'] ?? '') ?? 0)),
     _top('/observatory', (c, s) => const ObservatoryScreen()),
     _top('/fm-radio', (c, s) => const FmRadioScreen()),
-    _top('/cards', (c, s) => const CardCollectionScreen()),
+    // Hidden with every link to it; see kCardCollectionEnabled.
+    if (kCardCollectionEnabled) _top('/cards', (c, s) => const CardCollectionScreen()),
     _top('/aniscan', (c, s) => const AniScanScreen()),
     _top('/wrapped', (c, s) => const WrappedScreen()),
     _top('/time-capsule', (c, s) => const TimeCapsuleScreen()),

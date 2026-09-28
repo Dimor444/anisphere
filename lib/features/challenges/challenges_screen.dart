@@ -20,6 +20,7 @@ import '../../services/anime_character_service.dart';
 import '../../services/anime_image_service.dart';
 import '../../services/anime_search_service.dart';
 import '../../services/true_fan_score_service.dart';
+import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/user_provider.dart';
 import '../../shared/widgets/anime_cover_image.dart';
 import '../../shared/widgets/gradient_button.dart';

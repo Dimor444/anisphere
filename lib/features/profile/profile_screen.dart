@@ -40,6 +40,7 @@ import 'widgets/anime_dna_section.dart';
 import 'widgets/true_fan_section.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
+import 'card_collection_screen.dart';
 
 // ── Header geometry ────────────────────────────────────────────────────────
 // Banner, avatar and action row live in ONE Stack that is sized to contain
@@ -615,8 +616,10 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
         Row(
           children: [
             Expanded(child: _quickBtn(context, '⏰', 'Time Capsule', '/time-capsule')),
-            const SizedBox(width: 10),
-            Expanded(child: _quickBtn(context, '🎴', 'Card Collection', '/cards')),
+            if (kCardCollectionEnabled) ...[
+              const SizedBox(width: 10),
+              Expanded(child: _quickBtn(context, '🎴', 'Card Collection', '/cards')),
+            ],
           ],
         ),
       ],

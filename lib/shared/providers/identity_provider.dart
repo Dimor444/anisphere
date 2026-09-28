@@ -37,6 +37,16 @@ final identityProvider =
 /// [AuthService.initAuth] that every profile write resolves (Edit Profile →
 /// FollowService.updateProfile), so this can never watch a different doc
 /// than the one edits land in.
+/// Is the signed-in user on AniPlus? Read from users/{uid}.isPlus, which only
+/// the server writes — the same field the rules check before granting Plus
+/// vote slots. Loading, signed out or no doc all read false: a missing
+/// identity must never unlock Plus.
+///
+/// This used to read SampleData.mainUser.isPlusUser, so every account was
+/// treated as not-Plus whatever the server said.
+final isPlusProvider = Provider.autoDispose<bool>(
+    (ref) => ref.watch(myIdentityProvider).asData?.value?.isPlus ?? false);
+
 final myIdentityProvider = StreamProvider.autoDispose<UserData?>((ref) async* {
   final String uid;
   try {

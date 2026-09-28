@@ -15,13 +15,13 @@ import '../../shared/providers/catalogue_provider.dart';
 import '../../shared/providers/daily_task_provider.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/inventory_provider.dart';
-import '../../shared/providers/user_provider.dart';
 import '../../shared/widgets/ani_gem_icon.dart';
 import '../../shared/widgets/ani_gold_icon.dart';
 import '../../shared/widgets/currency_pill.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/verified_badge.dart';
+import '../profile/card_collection_screen.dart';
 
 class WalletScreen extends ConsumerWidget {
   final String? initialTab;
@@ -879,20 +879,23 @@ class _SpendTabState extends ConsumerState<_SpendTab> {
             ]),
           ),
         ],
-        const SizedBox(height: 14),
-        GestureDetector(
-          onTap: () => context.push('/cards'),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(gradient: AppGradients.brandTri, borderRadius: BorderRadius.circular(16)),
-            child: Row(children: [
-              const Text('🎴', style: TextStyle(fontSize: 28)),
-              const SizedBox(width: 12),
-              Expanded(child: Text('Gacha / Card Collection', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first)))),
-              Icon(LucideIcons.chevronRight, color: AppGradients.onFill(AppGradients.brandTri.colors.first)),
-            ]),
+        // Hidden with the screen it opens; see kCardCollectionEnabled.
+        if (kCardCollectionEnabled) ...[
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: () => context.push('/cards'),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(gradient: AppGradients.brandTri, borderRadius: BorderRadius.circular(16)),
+              child: Row(children: [
+                const Text('🎴', style: TextStyle(fontSize: 28)),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Gacha / Card Collection', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first)))),
+                Icon(LucideIcons.chevronRight, color: AppGradients.onFill(AppGradients.brandTri.colors.first)),
+              ]),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

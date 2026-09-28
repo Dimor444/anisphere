@@ -5,7 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
-import '../../shared/providers/user_provider.dart';
+import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 
 /// The center "+" FAB action sheet.
@@ -25,8 +25,9 @@ class _CreateSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(userProvider);
-    final liveLocked = user.followers < 1000 && !user.isPlusUser;
+    // Real follower count and Plus status; unknown reads as locked.
+    final me = myIdentity(ref);
+    final liveLocked = (me?.followerCount ?? 0) < 1000 && !(me?.isPlus ?? false);
 
     void close() => Navigator.pop(context);
 

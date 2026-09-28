@@ -14,6 +14,3 @@ class UserController extends StateNotifier<UserModel> {
 
 final userProvider =
     StateNotifierProvider<UserController, UserModel>((ref) => UserController());
-
-/// Convenience: is the active user an AniPlus subscriber?
-final isPlusProvider = Provider<bool>((ref) => ref.watch(userProvider).isPlusUser);

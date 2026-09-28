@@ -11,6 +11,7 @@ import '../../data/models/post.dart';
 import '../../data/sample_data.dart';
 import '../../services/feed_service.dart';
 import '../../services/follow_service.dart';
+import '../notifications/notifications_screen.dart';
 import '../stories/stories_row.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/anime_card.dart';
@@ -344,7 +345,8 @@ class _BellButton extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         IconButton(icon: const Icon(LucideIcons.bell, size: 21), onPressed: onTap),
-        Positioned(
+        // A literal "3", not an unread count — nothing counts unread yet.
+        if (kSampleNotificationsEnabled) Positioned(
           right: 8,
           top: 8,
           child: Container(

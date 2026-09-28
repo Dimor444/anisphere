@@ -15,7 +15,7 @@ import '../../data/models/community_vote.dart';
 import '../../services/community_vote_service.dart';
 import '../../services/trending_service.dart';
 import '../../shared/providers/language_provider.dart';
-import '../../shared/providers/user_provider.dart';
+import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/gradient_button.dart';
 
@@ -123,7 +123,7 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
 
   @override
   Widget build(BuildContext context) {
-    final isPlus = ref.watch(userProvider).isPlusUser;
+    final isPlus = ref.watch(isPlusProvider);
     return StreamBuilder<List<CommunityVote>>(
       stream: _myVotes,
       builder: (context, votesSnap) {

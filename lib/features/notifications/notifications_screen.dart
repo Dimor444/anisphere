@@ -8,10 +8,34 @@ import '../../data/sample_data.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../core/constants/app_gradients.dart';
 
+/// Whether Notifications shows SampleData.notifications (and the feed bell
+/// its badge).
+///
+/// Every one of them was invented, and two claimed things the server
+/// contradicts: "+100🟡 for your 7-day streak!" — a credit never made — and
+/// "Your streak ends in 1 hour!", whatever the real streak said. Timestamps
+/// were relative to now, so they always looked fresh, and the Tasks tab listed
+/// only that fake credit. The bell's "3" was a literal. The list is kept, not
+/// deleted.
+///
+/// No notifications collection exists. Real ones need a per-user store the
+/// server writes — from follows, likes and comments on your posts, streak
+/// check-ins and task claims, each of which already happens server-side or
+/// under rules — plus a read marker for an unread count the bell can show.
+const bool kSampleNotificationsEnabled = false;
+
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
   @override
   Widget build(BuildContext context) {
+    // Nothing real to show yet, and an empty list is honest where a sample
+    // one is not. One empty state, not five empty tabs.
+    if (!kSampleNotificationsEnabled) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Notifications')),
+        body: _list(const []),
+      );
+    }
     return DefaultTabController(
       length: 5,
       child: Scaffold(
