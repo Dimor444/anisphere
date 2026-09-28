@@ -15,6 +15,28 @@ import '../../services/anime_search_service.dart';
 import '../../services/room_service.dart';
 import '../../shared/widgets/gradient_button.dart';
 
+/// Whether Rooms shows Art Room, Writers Room and Anime Chat.
+///
+/// All three are hardcoded widgets with nothing behind them. Watch Party is the
+/// only Rooms card backed by data, so it is the only one shown. The cards are
+/// kept, not deleted; each needs the following before it can come back:
+///
+/// - Art Room: somewhere to put artwork — an upload path with Storage rules
+///   and a size cap, a post shape the Traditional / Digital chips can filter
+///   on, and reporting, since user images are the thing it is for. Its chips
+///   have no tap handler today.
+/// - Writers Room: a writing post type with a Theory / Review / Fanfic
+///   category the chips can query. Its two rows are string literals, and
+///   nothing is tappable.
+/// - Anime Chat: per-anime chat — a message store keyed by AniList id, rules,
+///   moderation — and a presence source for its "online" counts, which are
+///   invented (3201 / 2890 / 1740). Its search field and Enter buttons do
+///   nothing.
+///
+/// Flipping this to true brings back exactly what was there, including those
+/// counts — so only once the pieces above exist.
+const bool kPlaceholderRoomsEnabled = false;
+
 class CommunityScreen extends ConsumerWidget {
   const CommunityScreen({super.key});
   @override
@@ -36,8 +58,9 @@ class CommunityScreen extends ConsumerWidget {
                       icon: const Icon(LucideIcons.arrowLeft),
                       onPressed: () => context.pop(),
                     ),
+                    // No "N online" here: there is no presence system, so any
+                    // number would be invented.
                     const Expanded(child: Text('Community', style: AppTextStyles.heading)),
-                    Row(children: [Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)), const SizedBox(width: 6), Text('12,408 online', style: AppTextStyles.caption.copyWith(color: AppColors.success))]),
                   ]),
                 ),
                 const TabBar(tabs: [Tab(text: 'Rooms'), Tab(text: 'Clubs')]),
@@ -58,7 +81,7 @@ class _RoomsTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 90),
       children: [
-        _RoomCard(
+        if (kPlaceholderRoomsEnabled) _RoomCard(
           emoji: '🎨', title: 'Art Room', subtitle: 'Share & critique fan art', gradient: AppGradients.brand,
           child: Row(children: [_pill('Traditional'), const SizedBox(width: 8), _pill('Digital')]),
         ),
@@ -66,7 +89,7 @@ class _RoomsTab extends StatelessWidget {
           emoji: '🍿', title: 'Watch Party', subtitle: 'Sync-watch with friends', gradient: AppGradients.purpleCyan,
           child: _WatchPartyBody(),
         ),
-        _RoomCard(
+        if (kPlaceholderRoomsEnabled) _RoomCard(
           emoji: '✍️', title: 'Writers Room', subtitle: 'Theories, reviews & fanfic', gradient: AppGradients.gem,
           child: Column(children: [
             Row(children: [_pill('Theory'), const SizedBox(width: 8), _pill('Review'), const SizedBox(width: 8), _pill('Fanfic')]),
@@ -80,7 +103,7 @@ class _RoomsTab extends StatelessWidget {
                 )),
           ]),
         ),
-        _RoomCard(
+        if (kPlaceholderRoomsEnabled) _RoomCard(
           emoji: '💬', title: 'Anime Chat', subtitle: 'Per-anime live rooms', gradient: AppGradients.brandTri,
           child: Column(children: [
             const TextField(decoration: InputDecoration(hintText: 'Search anime rooms…', isDense: true, prefixIcon: Icon(LucideIcons.search, size: 16))),
@@ -107,8 +130,8 @@ class _RoomsTab extends StatelessWidget {
 }
 
 /// Live contents of the Watch Party card: the create action plus every open
-/// watch_party room, live ones first. Art Room / Anime Chat next to it are
-/// still static — only Watch Party is Firestore-backed so far.
+/// watch_party room, live ones first. The only Firestore-backed Rooms card —
+/// the static ones sit behind [kPlaceholderRoomsEnabled].
 ///
 /// Stateful so it holds ONE subscription — a stream built in build() would
 /// resubscribe on every rebuild — and so Retry can open a fresh one.
