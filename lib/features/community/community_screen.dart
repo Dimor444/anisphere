@@ -13,6 +13,7 @@ import '../../data/models/room.dart';
 import '../../services/auth_service.dart';
 import '../../services/anime_search_service.dart';
 import '../../services/room_service.dart';
+import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
 
 /// Whether Rooms shows Art Room, Writers Room and Anime Chat.
@@ -37,36 +38,68 @@ import '../../shared/widgets/gradient_button.dart';
 /// counts — so only once the pieces above exist.
 const bool kPlaceholderRoomsEnabled = false;
 
+/// Whether Community shows the Clubs tab (and the router registers
+/// `/club/:name`).
+///
+/// Clubs is hardcoded end to end. There is no clubs collection, service or
+/// rule: "My Clubs" and "Discover" are two local lists built in build(), and
+/// all six clubs open the same ClubDetailScreen — the same "12.4K members",
+/// the same SampleData people, posts and league leaders, a "Joined ✓" button
+/// that does nothing, and a chat placeholder claiming "3,201 members online".
+/// Worst, "Create Club · 100🟡" closes its sheet and reports "Club created!
+/// −100🟡" while creating nothing and charging nothing — a transaction that
+/// did not happen, now that the balance is real and server-owned.
+///
+/// Coming back needs: a clubs collection, rules for it, a service, membership
+/// with a server-owned member count (the rooms memberCount pattern), and the
+/// creation fee charged for real through spendGold — which means a catalogue
+/// entry for it, since spendGold only charges for items the server lists.
+/// The detail screen's feed, chat and ranks each need a real source too.
+const bool kClubsEnabled = false;
+
 class CommunityScreen extends ConsumerWidget {
   const CommunityScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(gradient: AppGradients.pageBg),
-          child: SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 6, 16, 0),
-                  child: Row(children: [
-                    // Always reached by push (drawer) — safe to pop.
-                    IconButton(
-                      icon: const Icon(LucideIcons.arrowLeft),
-                      onPressed: () => context.pop(),
-                    ),
-                    // No "N online" here: there is no presence system, so any
-                    // number would be invented.
-                    const Expanded(child: Text('Community', style: AppTextStyles.heading)),
-                  ]),
-                ),
-                const TabBar(tabs: [Tab(text: 'Rooms'), Tab(text: 'Clubs')]),
-                const Expanded(child: TabBarView(children: [_RoomsTab(), _ClubsTab()])),
-              ],
-            ),
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(8, 6, 16, 0),
+      child: Row(children: [
+        // Always reached by push (drawer) — safe to pop.
+        IconButton(
+          icon: const Icon(LucideIcons.arrowLeft),
+          onPressed: () => context.pop(),
+        ),
+        // No "N online" here: there is no presence system, so any
+        // number would be invented.
+        Expanded(
+          // With Clubs gone this screen IS Rooms, so it takes the drawer's
+          // name for it (already translated) rather than "Community".
+          child: Text(kClubsEnabled ? 'Community' : ref.tr('rooms'), style: AppTextStyles.heading),
+        ),
+      ]),
+    );
+
+    const Widget content = kClubsEnabled
+        ? DefaultTabController(
+            length: 2,
+            child: Column(children: [
+              TabBar(tabs: [Tab(text: 'Rooms'), Tab(text: 'Clubs')]),
+              Expanded(child: TabBarView(children: [_RoomsTab(), _ClubsTab()])),
+            ]),
+          )
+        // One section needs no tab bar.
+        : _RoomsTab();
+
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppGradients.pageBg),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              header,
+              const Expanded(child: content),
+            ],
           ),
         ),
       ),

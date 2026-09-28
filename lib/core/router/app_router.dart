@@ -142,6 +142,7 @@ final appRouter = GoRouter(
     _top('/profile/:userId/followers', (c, s) => FollowersScreen(userId: s.pathParameters['userId']!)),
     _top('/profile/:userId/following', (c, s) => FollowingScreen(userId: s.pathParameters['userId']!)),
     _top('/profile/:userId', (c, s) => ProfileScreen(userId: s.pathParameters['userId']!)),
-    _top('/club/:name', (c, s) => ClubDetailScreen(clubName: s.pathParameters['name']!)),
+    // Nothing links here while Clubs is hidden; see kClubsEnabled.
+    if (kClubsEnabled) _top('/club/:name', (c, s) => ClubDetailScreen(clubName: s.pathParameters['name']!)),
   ],
 );
