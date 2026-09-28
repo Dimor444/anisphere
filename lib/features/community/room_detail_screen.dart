@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -6,6 +8,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../data/models/room.dart';
+import '../../services/auth_service.dart';
 import '../../services/room_service.dart';
 
 /// A Watch Party room.
@@ -13,9 +16,72 @@ import '../../services/room_service.dart';
 /// Deliberately minimal: synchronized playback is v2, so this is the room's
 /// identity (title, episode) plus its live roster size, which streams straight
 /// off the Cloud-Function-owned memberCount.
-class RoomDetailScreen extends StatelessWidget {
+///
+/// Being on this screen is being in the room. Every way in joins first (the
+/// list's Join, or creating), and leaving the screen — back, a route change,
+/// a deep link elsewhere — leaves. The host can also end the room for all.
+class RoomDetailScreen extends StatefulWidget {
   final String roomId;
   const RoomDetailScreen({super.key, required this.roomId});
+
+  @override
+  State<RoomDetailScreen> createState() => _RoomDetailScreenState();
+}
+
+class _RoomDetailScreenState extends State<RoomDetailScreen> {
+  late final Stream<Room?> _room = RoomService.instance.roomById(widget.roomId);
+  bool _ending = false;
+
+  @override
+  void dispose() {
+    // dispose cannot await, but it does not need to: the delete is handed to
+    // Firestore, which holds it in its local queue (persisted on disk) and
+    // sends it after this screen — or the whole app session — is gone. If
+    // dispose never runs at all (the process is killed), the membership stays
+    // until the server's stale-room sweep ends the room. Failures are already
+    // logged by RoomService; there is no screen left to show them on.
+    unawaited(RoomService.instance.leaveRoom(widget.roomId).catchError((Object _) {}));
+    super.dispose();
+  }
+
+  Future<void> _end() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('End this watch party?', style: AppTextStyles.subheading),
+        content: const Text(
+          'Everyone in it is sent out, and it disappears from the list.',
+          style: AppTextStyles.bodyMuted,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('End', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _ending = true);
+    try {
+      await RoomService.instance.endRoom(widget.roomId);
+      if (mounted) context.pop();
+    } on TimeoutException {
+      _failed("Can't reach the server — check your connection.");
+    } catch (_) {
+      _failed("Couldn't end the watch party.");
+    }
+  }
+
+  void _failed(String message) {
+    if (!mounted) return;
+    setState(() => _ending = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +90,7 @@ class RoomDetailScreen extends StatelessWidget {
         decoration: const BoxDecoration(gradient: AppGradients.pageBg),
         child: SafeArea(
           child: StreamBuilder<Room?>(
-            stream: RoomService.instance.roomById(roomId),
+            stream: _room,
             builder: (context, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -124,6 +190,20 @@ class RoomDetailScreen extends StatelessWidget {
                   ),
                 ]),
               ),
+              if (room.hostUid == AuthService.instance.uid) ...[
+                const SizedBox(height: 18),
+                OutlinedButton.icon(
+                  onPressed: _ending ? null : _end,
+                  icon: const Icon(LucideIcons.circleStop, size: 18, color: AppColors.error),
+                  label: Text(_ending ? 'Ending…' : 'End watch party',
+                      style: AppTextStyles.subheading.copyWith(color: AppColors.error)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: AppColors.border),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

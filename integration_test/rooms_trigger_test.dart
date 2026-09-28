@@ -71,12 +71,26 @@ void main() {
     expect(await readCount(id), expected, reason: 'memberCount did not settle at $expected');
   }
 
+  /// Polls until the room doc is gone — the trigger ends a room when its
+  /// last member leaves — then holds to make sure nothing brings it back.
+  Future<void> expectRoomEnds(String id, {String? reason}) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 20));
+    var exists = true;
+    while (exists && DateTime.now().isBefore(deadline)) {
+      exists = (await roomRef(id).get()).exists;
+      if (exists) await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    expect(exists, isFalse, reason: reason ?? 'room never ended (is the functions emulator running?)');
+    await Future<void>.delayed(const Duration(seconds: 2));
+    expect((await roomRef(id).get()).exists, isFalse, reason: 'ended room came back');
+  }
+
   Future<String> freshUser() async {
     await AuthService.instance.signOut();
     return (await AuthService.instance.initAuth()).uid;
   }
 
-  testWidgets('join/leave cycle drives memberCount 1 → 2 → 1 → 0', (tester) async {
+  testWidgets('join/leave cycle drives memberCount 1 → 2 → 1, and the last leave ends the room', (tester) async {
     // ── A creates the room; createWatchParty joins the host.
     final uidA = await freshUser();
     final roomId = await RoomService.instance.createWatchParty(title: 'ZZ Trigger Room');
@@ -97,22 +111,23 @@ void main() {
     // membership. So remove A's doc through the emulator's admin endpoint;
     // the trigger fires on the delete regardless of who issued it.
     await _adminDeleteMember(roomId, uidA);
-    await expectCountSettles(roomId, 0, reason: 'last member leaving should drop 1 → 0');
+    await expectRoomEnds(roomId, reason: 'last member leaving should end the room');
   });
 
-  testWidgets('deleting an already-absent member doc leaves the count alone', (tester) async {
+  testWidgets('deleting an already-absent member doc does not bring an ended room back', (tester) async {
     final uid = await freshUser();
     final roomId = await RoomService.instance.createWatchParty(title: 'ZZ Idempotent Room');
     await expectCountSettles(roomId, 1);
 
     await RoomService.instance.leaveRoom(roomId);
-    await expectCountSettles(roomId, 0);
+    await expectRoomEnds(roomId);
 
-    // Second delete of the same (now absent) doc. Firestore emits no delete
-    // event for a no-op delete, so the handler never runs and the counter
-    // holds. (Redelivery — where it DOES run again — is member_count.test.js.)
+    // Second delete of the same (now absent) doc — what the room screen's
+    // dispose does after the host has already ended it. Firestore emits no
+    // delete event for a no-op delete, so the handler never runs. (Redelivery
+    // — where it DOES run again — is member_count.test.js.)
     await roomRef(roomId).collection('members').doc(uid).delete();
     await Future<void>.delayed(const Duration(seconds: 4));
-    expect(await readCount(roomId), 0, reason: 'no-op delete must not push memberCount negative');
+    expect((await roomRef(roomId).get()).exists, isFalse, reason: 'no-op delete must not resurrect the room');
   });
 }

@@ -7,7 +7,8 @@ import 'auth_service.dart';
 /// Community rooms backed by the `rooms` collection.
 ///
 /// Watch Party only for now — synchronized playback is v2, so a room is just
-/// a titled place with a live membership roster.
+/// a titled place with a live membership roster. Being on the room screen IS
+/// membership: joining happens on the way in, leaving when the screen goes.
 ///
 /// Membership is a self-keyed doc at `rooms/{roomId}/members/{uid}`; writing
 /// it is the ONLY way memberCount moves, via the Cloud Function trigger in
@@ -155,7 +156,21 @@ class RoomService {
     });
   }
 
-  /// Removes the signed-in user from [roomId]'s roster (trigger decrements).
+  /// Ends [roomId] for everyone. Host only — rules refuse anyone else.
+  ///
+  /// Ending is deletion: a finished watch party has nothing left to show, and
+  /// every open room screen already renders a vanished room as "ended". The
+  /// onRoomDeleted trigger clears the roster, since deleting a document leaves
+  /// its subcollections behind.
+  Future<void> endRoom(String roomId) {
+    return _guard('endRoom($roomId)', () async {
+      await _uid();
+      await _rooms.doc(roomId).delete().timeout(writeTimeout);
+    });
+  }
+
+  /// Removes the signed-in user from [roomId]'s roster. The trigger recounts,
+  /// and ends the room if that was the last member.
   Future<void> leaveRoom(String roomId) {
     return _guard('leaveRoom($roomId)', () async {
       final uid = await _uid();

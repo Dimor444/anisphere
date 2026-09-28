@@ -41,19 +41,31 @@ const db = getFirestore();
  * The read and the write share a transaction so concurrent joins can't
  * interleave into a lost update. A room deleted out from under its members is
  * a no-op, not an error.
+ *
+ * A count of zero ENDS the room: a watch party nobody is in is not a room, and
+ * left standing it would sit in everyone's list forever. The recount reads the
+ * live subcollection inside the transaction, so a leave that races a rejoin
+ * only deletes if the room is really empty at that instant — and the rules
+ * refuse a join into a room that no longer exists. Returns true when it ended
+ * the room.
  */
 async function syncMemberCount(roomId) {
   const roomRef = db.collection('rooms').doc(roomId);
-  await db.runTransaction(async (tx) => {
+  return db.runTransaction(async (tx) => {
     const room = await tx.get(roomRef);
-    if (!room.exists) return;
+    if (!room.exists) return false;
 
     const members = await tx.get(roomRef.collection('members').count());
     const actual = members.data().count;
 
+    if (actual === 0) {
+      tx.delete(roomRef);
+      return true;
+    }
     // Skip the write when already correct — most redeliveries land here.
-    if (room.get('memberCount') === actual) return;
+    if (room.get('memberCount') === actual) return false;
     tx.update(roomRef, { memberCount: actual });
+    return false;
   });
 }
 
@@ -61,14 +73,61 @@ exports.onRoomMemberJoined = onDocumentCreated('rooms/{roomId}/members/{uid}', (
   syncMemberCount(event.params.roomId),
 );
 
-exports.onRoomMemberLeft = onDocumentDeleted('rooms/{roomId}/members/{uid}', (event) =>
-  syncMemberCount(event.params.roomId),
+exports.onRoomMemberLeft = onDocumentDeleted('rooms/{roomId}/members/{uid}', async (event) => {
+  const { roomId } = event.params;
+  if (await syncMemberCount(roomId)) {
+    console.log(JSON.stringify({ severity: 'INFO', event: 'room-ended-empty', roomId }));
+  }
+});
+
+/**
+ * A deleted room takes its roster with it. Deleting a document does NOT delete
+ * its subcollections, so a host ending a room from the client would otherwise
+ * leave members/ behind — orphans that still match each member's
+ * collection-group lookups. Each deletion here fires onRoomMemberLeft, which
+ * finds no room and does nothing.
+ */
+exports.onRoomDeleted = onDocumentDeleted('rooms/{roomId}', (event) =>
+  db.recursiveDelete(db.collection('rooms').doc(event.params.roomId).collection('members')),
+);
+
+// A room nobody has joined for this long is ended by the sweep below. There is
+// no presence signal: a member whose app was killed never runs the leave, so
+// their membership outlives them and the room reads "1 watching" to everyone.
+// Six hours is past any single sitting, and a room people keep joining lives on.
+const ROOM_IDLE_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Ends rooms that are over ROOM_IDLE_MS old and have had no join in that long.
+ * It is also what clears the rooms from before leaving existed: every one of
+ * them is older than the cutoff, and their memberships are all stale.
+ */
+async function sweepStaleRooms(now = Date.now()) {
+  const cutoff = Timestamp.fromMillis(now - ROOM_IDLE_MS);
+  const old = await db.collection('rooms').where('createdAt', '<', cutoff).get();
+  const ended = [];
+  for (const room of old.docs) {
+    const recent = await room.ref.collection('members').where('joinedAt', '>=', cutoff).limit(1).get();
+    if (!recent.empty) continue;
+    await db.recursiveDelete(room.ref);
+    ended.push(room.id);
+  }
+  if (ended.length) {
+    console.log(JSON.stringify({ severity: 'INFO', event: 'rooms-swept', count: ended.length, roomIds: ended }));
+  }
+  return ended;
+}
+
+exports.sweepStaleRooms = onSchedule(
+  { schedule: 'every 1 hours', timeZone: 'Etc/UTC', region: 'europe-west1' },
+  () => sweepStaleRooms(),
 );
 
 // Exported for test/member_count.test.js: redelivery of a single event is the
 // case this design exists for, and no amount of driving Firestore reproduces
 // it on demand. Calling the body directly does.
 exports._syncMemberCount = syncMemberCount;
+exports._sweepStaleRooms = sweepStaleRooms;
 
 // ── Ani Videos → Cloudflare R2 ─────────────────────────────────────────────
 

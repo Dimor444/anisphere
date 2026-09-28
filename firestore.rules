@@ -753,7 +753,8 @@ service cloud.firestore {
 
     // ── Community rooms (Watch Party) ─────────────────────────────────────
     // A room is host-owned: the creator pins hostUid to themselves and only
-    // they may edit or delete it. memberCount is NOT in any client-writable
+    // they may edit or delete it. Deleting is how a host ENDS a room; the
+    // onRoomDeleted trigger clears members/ behind it. memberCount is NOT in any client-writable
     // key set — it is moved solely by the members/{uid} Cloud Function
     // trigger, the same way other protected counters work in this project.
     // Anime reference is an AniList id ONLY (title/cover are fetched live).
@@ -795,10 +796,16 @@ service cloud.firestore {
       // builds write {joinedAt} only and keep joining. It exists so an
       // account's memberships can be found across every room, which a
       // collection-group query cannot do from the document id alone.
+      //
+      // Only into a room that exists. Rooms now end — by the host, or by
+      // emptying — and a join landing after that would be an orphan under a
+      // deleted room. existsAfter, not exists: create writes the room and the
+      // host's membership in ONE batch, and exists() sees the state before it.
       match /members/{uid} {
         allow read: if signedIn();
         allow create: if signedIn()
           && request.auth.uid == uid
+          && existsAfter(/databases/$(database)/documents/rooms/$(roomId))
           && request.resource.data.keys().hasOnly(['joinedAt', 'uid'])
           && request.resource.data.joinedAt == request.time
           && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid);

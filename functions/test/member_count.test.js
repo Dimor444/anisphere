@@ -1,5 +1,6 @@
 /**
- * memberCount handler semantics, against the Firestore emulator.
+ * memberCount handler semantics — and the room ending when it empties or
+ * goes idle — against the Firestore emulator.
  *
  * Cloud Functions deliver at-least-once, so the SAME members/{uid} event can
  * invoke the handler more than once, and a redelivery can land AFTER a later
@@ -19,7 +20,7 @@ process.env.GCLOUD_PROJECT ||= 'anisphere-36cb0';
 
 const assert = require('node:assert');
 
-const { _syncMemberCount } = require('../index.js');
+const { _syncMemberCount, _sweepStaleRooms } = require('../index.js');
 const { getFirestore } = require('firebase-admin/firestore');
 
 const db = getFirestore();
@@ -44,6 +45,7 @@ async function seedRoom(id, memberUids, seededCount = 0) {
 }
 
 const countOf = async (id) => (await roomRef(id).get()).get('memberCount');
+const exists = async (id) => (await roomRef(id).get()).exists;
 
 async function run(name, fn) {
   await fn();
@@ -68,26 +70,35 @@ async function run(name, fn) {
     assert.strictEqual(await countOf('zz_c_redeliver'), 1, 'redeliveries must not inflate');
   });
 
-  await run('join redelivered AFTER the leave converges to 0 (the observed bug)', async () => {
+  await run('join redelivered AFTER the leave cannot resurrect the room (the observed bug)', async () => {
     // Exactly the sequence the e2e run hit: join fires, leave fires, then the
     // create event is delivered again with the member doc already gone. The
-    // delta handler ended at 1 with zero members and never recovered.
+    // delta handler ended at 1 with zero members and never recovered. Now the
+    // leave empties the room and ends it, and the late join is a no-op.
     await seedRoom('zz_c_late', ['a']);
     await _syncMemberCount('zz_c_late'); // join
     assert.strictEqual(await countOf('zz_c_late'), 1);
 
     await roomRef('zz_c_late').collection('members').doc('a').delete();
-    await _syncMemberCount('zz_c_late'); // leave
-    assert.strictEqual(await countOf('zz_c_late'), 0);
+    assert.strictEqual(await _syncMemberCount('zz_c_late'), true, 'last leave reports the room ended');
+    assert.strictEqual(await exists('zz_c_late'), false, 'an empty room ends');
 
-    await _syncMemberCount('zz_c_late'); // late redelivery of the join
-    assert.strictEqual(await countOf('zz_c_late'), 0, 'stale join redelivery must not resurrect a count');
+    assert.strictEqual(await _syncMemberCount('zz_c_late'), false); // late redelivery of the join
+    assert.strictEqual(await exists('zz_c_late'), false, 'stale join redelivery must not resurrect the room');
   });
 
-  await run('never goes negative, even from a wrongly-high seed', async () => {
+  await run('a leave that leaves others behind does not end the room', async () => {
+    await seedRoom('zz_c_stay', ['a', 'b']);
+    await _syncMemberCount('zz_c_stay');
+    await roomRef('zz_c_stay').collection('members').doc('a').delete();
+    assert.strictEqual(await _syncMemberCount('zz_c_stay'), false);
+    assert.strictEqual(await countOf('zz_c_stay'), 1);
+  });
+
+  await run('a wrongly-high seed with nobody in it ends, never goes negative', async () => {
     await seedRoom('zz_c_neg', [], 5);
     await _syncMemberCount('zz_c_neg');
-    assert.strictEqual(await countOf('zz_c_neg'), 0);
+    assert.strictEqual(await exists('zz_c_neg'), false);
   });
 
   await run('self-heals drift from a wrongly-low seed', async () => {
@@ -108,6 +119,30 @@ async function run(name, fn) {
 
   await run('a deleted room is a no-op, not a crash', async () => {
     await _syncMemberCount('zz_room_that_never_existed');
+  });
+
+  await run('sweep ends idle old rooms and keeps the rest', async () => {
+    const HOUR = 60 * 60 * 1000;
+    const now = Date.now();
+    const seedAt = async (id, createdAgo, joinedAgo) => {
+      await seedRoom(id, []);
+      await roomRef(id).update({ createdAt: new Date(now - createdAgo), memberCount: 1 });
+      await roomRef(id).collection('members').doc('m').set({ joinedAt: new Date(now - joinedAgo), uid: 'm' });
+    };
+    // The pre-leaving shape: an old room whose only membership went stale.
+    await seedAt('zz_s_stale', 30 * HOUR, 30 * HOUR);
+    // Old, but someone joined an hour ago — a party that is still going.
+    await seedAt('zz_s_active', 30 * HOUR, 1 * HOUR);
+    // Young — inside the window whatever its members are doing.
+    await seedAt('zz_s_young', 1 * HOUR, 1 * HOUR);
+
+    const ended = await _sweepStaleRooms(now);
+    assert.ok(ended.includes('zz_s_stale'), 'stale room is swept');
+    assert.strictEqual(await exists('zz_s_stale'), false);
+    const orphans = await roomRef('zz_s_stale').collection('members').get();
+    assert.strictEqual(orphans.size, 0, 'the sweep takes the roster with the room');
+    assert.strictEqual(await exists('zz_s_active'), true, 'a room still being joined is kept');
+    assert.strictEqual(await exists('zz_s_young'), true, 'a young room is kept');
   });
 
   console.log('\nAll memberCount tests passed.');
