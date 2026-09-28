@@ -79,7 +79,6 @@ flutter:
   assets:
     - assets/images/
     - assets/images/cards/
-    - assets/images/community/
     - assets/lottie/
     - assets/icons/
   # Vendored variable fonts — fully offline (run tool/fetch_fonts.sh to refresh).

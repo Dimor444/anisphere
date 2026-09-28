@@ -1,10 +1,12 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/theme/brand.dart';
 import '../../core/utils/haptics.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
@@ -19,43 +21,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pc = PageController();
   int _page = 0;
 
-  // Real anime cast per slide — AniList character artwork.
+  // Each slide's art is drawn in code — flat brand-green shapes, nothing
+  // bundled or fetched, so nothing on the first screens belongs to anyone else.
   static const _pages = [
     _OnbData(
-      [
-        'https://s4.anilist.co/file/anilistcdn/character/large/b40-MNypXsxSRb1R.png', // Luffy
-        'https://s4.anilist.co/file/anilistcdn/character/large/b17-phjcWCkRuIhu.png', // Naruto
-        'https://s4.anilist.co/file/anilistcdn/character/large/246-wsRRr6z1kii8.png', // Goku
-        'https://s4.anilist.co/file/anilistcdn/character/large/b126071-BTNEc1nRIv68.png', // Tanjiro
-      ],
       'One World, Every Anime',
       'Follow, post, and react with millions of fans. Your feed, your fandom.',
-      AppGradients.brand,
-      imagePath: 'assets/images/one_world_every_anime.png',
+      AppColors.primaryDark,
+      _OrbitArt(),
     ),
     _OnbData(
-      [
-        'https://s4.anilist.co/file/anilistcdn/character/large/b127691-9zqh1xpIubn7.png', // Gojo
-        'https://s4.anilist.co/file/anilistcdn/character/large/b45627-CR68RyZmddGG.png', // Levi
-        'https://s4.anilist.co/file/anilistcdn/character/large/b130102-FO1VHNnEnLlB.png', // Denji
-        'https://s4.anilist.co/file/anilistcdn/character/large/b27-Z5O02kQUydpT.jpg', // Killua
-      ],
       'Prove You\'re a True Fan',
       'Compete in quizzes, climb the League, and earn AniGold for what you love.',
-      AppGradients.purpleCyan,
-      imagePath: 'assets/images/fan_challenges.png',
+      AniSphereBrand.blue,
+      _ClimbArt(),
     ),
     _OnbData(
-      [
-        'https://s4.anilist.co/file/anilistcdn/character/large/b138100-4Li0tWRCa5bQ.png', // Anya
-        'https://s4.anilist.co/file/anilistcdn/character/large/b176754-PCnpqIOkjhFk.png', // Frieren
-        'https://s4.anilist.co/file/anilistcdn/character/large/b129131-FZrQ7lSlxmEr.png', // Zenitsu
-        'https://s4.anilist.co/file/anilistcdn/character/large/b137079-6yLEUYR3bmpr.png', // Power
-      ],
       'Find Your Anime Soulmate',
       'AniMatch connects you with people who share your exact taste.',
-      AppGradients.gem,
-      imagePath: 'assets/images/soulmate.png',
+      AniSphereBrand.indigo,
+      _MatchArt(),
     ),
   ];
 
@@ -161,12 +146,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 }
 
 class _OnbData {
-  final List<String> cast; // AniList character image URLs
   final String title;
   final String sub;
-  final Gradient gradient;
-  final String? imagePath; // optional full-bleed slide image (overrides [cast])
-  const _OnbData(this.cast, this.title, this.sub, this.gradient, {this.imagePath});
+  final Color background;
+  final CustomPainter art;
+  const _OnbData(this.title, this.sub, this.background, this.art);
 }
 
 class _OnbPage extends StatelessWidget {
@@ -183,20 +167,10 @@ class _OnbPage extends StatelessWidget {
               width: double.infinity,
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                gradient: data.gradient,
+                color: data.background,
                 borderRadius: BorderRadius.circular(28),
               ),
-              alignment: Alignment.center,
-              child: data.imagePath != null
-                  ? Image.asset(
-                      data.imagePath!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      // Until the file is added, fall back to the cast lineup.
-                      errorBuilder: (_, __, ___) => _cast(),
-                    )
-                  : _cast(),
+              child: CustomPaint(painter: data.art),
             ),
           ),
           const SizedBox(height: 30),
@@ -207,95 +181,167 @@ class _OnbPage extends StatelessWidget {
       ),
     );
   }
-
-  /// Default slide illustration: overlapping real-anime portrait lineup.
-  Widget _cast() {
-    return Center(
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 300,
-          height: 360,
-          child: Stack(
-            children: [
-              // Decorative sparkles fill the card's negative space.
-              const _Sparkle(left: 28, top: 44, size: 24, opacity: 0.30),
-              const _Sparkle(left: 244, top: 30, size: 30, opacity: 0.26),
-              const _Sparkle(left: 150, top: 22, size: 18, opacity: 0.22),
-              const _Sparkle(left: 278, top: 150, size: 20, opacity: 0.24),
-              const _Sparkle(left: 12, top: 252, size: 26, opacity: 0.28),
-              _CharPortrait(url: data.cast[0], left: 2, top: 130, width: 110, height: 230),
-              _CharPortrait(url: data.cast[1], left: 64, top: 74, width: 128, height: 286),
-              _CharPortrait(url: data.cast[2], left: 150, top: 100, width: 122, height: 260),
-              _CharPortrait(url: data.cast[3], left: 226, top: 152, width: 72, height: 208),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
-/// A real anime character portrait (AniList artwork) in a rounded frame.
-/// Placed with [Positioned] inside a [Stack]; overlap comes from positioning.
-class _CharPortrait extends StatelessWidget {
-  final String url;
-  final double left, top, width, height;
-  const _CharPortrait({
-    required this.url,
-    required this.left,
-    required this.top,
-    required this.width,
-    required this.height,
-  });
+// ── Slide art ─────────────────────────────────────────────────────────────
+// Flat tonal shapes only — the brand was flattened (no glows), so depth comes
+// from stacking greens, not from blur. Every measurement is a fraction of the
+// card so the art holds its composition on any screen size.
 
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: left,
-      top: top,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.85), width: 2),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 14, offset: const Offset(0, 8))],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: CachedNetworkImage(
-            imageUrl: url,
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-            placeholder: (_, __) => const ColoredBox(color: Colors.white24),
-            errorWidget: (_, __, ___) => const ColoredBox(color: Colors.white24),
-          ),
-        ),
-      ),
-    );
-  }
+const _mint = AppColors.primaryLight; // #7FD9A8
+const _emerald = AniSphereBrand.indigo; // #1DB367
+const _bright = AniSphereBrand.magenta; // #34D17F
+const _deep = AppColors.primaryDark; // #0A5C3C
+const _ink = AniSphereBrand.bgDark; // #04160C
+
+Paint _fill(Color c, [double opacity = 1]) => Paint()..color = c.withOpacity(opacity);
+Paint _stroke(Color c, double width, [double opacity = 1]) => Paint()
+  ..color = c.withOpacity(opacity)
+  ..style = PaintingStyle.stroke
+  ..strokeWidth = width
+  ..strokeCap = StrokeCap.round;
+
+/// Oversized soft discs bleeding off the edges — the shared backdrop that
+/// keeps three different motifs reading as one set.
+void _backdrop(Canvas canvas, Size size, Color tone) {
+  final s = size.shortestSide;
+  canvas.drawCircle(Offset(size.width * 0.05, size.height * 0.08), s * 0.42, _fill(tone, 0.18));
+  canvas.drawCircle(Offset(size.width * 1.02, size.height * 0.96), s * 0.55, _fill(tone, 0.14));
 }
 
-/// A small decorative sparkle used to fill the illustration's negative space.
-class _Sparkle extends StatelessWidget {
-  final double left;
-  final double top;
-  final double size;
-  final double opacity;
-  const _Sparkle({
-    required this.left,
-    required this.top,
-    required this.size,
-    required this.opacity,
-  });
+/// One World: a planet with two tilted orbits and the fans circling it.
+class _OrbitArt extends CustomPainter {
+  const _OrbitArt();
 
   @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: left,
-      top: top,
-      child: Icon(Icons.auto_awesome, size: size, color: Colors.white.withOpacity(opacity)),
-    );
+  void paint(Canvas canvas, Size size) {
+    _backdrop(canvas, size, _emerald);
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide * 0.24;
+
+    // Far half of each orbit, then the planet, then the near half — so the
+    // rings wrap around the globe instead of lying flat behind it.
+    _orbits(canvas, c, r, front: false);
+
+    // The planet: a disc with a lit crescent and a band across it.
+    canvas.drawCircle(c, r, _fill(_emerald));
+    canvas.save();
+    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: r)));
+    canvas.drawCircle(c.translate(r * 0.35, r * 0.35), r, _fill(_deep, 0.55));
+    canvas.drawRect(Rect.fromLTWH(c.dx - r, c.dy - r * 0.12, r * 2, r * 0.24), _fill(_mint, 0.45));
+    canvas.restore();
+
+    _orbits(canvas, c, r, front: true);
   }
+
+  void _orbits(Canvas canvas, Offset c, double r, {required bool front}) {
+    for (final (tilt, scale) in [(-0.35, 1.9), (0.5, 1.55)]) {
+      canvas.save();
+      canvas.translate(c.dx, c.dy);
+      canvas.rotate(tilt);
+      final orbit = Rect.fromCenter(center: Offset.zero, width: r * scale * 2, height: r * scale * 0.8);
+      // In the orbit's own frame the near half is the lower one.
+      canvas.clipRect(Rect.fromLTRB(-orbit.width, front ? 0 : -orbit.height, orbit.width, front ? orbit.height : 0));
+      canvas.drawOval(orbit, _stroke(_mint, 2, 0.55));
+      // Satellites sit on the orbit's ellipse.
+      for (final t in [0.4, 2.3, 4.1]) {
+        final p = Offset(math.cos(t) * orbit.width / 2, math.sin(t) * orbit.height / 2);
+        if ((p.dy >= 0) != front) continue;
+        canvas.drawCircle(p, r * 0.11, _fill(t == 2.3 ? Colors.white : _bright));
+      }
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// True Fan: rising bars, the tallest crowned with a star.
+class _ClimbArt extends CustomPainter {
+  const _ClimbArt();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    _backdrop(canvas, size, _mint);
+    final w = size.width, h = size.height;
+    final barW = w * 0.17, gap = w * 0.05;
+    final base = h * 0.8;
+    final left = (w - barW * 3 - gap * 2) / 2;
+    final heights = [0.26, 0.40, 0.54];
+    final colours = [_deep, _emerald, _mint];
+
+    for (var i = 0; i < 3; i++) {
+      final x = left + i * (barW + gap);
+      final top = base - h * heights[i];
+      canvas.drawRRect(
+        RRect.fromRectAndCorners(Rect.fromLTRB(x, top, x + barW, base),
+            topLeft: const Radius.circular(12), topRight: const Radius.circular(12)),
+        _fill(colours[i]),
+      );
+      // Rank tick on each bar.
+      canvas.drawLine(Offset(x + barW * 0.3, top + barW * 0.35), Offset(x + barW * 0.7, top + barW * 0.35),
+          _stroke(_ink, 4, 0.35));
+    }
+    canvas.drawLine(Offset(w * 0.12, base), Offset(w * 0.88, base), _stroke(_ink, 3, 0.3));
+
+    final lastX = left + 2 * (barW + gap) + barW / 2;
+    _star(canvas, Offset(lastX, base - h * heights[2] - barW * 0.75), barW * 0.5);
+    // The climb itself: a dotted arc up to the star.
+    for (var t = 0.0; t <= 1.0; t += 0.1) {
+      final p = Offset(left + barW / 2 + (lastX - left - barW / 2) * t,
+          base - h * heights[0] - h * 0.1 - math.sin(t * math.pi * 0.5) * h * 0.26);
+      canvas.drawCircle(p, 3, _fill(Colors.white, 0.35 + t * 0.5));
+    }
+  }
+
+  void _star(Canvas canvas, Offset c, double r) {
+    final path = Path();
+    for (var i = 0; i < 10; i++) {
+      final rad = i.isEven ? r : r * 0.45;
+      final a = -math.pi / 2 + i * math.pi / 5;
+      final p = c + Offset(math.cos(a) * rad, math.sin(a) * rad);
+      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+    }
+    canvas.drawPath(path..close(), _fill(Colors.white));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Soulmate: two circles of taste, their overlap lit — the shared part is
+/// what AniMatch finds.
+class _MatchArt extends CustomPainter {
+  const _MatchArt();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    _backdrop(canvas, size, _deep);
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide * 0.27;
+    final a = c.translate(-r * 0.55, 0), b = c.translate(r * 0.55, 0);
+    final ca = Path()..addOval(Rect.fromCircle(center: a, radius: r));
+    final cb = Path()..addOval(Rect.fromCircle(center: b, radius: r));
+
+    canvas.drawPath(ca, _fill(_deep));
+    canvas.drawPath(cb, _fill(_mint));
+    canvas.drawPath(Path.combine(PathOperation.intersect, ca, cb), _fill(Colors.white));
+
+    // Taste dots scattered in each circle; two land in the shared lens.
+    final rnd = math.Random(7);
+    for (final (centre, colour) in [(a, _bright), (b, _deep)]) {
+      for (var i = 0; i < 6; i++) {
+        final ang = rnd.nextDouble() * math.pi * 2, d = r * (0.35 + rnd.nextDouble() * 0.45);
+        final p = centre + Offset(math.cos(ang) * d, math.sin(ang) * d);
+        if (Path.combine(PathOperation.intersect, ca, cb).contains(p)) continue;
+        canvas.drawCircle(p, r * 0.05, _fill(colour, 0.8));
+      }
+    }
+    canvas.drawCircle(c.translate(0, -r * 0.22), r * 0.07, _fill(_emerald));
+    canvas.drawCircle(c.translate(0, r * 0.22), r * 0.07, _fill(_emerald));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

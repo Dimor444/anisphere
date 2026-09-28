@@ -58,17 +58,14 @@ class _RoomsTab extends StatelessWidget {
       children: [
         _RoomCard(
           emoji: '🎨', title: 'Art Room', subtitle: 'Share & critique fan art', gradient: AppGradients.brand,
-          imagePath: 'assets/images/community/art_room.jpg', imageHeight: 130,
           child: Row(children: [_pill('Traditional'), const SizedBox(width: 8), _pill('Digital')]),
         ),
         const _RoomCard(
           emoji: '🍿', title: 'Watch Party', subtitle: 'Sync-watch with friends', gradient: AppGradients.purpleCyan,
-          imagePath: 'assets/images/community/watch_party.jpg', imageHeight: 110,
           child: _WatchPartyBody(),
         ),
         _RoomCard(
           emoji: '✍️', title: 'Writers Room', subtitle: 'Theories, reviews & fanfic', gradient: AppGradients.gem,
-          imagePath: 'assets/images/community/writers_room.jpg', imageHeight: 110,
           child: Column(children: [
             Row(children: [_pill('Theory'), const SizedBox(width: 8), _pill('Review'), const SizedBox(width: 8), _pill('Fanfic')]),
             const SizedBox(height: 8),
@@ -436,106 +433,33 @@ class _RoomCard extends StatelessWidget {
   final Gradient gradient;
   final Widget child;
 
-  /// Optional illustration shown as a band along the bottom of the card.
-  /// Pass an asset path (e.g. 'assets/images/community/art_room.jpg') to enable it;
-  /// leave null for a plain card. Reusable across every room.
-  final String? imagePath;
-
-  /// Height of the illustration band. Tune per card if needed.
-  final double imageHeight;
-
   const _RoomCard({
     required this.emoji,
     required this.title,
     required this.subtitle,
     required this.gradient,
     required this.child,
-    this.imagePath,
-    this.imageHeight = 120,
   });
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(20);
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      // The gradient + shadow live on the outer Container so the shadow is not
-      // clipped; ClipRRect (below) only clips the content/image to the corners.
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: radius,
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Text + interactive content. It is padded and always sits ABOVE
-            //    the illustration in the layout flow, so the image can never
-            //    overlap the title, description or buttons.
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Text(emoji, style: const TextStyle(fontSize: 30)),
-                    const SizedBox(width: 12),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: AppTextStyles.heading.copyWith(color: Colors.white)), Text(subtitle, style: AppTextStyles.caption.copyWith(color: Colors.white70))]),
-                  ]),
-                  const SizedBox(height: 14),
-                  child,
-                ],
-              ),
-            ),
-            // ── Illustration band: edge-to-edge at the bottom, bottom corners
-            //    clipped by the ClipRRect above.
-            if (imagePath != null) _RoomImage(imagePath: imagePath!, height: imageHeight, gradient: gradient),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Bottom illustration for a [_RoomCard]. Renders [imagePath] cover-fitted with
-/// a top-down gradient (the card's own colour) fading into the image, so the
-/// picture melts into the content above and any overlaid text stays readable.
-class _RoomImage extends StatelessWidget {
-  final String imagePath;
-  final double height;
-  final Gradient gradient;
-  const _RoomImage({required this.imagePath, required this.height, required this.gradient});
-
-  @override
-  Widget build(BuildContext context) {
-    final cardColor = gradient.colors.last;
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: Stack(
-        fit: StackFit.expand,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // The artwork. errorBuilder keeps the card rendering cleanly even
-          // if the asset is missing: a neutral box instead of a crash.
-          Image.asset(
-            imagePath,
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-            errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black26),
-          ),
-          // Transparent gradient overlay on top of the image: solid card colour
-          // at the seam → fully clear over the artwork.
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [cardColor, cardColor.withOpacity(0.0)],
-                stops: const [0.0, 0.55],
-              ),
-            ),
-          ),
+          Row(children: [
+            Text(emoji, style: const TextStyle(fontSize: 30)),
+            const SizedBox(width: 12),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: AppTextStyles.heading.copyWith(color: Colors.white)), Text(subtitle, style: AppTextStyles.caption.copyWith(color: Colors.white70))]),
+          ]),
+          const SizedBox(height: 14),
+          child,
         ],
       ),
     );
