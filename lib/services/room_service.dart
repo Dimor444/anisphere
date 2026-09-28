@@ -51,18 +51,48 @@ class RoomService {
     }
   }
 
+  /// The stream counterpart of [_guard]: logs a listener's failure in the
+  /// same format, then re-emits it so the screen still sees it.
+  static void Function(Object, StackTrace) _logStreamError(String op) => (e, st) {
+        if (e is FirebaseException) {
+          debugPrint('[RoomService] $op failed: [${e.code}] ${e.message}');
+        } else {
+          debugPrint('[RoomService] $op failed: $e');
+        }
+        Error.throwWithStackTrace(e, st);
+      };
+
   // ── Reads ──────────────────────────────────────────────────────────────
 
   /// Live Watch Party rooms — live ones first, then newest. Backed by the
   /// composite index (type, isLive DESC, createdAt DESC) in
   /// firestore.indexes.json.
-  Stream<List<Room>> watchPartyRooms({int limit = 50}) => _rooms
-      .where('type', isEqualTo: Room.typeWatchParty)
-      .orderBy('isLive', descending: true)
-      .orderBy('createdAt', descending: true)
-      .limit(limit)
-      .snapshots()
-      .map((s) => s.docs.map(Room.fromDoc).toList());
+  ///
+  /// Resolves identity FIRST, as every write here does. Rules only let a
+  /// signed-in caller read rooms, and nothing guarantees a session exists yet
+  /// when this screen opens — identity is created lazily by whoever calls
+  /// initAuth first. Listening before that was a guaranteed permission-denied.
+  ///
+  /// A deliberate sign-out surfaces as [SignedOutException] on the stream,
+  /// unlogged: it is a state the screen renders, not a failure.
+  Stream<List<Room>> watchPartyRooms({int limit = 50}) async* {
+    const op = 'watchPartyRooms';
+    try {
+      await _uid();
+    } on SignedOutException {
+      rethrow;
+    } catch (e, st) {
+      _logStreamError(op)(e, st);
+    }
+    yield* _rooms
+        .where('type', isEqualTo: Room.typeWatchParty)
+        .orderBy('isLive', descending: true)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((s) => s.docs.map(Room.fromDoc).toList())
+        .handleError(_logStreamError(op));
+  }
 
   /// One room, live. Emits null if it is deleted out from under the viewer.
   Stream<Room?> roomById(String roomId) =>

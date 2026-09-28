@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/models/room.dart';
+import '../../services/auth_service.dart';
 import '../../services/anime_search_service.dart';
 import '../../services/room_service.dart';
 import '../../shared/widgets/gradient_button.dart';
@@ -107,40 +109,92 @@ class _RoomsTab extends StatelessWidget {
 /// Live contents of the Watch Party card: the create action plus every open
 /// watch_party room, live ones first. Art Room / Anime Chat next to it are
 /// still static — only Watch Party is Firestore-backed so far.
-class _WatchPartyBody extends StatelessWidget {
+///
+/// Stateful so it holds ONE subscription — a stream built in build() would
+/// resubscribe on every rebuild — and so Retry can open a fresh one.
+class _WatchPartyBody extends StatefulWidget {
   const _WatchPartyBody();
 
   @override
+  State<_WatchPartyBody> createState() => _WatchPartyBodyState();
+}
+
+class _WatchPartyBodyState extends State<_WatchPartyBody> {
+  late Stream<List<Room>> _rooms = RoomService.instance.watchPartyRooms();
+
+  void _retry() {
+    Haptics.light();
+    setState(() => _rooms = RoomService.instance.watchPartyRooms());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      GradientButton(
-        label: 'Create Room +',
-        expand: true,
-        gradient: const LinearGradient(colors: [Colors.white24, Colors.white10]),
-        onPressed: () => _openCreateSheet(context),
-      ),
-      const SizedBox(height: 8),
-      StreamBuilder<List<Room>>(
-        stream: RoomService.instance.watchPartyRooms(),
-        builder: (context, snap) {
-          if (snap.hasError) return _note('Rooms are unavailable right now.');
-          if (!snap.hasData) {
-            return const Padding(
+    return StreamBuilder<List<Room>>(
+      stream: _rooms,
+      builder: (context, snap) {
+        final error = snap.error;
+        // Signed out is a state, not a failure: nothing here is readable or
+        // creatable without a session, so the card asks for one instead.
+        if (error is SignedOutException) {
+          return _prompt(
+            'Sign in to see and start watch parties.',
+            action: 'Sign in',
+            onTap: () => context.go('/signin'),
+          );
+        }
+        return Column(children: [
+          GradientButton(
+            label: 'Create Room +',
+            expand: true,
+            gradient: const LinearGradient(colors: [Colors.white24, Colors.white10]),
+            onPressed: () => _openCreateSheet(context),
+          ),
+          const SizedBox(height: 8),
+          if (error != null)
+            _prompt(_describe(error), action: 'Retry', onTap: _retry)
+          else if (!snap.hasData)
+            const Padding(
               padding: EdgeInsets.symmetric(vertical: 14),
               child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70)),
-            );
-          }
-          final rooms = snap.data!;
-          if (rooms.isEmpty) return _note('No rooms yet — start one!');
-          return Column(children: rooms.map((r) => _RoomRow(room: r)).toList());
-        },
-      ),
-    ]);
+            )
+          else if (snap.data!.isEmpty)
+            _note('No watch parties right now — start one!')
+          else
+            ...snap.data!.map((r) => _RoomRow(room: r)),
+        ]);
+      },
+    );
+  }
+
+  /// What went wrong, in terms the user can act on. The raw error is already
+  /// in the log (RoomService); this is only the human half.
+  static String _describe(Object error) {
+    if (error is FirebaseException) {
+      switch (error.code) {
+        case 'unavailable':
+          return "Can't reach the server — check your connection.";
+        case 'permission-denied':
+        case 'unauthenticated':
+          return "Your session wasn't accepted. Try again in a moment.";
+        case 'failed-precondition':
+          return 'Watch parties are still being set up. Try again in a few minutes.';
+      }
+    }
+    return "Couldn't load watch parties.";
   }
 
   static Widget _note(String text) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+      );
+
+  static Widget _prompt(String text, {required String action, required VoidCallback onTap}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(children: [
+          Expanded(child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 13))),
+          const SizedBox(width: 10),
+          GestureDetector(onTap: onTap, child: _RoomsTab._joinBtn(label: action)),
+        ]),
       );
 
   static void _openCreateSheet(BuildContext context) {
