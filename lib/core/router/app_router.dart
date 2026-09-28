@@ -78,7 +78,8 @@ final appRouter = GoRouter(
     GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
     GoRoute(path: '/signin', builder: (_, __) => const SignInScreen()),
-    GoRoute(path: '/signup', builder: (_, __) => const SignUpScreen()),
+    // Only while accounts exist; see kAccountAuthEnabled.
+    if (kAccountAuthEnabled) GoRoute(path: '/signup', builder: (_, __) => const SignUpScreen()),
 
     // Main tabbed shell.
     StatefulShellRoute.indexedStack(

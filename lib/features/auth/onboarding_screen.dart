@@ -10,6 +10,7 @@ import '../../core/theme/brand.dart';
 import '../../core/utils/haptics.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
+import 'signin_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -109,7 +110,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     }),
                   ),
                   const SizedBox(height: 24),
-                  if (last) ...[
+                  if (last && kAccountAuthEnabled) ...[
                     GradientButton(
                       label: ref.tr('createAccount'),
                       onPressed: () => context.go('/signup'),
@@ -129,7 +130,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             style: AppTextStyles.subheading.copyWith(color: AppColors.textSecondary)),
                       ),
                     ),
-                  ] else
+                  ] else if (last)
+                    // Guest is the only way in, and the sign-in screen says
+                    // what that means before the choice is made. Pushed, so
+                    // its back button returns here.
+                    GradientButton(
+                      label: ref.tr('getStarted'),
+                      onPressed: () => context.push('/signin'),
+                    )
+                  else
                     GradientButton(
                       label: ref.tr('next'),
                       onPressed: () => _pc.nextPage(
