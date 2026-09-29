@@ -52,12 +52,39 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   bool _popularMode = false;
 
+  /// Keys the feed's StreamBuilder: bumped when a session's streams are
+  /// dropped, so the next session starts from a fresh builder rather than
+  /// inheriting the previous account's posts while its own first page loads.
+  int _session = 0;
+
+  /// Called from build when the following watch is back to null — which,
+  /// after the first load, means SessionLifecycle tore the watch down because
+  /// the identity changed.
+  ///
+  /// By now the StreamBuilder has been handed a null stream and has cancelled
+  /// its subscription. The streams are single-subscription, so neither can be
+  /// listened to again; kept, the next session's list would hand the builder
+  /// the same consumed instance (popular mode survives the change whenever
+  /// both accounts follow nobody) and it throws "Stream has already been
+  /// listened to". Forget them, so the next list mints fresh ones.
+  void _dropStreams() {
+    if (_stream == null && _popular == null) return; // first load, or already dropped
+    _stream = null;
+    _popular = null;
+    _followKey = null;
+    _older.clear();
+    _endReached = false;
+    _popularLimit = FeedService.pageSize;
+    _session++;
+  }
+
   /// Called from build — assigns stream fields without setState (the caller
   /// is already rebuilding).
   ///
   /// Streams here are single-subscription: after a mode round-trip
   /// (popular → following → popular) a kept instance would already be
-  /// consumed and re-listening throws. Every mode transition mints fresh.
+  /// consumed and re-listening throws. Every mode transition mints fresh —
+  /// and so does a change of session, via [_dropStreams].
   void _syncStreams(List<String> following) {
     final popularMode = following.isEmpty;
     if (popularMode != _popularMode) {
@@ -143,8 +170,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             child: ValueListenableBuilder<List<String>?>(
               valueListenable: FollowService.instance.followingIdsListenable,
               builder: (context, following, _) {
-                if (following != null) _syncStreams(following);
+                if (following != null) {
+                  _syncStreams(following);
+                } else {
+                  _dropStreams();
+                }
                 return StreamBuilder<List<PostData>>(
+                  key: ValueKey(_session),
                   stream: following == null ? null : (_popularMode ? _popular : _stream),
                   builder: (context, snap) {
                     final posts = snap.data;
