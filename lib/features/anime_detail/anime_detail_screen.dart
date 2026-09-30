@@ -15,6 +15,7 @@ import '../../shared/widgets/anime_cover_image.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/glass_modals.dart';
+import '../../shared/widgets/glass_app_bar.dart';
 
 class AnimeDetailScreen extends ConsumerStatefulWidget {
   final String animeId;
@@ -40,29 +41,35 @@ class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
           SliverAppBar(
             expandedHeight: 260,
             pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  AnimeCoverImage(animeName: anime.title, gradient: anime.gradient, emoji: anime.emoji, emojiSize: 120),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black87], stops: [0.45, 1]),
+            // Pinned: the page scrolls behind the collapsed bar.
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            shape: const Border(),
+            flexibleSpace: GlassBarBackground(
+              child: FlexibleSpaceBar(
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    AnimeCoverImage(animeName: anime.title, gradient: anime.gradient, emoji: anime.emoji, emojiSize: 120),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black87], stops: [0.45, 1]),
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: 14,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(anime.title, style: AppTextStyles.display.copyWith(color: Colors.white)),
-                        Text(anime.japaneseTitle, style: AppTextStyles.bodyMuted),
-                      ],
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 14,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(anime.title, style: AppTextStyles.display.copyWith(color: Colors.white)),
+                          Text(anime.japaneseTitle, style: AppTextStyles.bodyMuted),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

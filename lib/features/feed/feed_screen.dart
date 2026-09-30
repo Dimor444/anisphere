@@ -17,10 +17,10 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/anime_card.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
 import '../../shared/widgets/currency_pill.dart';
-import '../../shared/widgets/glass_surface.dart';
 import '../../shared/widgets/language_sheet.dart';
 import '../../shared/widgets/post_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/glass_app_bar.dart';
 
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
@@ -203,11 +203,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         // nothing — one grouped surface, so that costs little.
                         backgroundColor: Colors.transparent,
                         surfaceTintColor: Colors.transparent,
-                        flexibleSpace: const GlassSurface.blur(
-                          borderRadius: BorderRadius.zero,
-                          edge: GlassEdge.bottom,
-                          child: SizedBox.expand(),
-                        ),
+                        shape: const Border(),
+                        flexibleSpace: const GlassBarBackground(),
                         leading: Builder(
                           builder: (ctx) => IconButton(
                             icon: const Icon(LucideIcons.menu),

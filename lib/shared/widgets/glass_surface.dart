@@ -151,9 +151,17 @@ class GlassBackdrop extends StatelessWidget {
 ///
 /// Opening a layer costs nothing until a blurred surface uses it.
 class GlassLayer extends StatefulWidget {
-  const GlassLayer({super.key, required this.child});
+  const GlassLayer({super.key, required this.child}) : _onlyIfAbsent = false;
+
+  /// Joins the enclosing layer if there is one, and opens a layer only where
+  /// there is none. For a surface that can never overlap other glass in the
+  /// layer it lands in — a top bar: inside the shell it shares the bottom
+  /// bar's single blur pass, on a pushed screen it gets a layer of its own.
+  /// A [GlassLayerBoundary] counts as no layer, so the drawer still opens one.
+  const GlassLayer.ifAbsent({super.key, required this.child}) : _onlyIfAbsent = true;
 
   final Widget child;
+  final bool _onlyIfAbsent;
 
   @override
   State<GlassLayer> createState() => _GlassLayerState();
@@ -166,6 +174,10 @@ class _GlassLayerState extends State<GlassLayer> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget._onlyIfAbsent) {
+      final outer = context.dependOnInheritedWidgetOfExactType<_GlassLayerScope>();
+      if (outer?.backdropKey != null) return widget.child;
+    }
     return _GlassLayerScope(
       backdropKey: _key,
       route: ModalRoute.of(context),

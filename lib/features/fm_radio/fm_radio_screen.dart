@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
+import '../../shared/widgets/glass_app_bar.dart';
 
 class FmRadioScreen extends StatefulWidget {
   const FmRadioScreen({super.key});
@@ -50,7 +51,8 @@ class _FmRadioScreenState extends State<FmRadioScreen> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('🎵 AniSphere FM'), backgroundColor: Colors.transparent),
+      // The list scrolls up behind the bar (extendBodyBehindAppBar).
+      appBar: const GlassAppBar(title: Text('🎵 AniSphere FM')),
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: const BoxDecoration(gradient: AppGradients.pageBg),

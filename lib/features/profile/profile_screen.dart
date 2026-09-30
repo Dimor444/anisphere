@@ -42,6 +42,7 @@ import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
 import 'card_collection_screen.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
+import '../../shared/widgets/glass_app_bar.dart';
 
 // ── Header geometry ────────────────────────────────────────────────────────
 // Banner, avatar and action row live in ONE Stack that is sized to contain
@@ -184,9 +185,13 @@ class _ProfileBody extends ConsumerWidget {
             headerSliverBuilder: (context, _) => [
               // Toolbar only — the banner lives in the header Stack below, so
               // no sliver ever paints over the avatar.
+              // Pinned: the profile header scrolls up behind it.
               SliverAppBar(
                 pinned: true,
-                backgroundColor: AppColors.background,
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                shape: const Border(),
+                flexibleSpace: const GlassBarBackground(),
                 leading: fromTab
                     ? Builder(
                         builder: (ctx) => IconButton(

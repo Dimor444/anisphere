@@ -34,8 +34,15 @@ class AppTheme {
         error: AppColors.error,
         outline: AppColors.border,
       ),
+      // Most bars sit above their content — the body starts below them and
+      // nothing ever passes under — so they take the glass fill and edge with
+      // no blur. Over the scaffold's flat colour "translucent" is only a
+      // colour: this makes them read like the glass bars rather than letting
+      // anything through. Bars content scrolls behind use GlassBarBackground.
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.glassFill,
+        surfaceTintColor: Colors.transparent,
+        shape: Border(bottom: BorderSide(color: AppColors.glassBorder)),
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,

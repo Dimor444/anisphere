@@ -13,6 +13,7 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/pressable.dart';
 import '../my_list/widgets/list_status_ui.dart';
+import '../../shared/widgets/glass_app_bar.dart';
 
 /// Basic detail view for any AniList-referenced anime (read-only).
 ///
@@ -79,34 +80,39 @@ class _TrendingDetailScreenState extends State<TrendingDetailScreen> {
             SliverAppBar(
               expandedHeight: 320,
               pinned: true,
-              backgroundColor: AppColors.background,
-              flexibleSpace: FlexibleSpaceBar(
-                background: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: anime.coverUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: AppColors.surfaceAlt),
-                      errorWidget: (_, __, ___) => DecoratedBox(decoration: BoxDecoration(gradient: AppGradients.forSeed(anime.title))),
-                    ),
-                    const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black87],
-                          stops: [0.45, 1],
+              // Pinned: the page scrolls behind the collapsed bar.
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              shape: const Border(),
+              flexibleSpace: GlassBarBackground(
+                child: FlexibleSpaceBar(
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl: anime.coverUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(color: AppColors.surfaceAlt),
+                        errorWidget: (_, __, ___) => DecoratedBox(decoration: BoxDecoration(gradient: AppGradients.forSeed(anime.title))),
+                      ),
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black87],
+                            stops: [0.45, 1],
+                          ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 14,
-                      child: Text(anime.title, style: AppTextStyles.display.copyWith(color: Colors.white)),
-                    ),
-                  ],
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 14,
+                        child: Text(anime.title, style: AppTextStyles.display.copyWith(color: Colors.white)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
