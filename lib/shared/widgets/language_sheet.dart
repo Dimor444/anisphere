@@ -11,6 +11,8 @@ import '../providers/language_provider.dart';
 void showLanguageSheet(BuildContext context) {
   showModalBottomSheet(
     context: context,
+    // Above the bottom bar: shell screens run behind it.
+    useRootNavigator: true,
     // Without this the sheet is capped at 9/16 of the screen, which is less
     // than the language list needs on every device we support.
     isScrollControlled: true,

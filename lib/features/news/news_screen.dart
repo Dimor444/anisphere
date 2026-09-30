@@ -12,6 +12,7 @@ import '../../core/utils/haptics.dart';
 import '../../data/models/news.dart';
 import '../../services/news_service.dart';
 import '../../shared/providers/language_provider.dart';
+import '../../shared/widgets/bottom_nav_bar.dart';
 
 /// Standalone `/news` route.
 class NewsScreen extends ConsumerWidget {
@@ -159,7 +160,7 @@ class _NewsFeedState extends ConsumerState<NewsFeed> {
                   },
                   child: ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 90),
+                    padding: EdgeInsets.fromLTRB(14, 6, 14, AniBottomNav.scrollEndPadding(context)),
                     itemCount: all.length + (_loadingMore ? 1 : 0),
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (_, i) {

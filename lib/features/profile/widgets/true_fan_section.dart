@@ -166,6 +166,8 @@ class _TrueFanSectionState extends State<TrueFanSection> {
     Haptics.light();
     showModalBottomSheet(
       context: context,
+      // Above the bottom bar: shell screens run behind it.
+      useRootNavigator: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => SafeArea(

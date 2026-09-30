@@ -30,6 +30,7 @@ import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 import '../../services/trending_service.dart';
+import '../../shared/widgets/bottom_nav_bar.dart';
 
 /// For You and AniMatch are hidden until they read real data.
 ///
@@ -221,7 +222,7 @@ class _ForYouTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final friends = SampleData.friends;
     return ListView(
-      padding: const EdgeInsets.only(bottom: 90),
+      padding: EdgeInsets.only(bottom: AniBottomNav.scrollEndPadding(context)),
       children: [
         const SectionHeader(title: 'Because you watched Frieren'),
         _rail(SampleData.animeList.take(6).toList()),
@@ -393,7 +394,7 @@ class _TrendingTabState extends State<_TrendingTab> {
         final items = snap.data ?? const <TrendingAnime>[];
         if (items.isEmpty) return _TrendingError(onRetry: _retry, message: 'No trending anime right now.');
         return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 90),
+          padding: EdgeInsets.fromLTRB(14, 14, 14, AniBottomNav.scrollEndPadding(context)),
           gridDelegate: _trendingGrid,
           itemCount: items.length,
           itemBuilder: (_, i) => _TrendingCard(anime: items[i]),
@@ -490,7 +491,7 @@ class _TrendingSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 90),
+      padding: EdgeInsets.fromLTRB(14, 14, 14, AniBottomNav.scrollEndPadding(context)),
       gridDelegate: _trendingGrid,
       itemCount: 6,
       itemBuilder: (_, __) => Shimmer.fromColors(
@@ -541,7 +542,7 @@ class _AniMatchTabState extends State<_AniMatchTab> {
     final threshold = [80, 90, 95, 0][_filter];
     final matches = SampleData.matches.where((m) => m.percent >= threshold).toList();
     return ListView(
-      padding: const EdgeInsets.only(bottom: 90),
+      padding: EdgeInsets.only(bottom: AniBottomNav.scrollEndPadding(context)),
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
@@ -738,7 +739,7 @@ class _ChartTabState extends State<_ChartTab> {
 
   Widget _list(List<AnimeChartEntry> entries) {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 90),
+      padding: EdgeInsets.fromLTRB(14, 4, 14, AniBottomNav.scrollEndPadding(context)),
       itemCount: entries.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
@@ -815,7 +816,7 @@ class _ChartTabState extends State<_ChartTab> {
       highlightColor: AppColors.surfaceAlt,
       child: ListView.separated(
         physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(14, 4, 14, 90),
+        padding: EdgeInsets.fromLTRB(14, 4, 14, AniBottomNav.scrollEndPadding(context)),
         itemCount: 10,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, __) => Container(
@@ -966,7 +967,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
 
   Widget _resultsGrid(List<TrendingAnime> results) {
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 90),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, AniBottomNav.scrollEndPadding(context)),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.68),
       itemCount: results.length,
@@ -997,7 +998,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
   Widget _defaultView() {
     final tags = ['Frieren', 'Solo Leveling', 'JJK', 'Dandadan', 'AMV', 'Cosplay', 'Theories', 'Tier list'];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 90),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, AniBottomNav.scrollEndPadding(context)),
       children: [
         if (_history.isNotEmpty) ...[
           Text(ref.tr('recentSearches'), style: AppTextStyles.subheading),
@@ -1171,7 +1172,7 @@ class _PeopleTabState extends ConsumerState<_PeopleTab> {
         if (users == null) return const Center(child: CircularProgressIndicator());
         if (users.isEmpty) return _empty(ref.tr('noSuggestions'));
         return ListView(
-          padding: const EdgeInsets.only(top: 4, bottom: 90),
+          padding: EdgeInsets.only(top: 4, bottom: AniBottomNav.scrollEndPadding(context)),
           children: [
             SectionHeader(title: ref.tr('suggestedForYou')),
             ...users.map((u) => UserTile(
@@ -1188,7 +1189,7 @@ class _PeopleTabState extends ConsumerState<_PeopleTab> {
   Widget _searchResults(List<UserData> users) {
     if (users.isEmpty) return _empty(ref.tr('emptyListTitle'));
     return ListView(
-      padding: const EdgeInsets.only(top: 8, bottom: 90),
+      padding: EdgeInsets.only(top: 8, bottom: AniBottomNav.scrollEndPadding(context)),
       children: users.map((u) => UserTile(
             key: ValueKey(u.id),
             user: u,

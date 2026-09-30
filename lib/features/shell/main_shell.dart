@@ -96,6 +96,10 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
     // drawer slides over the bar, so it is cut out of this one.
     return GlassLayer(
       child: Scaffold(
+        // Screens scroll behind the frosted bottom bar. Each one's scroll
+        // views end at AniBottomNav.scrollEndPadding, and the video player
+        // stops at the bar instead of running under it.
+        extendBody: true,
         drawer: const GlassLayerBoundary(child: AppDrawer()),
         drawerEdgeDragWidth: 60,
         body: Stack(

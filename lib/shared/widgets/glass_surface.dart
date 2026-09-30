@@ -70,7 +70,14 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = padding == null ? child : Padding(padding: padding!, child: child);
+    // Ink (InkWell, ListTile) paints on the nearest Material. Without one of
+    // its own, a surface's taps would splash on whatever Material is behind
+    // it — underneath the fill, where nobody sees them. Transparent, so it
+    // adds no colour, shape or elevation.
+    final content = Material(
+      type: MaterialType.transparency,
+      child: padding == null ? child : Padding(padding: padding!, child: child),
+    );
 
     if (MediaQuery.highContrastOf(context)) {
       return DecoratedBox(

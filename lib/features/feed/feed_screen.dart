@@ -15,7 +15,9 @@ import '../notifications/notifications_screen.dart';
 import '../stories/stories_row.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/anime_card.dart';
+import '../../shared/widgets/bottom_nav_bar.dart';
 import '../../shared/widgets/currency_pill.dart';
+import '../../shared/widgets/glass_surface.dart';
 import '../../shared/widgets/language_sheet.dart';
 import '../../shared/widgets/post_card.dart';
 import '../../shared/widgets/section_header.dart';
@@ -195,7 +197,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       SliverAppBar(
                         floating: true,
                         snap: true,
-                        backgroundColor: AppColors.background.withOpacity(0.9),
+                        // Floating: it slides back in over posts already scrolled
+                        // past, so there is content behind it to frost. At the top
+                        // of the feed it sits over the page and the blur shows
+                        // nothing — one grouped surface, so that costs little.
+                        backgroundColor: Colors.transparent,
+                        surfaceTintColor: Colors.transparent,
+                        flexibleSpace: const GlassSurface.blur(
+                          borderRadius: BorderRadius.zero,
+                          edge: GlassEdge.bottom,
+                          child: SizedBox.expand(),
+                        ),
                         leading: Builder(
                           builder: (ctx) => IconButton(
                             icon: const Icon(LucideIcons.menu),
@@ -222,7 +234,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       const SliverToBoxAdapter(child: StoriesRow()),
                       const SliverToBoxAdapter(child: CurrencyBar()),
                       ..._postSlivers(snap),
-                      const SliverToBoxAdapter(child: SizedBox(height: 90)),
+                      // Clears the bottom bar and the compose button above it.
+                      SliverToBoxAdapter(child: SizedBox(height: AniBottomNav.scrollEndPadding(context))),
                     ],
                   ),
                 );
@@ -232,10 +245,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ),
           ),
         ),
-        // Compose FAB — bottom-right (AniBot owns bottom-left).
+        // Compose FAB — bottom-right, just above the bottom bar (the feed
+        // runs behind the bar, so its bottom padding is the bar's height).
         Positioned(
           right: 14,
-          bottom: 14,
+          bottom: 14 + MediaQuery.paddingOf(context).bottom,
           child: GestureDetector(
             onTap: () {
               Haptics.medium();

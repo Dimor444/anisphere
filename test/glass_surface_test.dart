@@ -12,6 +12,8 @@ const _blur = GlassSurface.blur(child: SizedBox(width: 40, height: 40));
 
 BackdropFilter _filter(WidgetTester tester) => tester.widget(find.byType(BackdropFilter));
 
+void _noop() {}
+
 void main() {
   testWidgets('blur inside a GlassLayer joins its group', (tester) async {
     await tester.pumpWidget(_app(const GlassLayer(child: _blur)));
@@ -57,6 +59,15 @@ void main() {
 
     showDialog<void>(context: ctx, builder: (_) => const Center(child: GlassLayer(child: _blur)));
     await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a ListTile inside a surface has a Material above the fill', (tester) async {
+    // ListTile asserts when a coloured box sits between it and its Material —
+    // its splash would paint underneath the fill. Seen in the drawer.
+    await tester.pumpWidget(_app(const GlassLayer(
+      child: GlassSurface.blur(child: ListTile(title: Text('row'), onTap: _noop)),
+    )));
     expect(tester.takeException(), isNull);
   });
 

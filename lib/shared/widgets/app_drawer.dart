@@ -9,6 +9,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
 import '../../features/profile/card_collection_screen.dart';
 import '../providers/identity_provider.dart';
+import 'glass_surface.dart';
 import '../providers/language_provider.dart';
 import '../providers/user_provider.dart';
 import 'ani_gem_icon.dart';
@@ -46,98 +47,110 @@ class AppDrawer extends ConsumerWidget {
       push ? context.push(route) : context.go(route);
     }
 
+    // Frosted over the feed. The drawer slides over the shell's glass bottom
+    // bar, so it sits behind a GlassLayerBoundary and opens its own layer
+    // here — sharing the shell's would blur the overlap only once. The
+    // Drawer's own shape clips the corners; its Material is left clear, and
+    // untinted (Material 3 tints elevated surfaces with the brand colour).
     return Drawer(
-      backgroundColor: AppColors.surface,
-      child: SafeArea(
-        child: Column(
-          children: [
-            // header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              decoration: const BoxDecoration(gradient: AppGradients.pageBg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  UserAvatar(
-                    name: me?.nameToShow ?? '',
-                    imageUrl: me?.userAvatar,
-                    frame: me?.equippedIn(CosmeticSlot.frame),
-                    level: user.level,
-                    radius: 28,
-                  ),
-                  const SizedBox(height: 10),
-                  UserNameText(
-                    user: me,
-                    fallback: '…',
-                    style: AppTextStyles.subheading,
-                    badgeGap: 5,
-                  ),
-                  UserHandleText(user: me, style: AppTextStyles.captionMuted),
-                  const SizedBox(height: 12),
-                  Row(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      child: GlassLayer(
+        child: GlassSurface.blur(
+          strong: true,
+          borderRadius: BorderRadius.zero,
+          edge: GlassEdge.none,
+          child: SafeArea(
+            child: Column(
+              children: [
+                // header — no backdrop of its own; the drawer's glass shows through
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const AniGoldIcon(size: BadgeSize.sm),
-                      const SizedBox(width: 4),
-                      Text(Fmt.balance(me?.aniGold), style: AppTextStyles.numbers),
-                      const SizedBox(width: 14),
-                      const AniGemIcon(size: BadgeSize.sm),
-                      const SizedBox(width: 4),
-                      Text(Fmt.balance(me?.aniGem), style: AppTextStyles.numbers),
+                      UserAvatar(
+                        name: me?.nameToShow ?? '',
+                        imageUrl: me?.userAvatar,
+                        frame: me?.equippedIn(CosmeticSlot.frame),
+                        level: user.level,
+                        radius: 28,
+                      ),
+                      const SizedBox(height: 10),
+                      UserNameText(
+                        user: me,
+                        fallback: '…',
+                        style: AppTextStyles.subheading,
+                        badgeGap: 5,
+                      ),
+                      UserHandleText(user: me, style: AppTextStyles.captionMuted),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const AniGoldIcon(size: BadgeSize.sm),
+                          const SizedBox(width: 4),
+                          Text(Fmt.balance(me?.aniGold), style: AppTextStyles.numbers),
+                          const SizedBox(width: 14),
+                          const AniGemIcon(size: BadgeSize.sm),
+                          const SizedBox(width: 4),
+                          Text(Fmt.balance(me?.aniGem), style: AppTextStyles.numbers),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                children: [
-                  _tile(LucideIcons.home, ref.tr('feed'), () => go('/feed', push: false)),
-                  _tile(LucideIcons.compass, ref.tr('discover'), () => go('/discover', push: false)),
-                  _tile(LucideIcons.playCircle, ref.tr('aniVideos'), () => go('/ani-videos', push: false)),
-                  // Former bottom-nav tabs — pushed full-screen, screens unchanged.
-                  _tile(LucideIcons.trendingUp, ref.tr('trending'), () => go('/trending')),
-                  _tile(LucideIcons.list, ref.tr('myList'), () => go('/my-list')),
-                  _tile(LucideIcons.users, ref.tr('rooms'), () => go('/community')),
-                  _tile(LucideIcons.gamepad2, ref.tr('challenges'), () => go('/challenges')),
-                  _tile(LucideIcons.calendar, ref.tr('seasonal'), () => go('/seasonal')),
-                  _tile(LucideIcons.award, ref.tr('achievements'), () => go('/achievements')),
-                  _tile(LucideIcons.wallet, ref.tr('wallet'), () => go('/wallet')),
-                  _tile(LucideIcons.globe, ref.tr('observatory'), () => go('/observatory')),
-                  _tile(LucideIcons.radio, ref.tr('fmRadio'), () => go('/fm-radio')),
-                  if (kCardCollectionEnabled)
-                    _tile(LucideIcons.layers, ref.tr('cardCollection'), () => go('/cards')),
-                  if (kAniScanEnabled)
-                    _tile(LucideIcons.scanLine, 'AniScan', () => go('/aniscan')),
-                  _tile(LucideIcons.settings, ref.tr('settings'), () => go('/settings')),
-                ],
-              ),
-            ),
-            if (!(me?.isPlus ?? false))
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: GradientButton(
-                  label: 'Upgrade to AniPlus 💎',
-                  icon: LucideIcons.sparkles,
-                  onPressed: () => go('/wallet?tab=plus'),
                 ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    gradient: AppGradients.brand,
-                    borderRadius: BorderRadius.circular(14),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    children: [
+                      _tile(LucideIcons.home, ref.tr('feed'), () => go('/feed', push: false)),
+                      _tile(LucideIcons.compass, ref.tr('discover'), () => go('/discover', push: false)),
+                      _tile(LucideIcons.playCircle, ref.tr('aniVideos'), () => go('/ani-videos', push: false)),
+                      // Former bottom-nav tabs — pushed full-screen, screens unchanged.
+                      _tile(LucideIcons.trendingUp, ref.tr('trending'), () => go('/trending')),
+                      _tile(LucideIcons.list, ref.tr('myList'), () => go('/my-list')),
+                      _tile(LucideIcons.users, ref.tr('rooms'), () => go('/community')),
+                      _tile(LucideIcons.gamepad2, ref.tr('challenges'), () => go('/challenges')),
+                      _tile(LucideIcons.calendar, ref.tr('seasonal'), () => go('/seasonal')),
+                      _tile(LucideIcons.award, ref.tr('achievements'), () => go('/achievements')),
+                      _tile(LucideIcons.wallet, ref.tr('wallet'), () => go('/wallet')),
+                      _tile(LucideIcons.globe, ref.tr('observatory'), () => go('/observatory')),
+                      _tile(LucideIcons.radio, ref.tr('fmRadio'), () => go('/fm-radio')),
+                      if (kCardCollectionEnabled)
+                        _tile(LucideIcons.layers, ref.tr('cardCollection'), () => go('/cards')),
+                      if (kAniScanEnabled)
+                        _tile(LucideIcons.scanLine, 'AniScan', () => go('/aniscan')),
+                      _tile(LucideIcons.settings, ref.tr('settings'), () => go('/settings')),
+                    ],
                   ),
-                  child: Text('💎 AniPlus active',
-                      style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontWeight: FontWeight.w700)),
                 ),
-              ),
-          ],
+                if (!(me?.isPlus ?? false))
+                  Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: GradientButton(
+                      label: 'Upgrade to AniPlus 💎',
+                      icon: LucideIcons.sparkles,
+                      onPressed: () => go('/wallet?tab=plus'),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: AppGradients.brand,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text('💎 AniPlus active',
+                          style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

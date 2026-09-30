@@ -128,6 +128,8 @@ class _PostCardState extends ConsumerState<PostCard> {
     Haptics.light();
     showModalBottomSheet(
       context: context,
+      // Above the bottom bar: shell screens run behind it.
+      useRootNavigator: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetCtx) => SafeArea(
@@ -351,6 +353,8 @@ void showReportSheet(BuildContext context, WidgetRef ref, String postId) {
   final failed = ref.tr('actionFailed');
   showModalBottomSheet(
     context: context,
+    // Above the bottom bar: shell screens run behind it.
+    useRootNavigator: true,
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (sheetCtx) => SafeArea(

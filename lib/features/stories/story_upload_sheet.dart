@@ -23,6 +23,8 @@ Future<void> startStoryUpload(BuildContext context, WidgetRef ref) async {
 
   final source = await showModalBottomSheet<ImageSource>(
     context: context,
+    // Above the bottom bar: shell screens run behind it.
+    useRootNavigator: true,
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     builder: (_) => _StorySourceSheet(cancelLabel: cancelLabel),

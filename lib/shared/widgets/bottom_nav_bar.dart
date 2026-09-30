@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
 import '../../core/utils/haptics.dart';
 import '../providers/language_provider.dart';
+import 'glass_surface.dart';
 
 /// Custom 5-slot bottom navigation: Feed | Discover | [+FAB] | Ani Videos | Profile.
 /// Trending / My List / Rooms live in the drawer now.
@@ -20,13 +21,24 @@ class AniBottomNav extends ConsumerWidget {
     required this.onCreate,
   });
 
+  /// Where a shell screen's scroll view should end.
+  ///
+  /// The shell's body extends behind this bar so the bar can frost what
+  /// scrolls under it, and there MediaQuery's bottom padding carries the
+  /// bar's full height. A scroll view with a fixed end padding would finish
+  /// under the bar; this one ends [gap] above it — 90, what the shell's lists
+  /// already ended with, so at rest nothing sits anywhere new. Outside the
+  /// shell the same call clears the home indicator instead.
+  static double scrollEndPadding(BuildContext context, {double gap = 90}) =>
+      MediaQuery.paddingOf(context).bottom + gap;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
+    // Frosted: the body scrolls behind the bar (the shell's extendBody), and
+    // the bar is one of the few surfaces in the shell's glass layer.
+    return GlassSurface.blur(
+      borderRadius: BorderRadius.zero,
+      edge: GlassEdge.top,
       child: SafeArea(
         top: false,
         child: SizedBox(

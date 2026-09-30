@@ -27,6 +27,8 @@ Future<void> showEditProfileSheet(BuildContext context) {
   Haptics.light();
   return showModalBottomSheet<void>(
     context: context,
+    // Above the bottom bar: shell screens run behind it.
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),

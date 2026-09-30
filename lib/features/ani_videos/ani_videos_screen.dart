@@ -165,52 +165,65 @@ class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsB
       );
     }
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Positioned.fill(child: body),
-          // Slim top bar: title + refresh + upload, over the video.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: Text(ref.tr('aniVideos'),
-                          style: AppTextStyles.subheading.copyWith(color: Colors.white)),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: _refresh,
-                      icon: const Icon(LucideIcons.refreshCw, color: Colors.white, size: 20),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        Haptics.medium();
-                        context.push('/ani-videos/upload');
-                      },
-                      icon: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          gradient: AppGradients.brand,
-                          borderRadius: BorderRadius.circular(9),
+    // The shell's body runs behind the frosted bottom bar. Video stops at the
+    // bar instead: blurring a moving frame is the costliest thing glass can
+    // do, and the caption and rail would otherwise sit under the bar. The
+    // inset is taken out of the player's MediaQuery so its overlays keep the
+    // positions they had when the body ended at the bar.
+    final barInset = MediaQuery.paddingOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: barInset),
+      child: MediaQuery.removePadding(
+        context: context,
+        removeBottom: true,
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(
+            children: [
+              Positioned.fill(child: body),
+              // Slim top bar: title + refresh + upload, over the video.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Text(ref.tr('aniVideos'),
+                              style: AppTextStyles.subheading.copyWith(color: Colors.white)),
                         ),
-                        child: Icon(LucideIcons.plus, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 18),
-                      ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: _refresh,
+                          icon: const Icon(LucideIcons.refreshCw, color: Colors.white, size: 20),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            Haptics.medium();
+                            context.push('/ani-videos/upload');
+                          },
+                          icon: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              gradient: AppGradients.brand,
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: Icon(LucideIcons.plus, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 18),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -401,6 +414,8 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
     Haptics.light();
     showModalBottomSheet(
       context: context,
+      // Above the bottom bar: shell screens run behind it.
+      useRootNavigator: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetCtx) => SafeArea(
@@ -470,6 +485,8 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
     final failed = ref.tr('actionFailed');
     showModalBottomSheet(
       context: context,
+      // Above the bottom bar: shell screens run behind it.
+      useRootNavigator: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetCtx) => SafeArea(

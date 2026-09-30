@@ -41,6 +41,7 @@ import 'widgets/true_fan_section.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
 import 'card_collection_screen.dart';
+import '../../shared/widgets/bottom_nav_bar.dart';
 
 // ── Header geometry ────────────────────────────────────────────────────────
 // Banner, avatar and action row live in ONE Stack that is sized to contain
@@ -703,8 +704,10 @@ void _shareCard(BuildContext context, UserModel u) {
   Haptics.medium();
   showModalBottomSheet(
     context: context,
+    // Above the bottom bar: shell screens run behind it.
+    useRootNavigator: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => Padding(
+    builder: (sheetCtx) => Padding(
       padding: const EdgeInsets.all(20),
       child: Container(
         padding: const EdgeInsets.all(22),
@@ -729,7 +732,7 @@ void _shareCard(BuildContext context, UserModel u) {
               ],
             ),
             const SizedBox(height: 18),
-            GradientButton(label: 'Share AniCard', icon: LucideIcons.share2, gradient: const LinearGradient(colors: [Colors.white, Color(0xFFE5E7EB)]), onPressed: () => Navigator.pop(context)),
+            GradientButton(label: 'Share AniCard', icon: LucideIcons.share2, gradient: const LinearGradient(colors: [Colors.white, Color(0xFFE5E7EB)]), onPressed: () => Navigator.pop(sheetCtx)),
           ],
         ),
       ),
@@ -805,7 +808,7 @@ class _PostsTab extends ConsumerWidget {
         if (posts == null) return const Center(child: CircularProgressIndicator());
         if (posts.isEmpty) return _EmptyTab(text: ref.tr('noPostsYet'));
         return ListView(
-          padding: const EdgeInsets.only(top: 8, bottom: 90),
+          padding: EdgeInsets.only(top: 8, bottom: AniBottomNav.scrollEndPadding(context)),
           children: posts.map((p) => PostCard(key: ValueKey(p.id), post: p)).toList(),
         );
       },
@@ -842,7 +845,7 @@ class _ReviewsTab extends StatelessWidget {
       ('Hunter x Hunter', 9.3, 'The Chimera Ant arc rewired my brain.'),
     ];
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 90),
+      padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),
       itemCount: reviews.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
@@ -885,7 +888,7 @@ class _ListsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final lists = [('🏆 All-Time Top 10', 10), ('😭 Made Me Cry', 6), ('⚔️ Best Fights', 14), ('🍂 Cozy Watches', 8)];
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 90),
+      padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),
       itemCount: lists.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) => Container(
@@ -911,7 +914,7 @@ class _GridTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 90),
+      padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.7),
       itemCount: 9,
       itemBuilder: (_, i) {
@@ -941,7 +944,7 @@ class _StatsTab extends StatelessWidget {
       ('${(u.hours / 24).round()}d', 'Days of life', LucideIcons.calendar, AppColors.aniGold),
     ];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 90),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, AniBottomNav.scrollEndPadding(context)),
       children: [
         GridView.builder(
           shrinkWrap: true,

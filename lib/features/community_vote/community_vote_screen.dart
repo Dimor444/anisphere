@@ -18,6 +18,7 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/gradient_button.dart';
+import '../../shared/widgets/bottom_nav_bar.dart';
 
 /// Routed wrapper (`/community-vote`) around the vote body.
 class CommunityVoteScreen extends ConsumerWidget {
@@ -130,7 +131,7 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
         final votes = votesSnap.data ?? const <CommunityVote>[];
         final max = CommunityVoteService.getMaxVotesForUser(isPlus: isPlus);
         return ListView(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 90),
+          padding: EdgeInsets.fromLTRB(14, 12, 14, AniBottomNav.scrollEndPadding(context)),
           children: [
             Row(
               children: [
