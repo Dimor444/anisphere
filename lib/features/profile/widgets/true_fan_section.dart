@@ -8,6 +8,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/haptics.dart';
 import '../../../services/true_fan_profile_service.dart';
+import '../../../shared/widgets/glass_modals.dart';
 
 /// "🏆 True Fan" — animes with a True Fan pass and their live global ranks,
 /// in the Anime DNA section's layout (subheading + 150px horizontal rail).
@@ -164,12 +165,8 @@ class _TrueFanSectionState extends State<TrueFanSection> {
     final list = widget.entries;
     if (list == null) return;
     Haptics.light();
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
-      // Above the bottom bar: shell screens run behind it.
-      useRootNavigator: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

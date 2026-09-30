@@ -8,6 +8,7 @@ import '../../services/follow_service.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
 import 'widgets/username_field.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// First-launch @username gate: accounts whose handle isn't claimed in the
 /// usernames/ registry yet (all pre-handle accounts, and fresh ones with the
@@ -18,13 +19,11 @@ import 'widgets/username_field.dart';
 /// retryable. The launch-time caller skips the gate entirely when even the
 /// needs-claim check can't run (offline) and re-prompts next launch.
 Future<void> showClaimUserNameSheet(BuildContext context, {required String suggested}) {
-  return showModalBottomSheet<void>(
+  return showGlassSheet<void>(
     context: context,
     isScrollControlled: true,
     isDismissible: false,
     enableDrag: false,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (_) => PopScope(canPop: false, child: _ClaimSheet(suggested: suggested)),
   );
 }

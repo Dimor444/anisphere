@@ -22,6 +22,7 @@ import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/verified_badge.dart';
 import '../profile/card_collection_screen.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 class WalletScreen extends ConsumerWidget {
   final String? initialTab;
@@ -175,7 +176,7 @@ class _LuckySpinState extends ConsumerState<_LuckySpin>
       if (!mounted) return;
       Haptics.heavy();
       // The server's number, not the one under the pointer.
-      await showDialog<void>(
+      await showGlassDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('🎉 You won!'),

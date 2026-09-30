@@ -6,20 +6,15 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../core/widgets/anisphere_logo.dart';
 import '../providers/language_provider.dart';
+import 'glass_modals.dart';
 
 /// Bottom sheet to pick the app language. Selecting Arabic flips to RTL app-wide.
 void showLanguageSheet(BuildContext context) {
-  showModalBottomSheet(
+  showGlassSheet(
     context: context,
-    // Above the bottom bar: shell screens run behind it.
-    useRootNavigator: true,
     // Without this the sheet is capped at 9/16 of the screen, which is less
     // than the language list needs on every device we support.
     isScrollControlled: true,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
     builder: (_) => const _LanguageSheet(),
   );
 }

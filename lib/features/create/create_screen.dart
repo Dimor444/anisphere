@@ -7,15 +7,12 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// The center "+" FAB action sheet.
 void showCreateSheet(BuildContext context) {
-  showModalBottomSheet(
+  showGlassSheet(
     context: context,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
     builder: (_) => const _CreateSheet(),
   );
 }

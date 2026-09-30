@@ -19,6 +19,7 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// Routed wrapper (`/community-vote`) around the vote body.
 class CommunityVoteScreen extends ConsumerWidget {
@@ -62,11 +63,9 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
       return;
     }
 
-    final picked = await showModalBottomSheet<TrendingAnime>(
+    final picked = await showGlassSheet<TrendingAnime>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => const _VoteSearchSheet(),
     );
     if (picked == null || !mounted) return;
@@ -76,10 +75,9 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGlassDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        backgroundColor: AppColors.surface,
         title: Text('${ref.tr('voteForConfirm')} ${picked.title}?', style: AppTextStyles.subheading),
         content: Text(ref.tr('cantBeUndone'), style: AppTextStyles.bodyMuted),
         actions: [

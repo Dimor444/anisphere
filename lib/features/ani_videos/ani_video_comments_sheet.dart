@@ -15,17 +15,15 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// Comments for one Ani Video — bottom sheet over the playing video, same
 /// real-time behavior as the feed's post detail comments.
 void showAniVideoCommentsSheet(BuildContext context, AniVideoData video) {
-  showModalBottomSheet(
+  showGlassSheet(
     context: context,
-    // Above the bottom bar: shell screens run behind it.
-    useRootNavigator: true,
     isScrollControlled: true,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    blur: false,
     builder: (_) => _CommentsSheet(video: video),
   );
 }

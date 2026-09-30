@@ -14,6 +14,7 @@ import '../../shared/widgets/anime_card.dart';
 import '../../shared/widgets/anime_cover_image.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 class AnimeDetailScreen extends ConsumerStatefulWidget {
   final String animeId;
@@ -192,10 +193,8 @@ class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
 
   void _addToList() {
     Haptics.light();
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -217,7 +216,7 @@ class _AnimeDetailScreenState extends ConsumerState<AnimeDetailScreen> {
   void _rate(bool isPlus) {
     Haptics.light();
     double temp = _myScore ?? 8;
-    showDialog(
+    showGlassDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(

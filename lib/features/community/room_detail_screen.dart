@@ -10,6 +10,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../data/models/room.dart';
 import '../../services/auth_service.dart';
 import '../../services/room_service.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// A Watch Party room.
 ///
@@ -45,10 +46,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   }
 
   Future<void> _end() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGlassDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
         title: const Text('End this watch party?', style: AppTextStyles.subheading),
         content: const Text(
           'Everyone in it is sent out, and it disappears from the list.',

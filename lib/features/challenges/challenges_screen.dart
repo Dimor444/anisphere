@@ -32,6 +32,7 @@ import 'true_fan_leaderboard.dart';
 import 'games/game_loaders.dart';
 import 'games/quiz_question.dart';
 import 'games/quiz_screen.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 class ChallengesScreen extends ConsumerStatefulWidget {
   const ChallengesScreen({super.key});
@@ -68,10 +69,9 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
     final ok = await ChallengeAttemptsService().consumeAttempt();
     if (!mounted) return ok;
     if (!ok) {
-      await showDialog<void>(
+      await showGlassDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.surface,
           title: const Text('No attempts left today'),
           content: const Text('Come back tomorrow! (Resets at midnight)'),
           actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],

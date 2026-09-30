@@ -4,6 +4,7 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/sample_data.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
@@ -71,7 +72,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                 return GestureDetector(
                   onTap: () {
                     Haptics.light();
-                    showDialog(context: context, builder: (ctx) => AlertDialog(
+                    showGlassDialog(context: context, builder: (ctx) => AlertDialog(
                       title: Row(children: [Text(a.emoji, style: const TextStyle(fontSize: 26)), const SizedBox(width: 10), Expanded(child: Text(a.name))]),
                       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(a.desc, style: AppTextStyles.bodyMuted),

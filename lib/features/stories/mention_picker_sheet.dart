@@ -13,16 +13,15 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// Debounced @handle search in a bottom sheet; resolves to the picked user
 /// (or null). Backed by the shared [FollowService.searchUsers] prefix search
 /// — the same path the Discover user search uses.
 Future<UserData?> showMentionPickerSheet(BuildContext context) {
-  return showModalBottomSheet<UserData>(
+  return showGlassSheet<UserData>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (_) => const _MentionPickerSheet(),
   );
 }

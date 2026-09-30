@@ -12,6 +12,7 @@ import '../../services/my_list_service.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/pressable.dart';
 import 'widgets/list_status_ui.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// My List — the user's personal anime list, live from Firestore
 /// (`users/{uid}/myList`). Tabs: All | Watching | Completed | Planned.
@@ -232,10 +233,8 @@ class _EntryTile extends ConsumerWidget {
 
   void _showQuickActions(BuildContext context, WidgetRef ref) {
     final id = entry.anilistId;
-    showModalBottomSheet<void>(
+    showGlassSheet<void>(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Padding(
@@ -296,11 +295,9 @@ class _EntryTile extends ConsumerWidget {
 
   Future<int?> _promptEpisodes(BuildContext context, WidgetRef ref) {
     final ctrl = TextEditingController(text: '${entry.episodesWatched}');
-    return showDialog<int>(
+    return showGlassDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceAlt,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(ref.tr('episodesWatched'), style: AppTextStyles.subheading),
         content: TextField(
           controller: ctrl,
@@ -326,10 +323,8 @@ class _EntryTile extends ConsumerWidget {
 /// Star-row score picker (whole stars 1–10; tap the active star to clear).
 /// Resolves to the score, -1 to clear, or null when dismissed.
 Future<double?> showScorePicker(BuildContext context, {double? initial}) {
-  return showModalBottomSheet<double>(
+  return showGlassSheet<double>(
     context: context,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
     builder: (ctx) => SafeArea(
       child: Consumer(
         builder: (_, ref, __) => Padding(

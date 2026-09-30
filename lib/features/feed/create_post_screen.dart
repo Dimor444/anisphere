@@ -21,6 +21,7 @@ import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// Compose a feed post: text (≤500), up to [_CreatePostScreenState._maxImages]
 /// images, optional anime tag, spoiler flag.
@@ -124,7 +125,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _posting = false);
-      showDialog<void>(
+      showGlassDialog<void>(
         context: context,
         builder: (dCtx) => AlertDialog(
           title: Text(ref.tr('postFailed')),
@@ -330,11 +331,9 @@ class _ToolChip extends StatelessWidget {
 /// Debounced AniList title search in a bottom sheet; resolves to the picked
 /// anime (or null). Shared by post compose and the Ani Video uploader.
 Future<AnimeSearchResult?> showAnimePickerSheet(BuildContext context) {
-  return showModalBottomSheet<AnimeSearchResult>(
+  return showGlassSheet<AnimeSearchResult>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (_) => const _AnimePickerSheet(),
   );
 }

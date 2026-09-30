@@ -10,6 +10,7 @@ import '../../services/auth_service.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -48,7 +49,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     final confirmed = AuthService.instance.isGuest
         ? await _confirmGuestSignOut()
-        : await showDialog<bool>(
+        : await showGlassDialog<bool>(
             context: context,
             builder: (dCtx) => AlertDialog(
               title: const Text('Log out?'),
@@ -86,7 +87,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Returns true only for "Sign out anyway". "Delete account" opens the
   /// delete page instead and reports false, so the sign-out does not run.
   Future<bool> _confirmGuestSignOut() async {
-    final choice = await showDialog<String>(
+    final choice = await showGlassDialog<String>(
       context: context,
       builder: (dCtx) => AlertDialog(
         title: Text(ref.tr('guestSignOutTitle')),

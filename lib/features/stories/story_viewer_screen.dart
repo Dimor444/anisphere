@@ -14,6 +14,7 @@ import '../../shared/widgets/user_avatar.dart';
 import 'story_providers.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// Full-screen viewer for one user's active stories: progress bars,
 /// auto-advance (5s per story), tap left/right to navigate, hold to pause,
@@ -99,7 +100,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
 
   Future<void> _confirmDelete() async {
     _c.stop();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGlassDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete story?'),

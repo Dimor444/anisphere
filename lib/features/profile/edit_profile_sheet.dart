@@ -13,6 +13,7 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/user_avatar.dart';
 import 'widgets/username_field.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// Edit Profile — owner edit of @username (unique handle), displayName and
 /// bio. Avatar upload lands with Firebase Storage; until then the sheet
@@ -25,13 +26,9 @@ import 'widgets/username_field.dart';
 /// those anyway).
 Future<void> showEditProfileSheet(BuildContext context) {
   Haptics.light();
-  return showModalBottomSheet<void>(
+  return showGlassSheet<void>(
     context: context,
-    // Above the bottom bar: shell screens run behind it.
-    useRootNavigator: true,
     isScrollControlled: true,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (_) => const _EditProfileSheet(),
   );
 }

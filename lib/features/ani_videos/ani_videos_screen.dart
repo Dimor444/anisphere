@@ -26,6 +26,7 @@ import '../../shared/widgets/user_avatar.dart';
 import 'ani_video_comments_sheet.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// Ani Videos — full-screen vertical short-video feed (`/ani-videos` tab).
 ///
@@ -412,12 +413,9 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
 
   void _showMoreMenu() {
     Haptics.light();
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
-      // Above the bottom bar: shell screens run behind it.
-      useRootNavigator: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      blur: false,
       builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -449,8 +447,10 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
   }
 
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGlassDialog<bool>(
       context: context,
+      // A video keeps playing behind it: no blur over a moving frame.
+      blurBackdrop: false,
       builder: (dCtx) => AlertDialog(
         title: Text(ref.tr('deleteVideo')),
         actions: [
@@ -483,12 +483,9 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
     final messenger = ScaffoldMessenger.of(context);
     final thanks = ref.tr('postReported');
     final failed = ref.tr('actionFailed');
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
-      // Above the bottom bar: shell screens run behind it.
-      useRootNavigator: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      blur: false,
       builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

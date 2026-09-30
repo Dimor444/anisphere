@@ -5,6 +5,7 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../shared/widgets/gradient_button.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 class TimeCapsuleScreen extends StatefulWidget {
   const TimeCapsuleScreen({super.key});
@@ -22,11 +23,9 @@ class _TimeCapsuleScreenState extends State<TimeCapsuleScreen> {
   void _newCapsule() {
     final ctrl = TextEditingController();
     DateTime date = DateTime.now().add(const Duration(days: 365));
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 18, right: 18, top: 18),

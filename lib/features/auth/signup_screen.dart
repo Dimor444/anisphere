@@ -11,6 +11,7 @@ import '../../shared/widgets/anime_card.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/language_sheet.dart';
 import 'social_buttons.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -73,7 +74,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   void _ageRestriction() {
-    showDialog(
+    showGlassDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(

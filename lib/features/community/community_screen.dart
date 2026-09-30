@@ -15,6 +15,7 @@ import '../../services/anime_search_service.dart';
 import '../../services/room_service.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// Whether Rooms shows Art Room, Writers Room and Anime Chat.
 ///
@@ -255,11 +256,9 @@ class _WatchPartyBodyState extends State<_WatchPartyBody> {
 
   static void _openCreateSheet(BuildContext context) {
     Haptics.light();
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (_) => const _CreateRoomSheet(),
     );
   }
@@ -656,11 +655,9 @@ class _ClubsTab extends StatelessWidget {
 
   void _createClub(BuildContext context) {
     Haptics.light();
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 18, right: 18, top: 18),
         child: Column(

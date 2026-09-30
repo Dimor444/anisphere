@@ -20,6 +20,7 @@ import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// The only reactions offered — a fixed row, deliberately no picker.
 const _reactionEmojis = ['❤️', '😂', '😮', '😢', '🔥', '👍'];
@@ -271,11 +272,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ('abuse', ref.tr('reportAbuse')),
       ('other', ref.tr('reportOther')),
     ];
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -328,11 +326,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final blocked = _convo?.isBlocked ?? false;
     final mine = message.senderId == me;
     Haptics.light();
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

@@ -22,6 +22,7 @@ import 'user_avatar.dart';
 import 'verified_badge.dart';
 import '../../services/currency_service.dart';
 import 'user_name_text.dart';
+import 'glass_modals.dart';
 
 /// One feed post. Renders both Firestore posts and sample/demo posts
 /// ([PostData.isLocal]); interactions on local posts stay in-memory.
@@ -126,12 +127,8 @@ class _PostCardState extends ConsumerState<PostCard> {
 
   void _showMoreMenu() {
     Haptics.light();
-    showModalBottomSheet(
+    showGlassSheet(
       context: context,
-      // Above the bottom bar: shell screens run behind it.
-      useRootNavigator: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -163,7 +160,7 @@ class _PostCardState extends ConsumerState<PostCard> {
   }
 
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGlassDialog<bool>(
       context: context,
       builder: (dCtx) => AlertDialog(
         title: Text(ref.tr('deletePost')),
@@ -351,12 +348,8 @@ void showReportSheet(BuildContext context, WidgetRef ref, String postId) {
   final messenger = ScaffoldMessenger.of(context);
   final thanks = ref.tr('postReported');
   final failed = ref.tr('actionFailed');
-  showModalBottomSheet(
+  showGlassSheet(
     context: context,
-    // Above the bottom bar: shell screens run behind it.
-    useRootNavigator: true,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (sheetCtx) => SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,

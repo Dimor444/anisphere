@@ -17,6 +17,7 @@ import '../../services/ani_video_service.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../feed/create_post_screen.dart' show showAnimePickerSheet;
+import '../../shared/widgets/glass_modals.dart';
 
 /// Compose an Ani Video (`/ani-videos/upload`): pick/record a clip (≤60s),
 /// caption (≤200), optional anime tag, spoiler flag → upload with progress.
@@ -145,7 +146,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       // Out of quota is not a transport failure: retrying cannot succeed, so
       // the server's own cap text is shown and the retry action is withheld.
       final capped = e is UploadCapExceededException ? e : null;
-      showDialog<void>(
+      showGlassDialog<void>(
         context: context,
         builder: (dCtx) => AlertDialog(
           title: Text(ref.tr('videoUploadFailed')),

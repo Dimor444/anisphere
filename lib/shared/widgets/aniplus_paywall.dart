@@ -5,15 +5,14 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import 'gradient_button.dart';
+import 'glass_modals.dart';
 
 /// Shows the AniPlus paywall for a locked AI/premium feature.
 Future<void> showAniPlusPaywall(BuildContext context, String feature) {
   Haptics.medium();
-  return showDialog(
+  return showGlassDialog(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.6),
     builder: (ctx) => Dialog(
-      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
         side: const BorderSide(color: AppColors.primary, width: 1.4),

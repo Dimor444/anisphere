@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../services/my_list_service.dart';
 import '../../../shared/providers/language_provider.dart';
+import '../../../shared/widgets/glass_modals.dart';
 
 /// Visual language for [ListStatus] — one color + icon per status, used on
 /// badges, pickers and dropdowns so the list scans at a glance.
@@ -56,10 +57,8 @@ class StatusBadge extends ConsumerWidget {
 
 /// Bottom-sheet status picker. Resolves to the chosen status, or null.
 Future<ListStatus?> showStatusPicker(BuildContext context, {ListStatus? selected}) {
-  return showModalBottomSheet<ListStatus>(
+  return showGlassSheet<ListStatus>(
     context: context,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
     builder: (ctx) => SafeArea(
       child: Consumer(
         builder: (_, ref, __) => Column(
@@ -89,11 +88,9 @@ Future<ListStatus?> showStatusPicker(BuildContext context, {ListStatus? selected
 
 /// Error dialog for failed list operations, with an optional retry.
 Future<void> showMyListError(BuildContext context, WidgetRef ref, {VoidCallback? onRetry}) {
-  return showDialog<void>(
+  return showGlassDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.surfaceAlt,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       title: Row(children: [
         const Icon(LucideIcons.circleAlert, color: AppColors.error, size: 20),
         const SizedBox(width: 8),

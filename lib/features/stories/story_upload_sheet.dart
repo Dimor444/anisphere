@@ -11,6 +11,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../shared/providers/language_provider.dart';
 import 'story_editor_screen.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 /// "Add Story" flow: choose camera or gallery (phase 1) → pick one image →
 /// full-screen editor with text overlays (phase 2), which flattens, runs the
@@ -21,12 +22,8 @@ Future<void> startStoryUpload(BuildContext context, WidgetRef ref) async {
   final failedLabel = ref.tr('actionFailed');
   final cancelLabel = ref.tr('cancel');
 
-  final source = await showModalBottomSheet<ImageSource>(
+  final source = await showGlassSheet<ImageSource>(
     context: context,
-    // Above the bottom bar: shell screens run behind it.
-    useRootNavigator: true,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     builder: (_) => _StorySourceSheet(cancelLabel: cancelLabel),
   );
   if (source == null || !context.mounted) return;

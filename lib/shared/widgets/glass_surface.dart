@@ -114,6 +114,32 @@ class GlassSurface extends StatelessWidget {
 
 enum _Mode { blur, tint }
 
+/// A full-bleed frosted backdrop with no fill of its own — what sits between
+/// a dialog and the screen behind it. Blurs everything under its bounds,
+/// once, grouped like any blurred surface, so it needs a [GlassLayer] and a
+/// modal route must open its own. Under High Contrast it draws nothing; the
+/// route's barrier still dims the screen.
+///
+/// It is one surface, not a frame: whatever floats on top of it is already
+/// over a blurred image, so that surface should be tinted, never blurred
+/// again — a second pass over the same pixels costs a full blur and shows
+/// nothing new.
+class GlassBackdrop extends StatelessWidget {
+  const GlassBackdrop({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.highContrastOf(context)) return const SizedBox.expand();
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: GlassSurface.sigma, sigmaY: GlassSurface.sigma),
+        backdropGroupKey: _GlassLayerScope.keyFor(context),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
 /// One layer of glass. Every [GlassSurface.blur] below it shares a single
 /// backdrop read, so the layer is blurred once however many surfaces it has.
 ///

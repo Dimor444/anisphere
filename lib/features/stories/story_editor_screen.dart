@@ -16,6 +16,7 @@ import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/user_avatar.dart';
 import '../feed/create_post_screen.dart' show showAnimePickerSheet;
 import 'mention_picker_sheet.dart';
+import '../../shared/widgets/glass_modals.dart';
 
 // ─── Filters ────────────────────────────────────────────────────────────────
 
@@ -495,11 +496,9 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
   }
 
   Future<String?> _promptText({String? initial}) {
-    return showModalBottomSheet<String>(
+    return showGlassSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _TextPromptSheet(initial: initial),
     );
   }
@@ -569,10 +568,9 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
     if (_posting) return;
     final dirty = _hasEdits || _caption.text.trim().isNotEmpty;
     if (dirty) {
-      final discard = await showDialog<bool>(
+      final discard = await showGlassDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.surface,
           title: const Text('Discard story?', style: AppTextStyles.subheading),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep editing')),

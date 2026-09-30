@@ -110,11 +110,19 @@ class AppTheme {
           color: AppColors.textSecondary,
         ),
       ),
+      // Glass tint, no blur: snackbars come and go over anything, including
+      // scrolling lists, and a blur per snackbar frame buys nothing a strong
+      // fill does not. No elevation — a shadow under a translucent fill shows
+      // through it as a smudge; the hairline edge separates it instead.
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.surfaceAlt,
+        backgroundColor: AppColors.glassFillStrong,
+        elevation: 0,
         contentTextStyle: const TextStyle(fontFamily: AppFonts.outfit, color: AppColors.textPrimary),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppColors.glassBorder),
+        ),
       ),
       tabBarTheme: const TabBarThemeData(
         labelColor: AppColors.textPrimary,
