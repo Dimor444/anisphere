@@ -7,6 +7,7 @@ import '../../services/streak_service.dart';
 import '../profile/claim_username_sheet.dart';
 import '../../shared/widgets/app_drawer.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
+import '../../shared/widgets/glass_surface.dart';
 import '../create/create_screen.dart';
 
 /// Root scaffold for the tabbed app: body + bottom nav + drawer.
@@ -89,33 +90,39 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: const AppDrawer(),
-      drawerEdgeDragWidth: 60,
-      body: Stack(
-        children: [
-          navigationShell,
-          // The AniBot button stood here, bottom-left on every main screen.
-          // Removed because the replies were a hardcoded keyword matcher, and
-          // they asserted a taste profile the app had never read — telling a
-          // user "based on your taste (Frieren, Vinland Saga, HxH)" when
-          // nothing had looked at their list. A confidently wrong assistant is
-          // worse than no assistant.
-          //
-          // lib/features/anibot/ is deliberately KEPT: the sheet, composer and
-          // message tree are sound and get reused the moment there is a real
-          // recommendations backend reading actual user data. Only the entry
-          // point is gone, so restoring it means re-adding a button, not
-          // rebuilding a feature. The Stack stays for the same reason.
-        ],
-      ),
-      bottomNavigationBar: AniBottomNav(
-        index: navigationShell.currentIndex,
-        onTap: (i) => navigationShell.goBranch(
-          i,
-          initialLocation: i == navigationShell.currentIndex,
+    // The shell's glass layer: every branch screen and the bottom bar. Their
+    // blurred surfaces are blurred once, together. Sheets and dialogs opened
+    // from here open their own layer (GlassSurface refuses otherwise); the
+    // drawer slides over the bar, so it is cut out of this one.
+    return GlassLayer(
+      child: Scaffold(
+        drawer: const GlassLayerBoundary(child: AppDrawer()),
+        drawerEdgeDragWidth: 60,
+        body: Stack(
+          children: [
+            navigationShell,
+            // The AniBot button stood here, bottom-left on every main screen.
+            // Removed because the replies were a hardcoded keyword matcher, and
+            // they asserted a taste profile the app had never read — telling a
+            // user "based on your taste (Frieren, Vinland Saga, HxH)" when
+            // nothing had looked at their list. A confidently wrong assistant is
+            // worse than no assistant.
+            //
+            // lib/features/anibot/ is deliberately KEPT: the sheet, composer and
+            // message tree are sound and get reused the moment there is a real
+            // recommendations backend reading actual user data. Only the entry
+            // point is gone, so restoring it means re-adding a button, not
+            // rebuilding a feature. The Stack stays for the same reason.
+          ],
         ),
-        onCreate: () => showCreateSheet(context),
+        bottomNavigationBar: AniBottomNav(
+          index: navigationShell.currentIndex,
+          onTap: (i) => navigationShell.goBranch(
+            i,
+            initialLocation: i == navigationShell.currentIndex,
+          ),
+          onCreate: () => showCreateSheet(context),
+        ),
       ),
     );
   }

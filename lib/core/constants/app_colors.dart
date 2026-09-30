@@ -48,6 +48,26 @@ class AppColors {
   static const Color border = Color(0xFF1F3A2C); // subtle green-tinted border
   static const Color verified = Color(0xFF1D9BF0); // verification blue
 
+  // Glass — GlassSurface's fills and edge. Both of its modes use the same
+  // tokens, so a surface looks the same blurred or tinted over the flat page:
+  // choosing a mode is a cost decision, not a look. Neutral on purpose — no
+  // brand tint and no light (37eccd6 took the brand's glow out of the app).
+  // Nothing adopts these yet.
+
+  /// The card surface (bgCard #0E1A14) at 72%. Over the page background it
+  /// composites to within 3 levels per channel of today's opaque card, so
+  /// moving a card onto glass changes nothing on the flat page, while the 28%
+  /// lets artwork behind it show through. The value the blur was measured at.
+  static const Color glassFill = Color(0xB80E1A14);
+
+  /// bgCard at 88% — for dense text over busy content: sheets, dialogs.
+  static const Color glassFillStrong = Color(0xE00E1A14);
+
+  /// White at 10% — the hairline edge. The solid [border] is a line painted
+  /// on an opaque card; over a translucent surface a translucent edge reads
+  /// as the rim of the material, where an opaque green one looks drawn on.
+  static const Color glassBorder = Color(0x1AFFFFFF);
+
   // Aura glow colors (per level)
   static const Color glowWhite = Color(0xFFE5E7EB);
   static const Color glowBlue = Color(0xFF3B82F6);
