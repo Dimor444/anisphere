@@ -9,6 +9,7 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/theme/brand.dart';
 import '../../core/widgets/anisphere_logo.dart';
+import '../../services/auth_service.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/language_sheet.dart';
 
@@ -34,8 +35,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(milliseconds: 2800), () {
-      if (mounted) context.go('/onboarding');
+    // Asked now, answered long before the timer ends — the check is local.
+    // A returning user lands in the app; onboarding is for no session.
+    final resume = AuthService.instance.hasSession();
+    Timer(const Duration(milliseconds: 2800), () async {
+      final hasSession = await resume;
+      if (mounted) context.go(hasSession ? '/feed' : '/onboarding');
     });
   }
 

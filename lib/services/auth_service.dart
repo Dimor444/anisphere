@@ -102,6 +102,25 @@ class AuthService {
   /// exists so the check is already resolved by the time the tree builds.
   Future<void> hydrateSession() => _isSignedOut();
 
+  /// Whether this launch has a session to resume: a user restored from the
+  /// keychain, and no deliberate sign-out standing against it. Splash routes
+  /// on this.
+  ///
+  /// Deliberately NOT [initAuth]. With no session initAuth mints a guest, so
+  /// on a fresh install it would create an identity before the user ever saw
+  /// Continue as Guest and its warning; and it validates the token over the
+  /// network, which a launch decision must not wait on. This reads local
+  /// state only. A credential that died server-side still reads as a session
+  /// here — the first service to reach [initAuth] finds that out and recovers
+  /// as it always has.
+  ///
+  /// The flag is checked as well as the user because they can disagree: a
+  /// sign-out whose `_auth.signOut()` threw, or a deletion killed mid-call,
+  /// leaves the flag set over a live session. That launch belongs on
+  /// onboarding, where [initAuth] would refuse anyway.
+  Future<bool> hasSession() async =>
+      !await _isSignedOut() && _auth.currentUser != null;
+
   /// Test seam: drop the hydrated flag so the next read comes off disk again.
   @visibleForTesting
   void debugResetSignedOutFlag() => _signedOut = null;
