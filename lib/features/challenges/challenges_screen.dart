@@ -137,7 +137,7 @@ class _GamesTab extends StatelessWidget {
       _GameDef('🎵', 'Guess the Opening', 50, AppGradients.brand, 'Attack on Titan', null),
       _GameDef('👤', 'Character Quiz', 40, AppGradients.purpleCyan, 'Naruto', loadCharacterQuizQuestions),
       _GameDef('😄', 'Emoji Anime', 30, AppGradients.gem, 'One Piece', loadEmojiAnimeQuestions),
-      _GameDef('🗣️', 'Voice Match', 60, AppGradients.gold, 'Demon Slayer', loadVoiceMatchQuestions),
+      _GameDef('🗣️', 'Voice Match', 60, AppGradients.gold, 'Demon Slayer: Kimetsu no Yaiba', loadVoiceMatchQuestions),
     ];
     return GridView.builder(
       padding: const EdgeInsets.all(14),

@@ -100,11 +100,15 @@ class SampleData {
   static List<UserModel> get people => [sakura, ryuu, aoi, kenji, mei];
 
   // ─────────────────────────────────────────── ANIME (20)
+  // Titles double as AniList search terms — for covers and for the True Fan
+  // cast — and the search keeps only its top hit. A short title can land on a
+  // different show: "Demon Slayer" returned Onigiri, a 2016 short with harem
+  // cover art, and "Code Geass" a 2024 spin-off. Use the full English title.
   static const List<AnimeModel> animeList = [
     AnimeModel(id: 'an1', title: 'Naruto', japaneseTitle: 'ナルト', studio: 'Pierrot', genre: 'Shonen', genres: ['Action', 'Adventure'], year: 2002, episodes: 220, score: 8.4, ratingCount: 412000, status: 'Finished', emoji: '🍥'),
     AnimeModel(id: 'an2', title: 'One Piece', japaneseTitle: 'ワンピース', studio: 'Toei', genre: 'Shonen', genres: ['Adventure', 'Comedy'], year: 1999, episodes: 1100, score: 9.1, ratingCount: 720000, status: 'Airing', emoji: '🏴‍☠️', watchingNow: 41200),
     AnimeModel(id: 'an3', title: 'Attack on Titan', japaneseTitle: '進撃の巨人', studio: 'Wit / MAPPA', genre: 'Dark Fantasy', genres: ['Action', 'Drama'], year: 2013, episodes: 89, score: 9.2, ratingCount: 980000, status: 'Finished', emoji: '⚔️'),
-    AnimeModel(id: 'an4', title: 'Demon Slayer', japaneseTitle: '鬼滅の刃', studio: 'ufotable', genre: 'Shonen', genres: ['Action', 'Supernatural'], year: 2019, episodes: 55, score: 8.7, ratingCount: 660000, status: 'Airing', emoji: '🗡️', watchingNow: 33100),
+    AnimeModel(id: 'an4', title: 'Demon Slayer: Kimetsu no Yaiba', japaneseTitle: '鬼滅の刃', studio: 'ufotable', genre: 'Shonen', genres: ['Action', 'Supernatural'], year: 2019, episodes: 55, score: 8.7, ratingCount: 660000, status: 'Airing', emoji: '🗡️', watchingNow: 33100),
     AnimeModel(id: 'an5', title: 'Frieren', japaneseTitle: '葬送のフリーレン', studio: 'Madhouse', genre: 'Adventure', genres: ['Fantasy', 'Drama'], year: 2023, episodes: 28, score: 9.4, ratingCount: 290000, status: 'Airing', emoji: '🧝‍♀️', watchingNow: 58900),
     AnimeModel(id: 'an6', title: 'Hunter x Hunter', japaneseTitle: 'ハンター×ハンター', studio: 'Madhouse', genre: 'Shonen', genres: ['Adventure', 'Action'], year: 2011, episodes: 148, score: 9.3, ratingCount: 540000, status: 'Finished', emoji: '🎯'),
     AnimeModel(id: 'an7', title: 'Jujutsu Kaisen', japaneseTitle: '呪術廻戦', studio: 'MAPPA', genre: 'Shonen', genres: ['Action', 'Supernatural'], year: 2020, episodes: 47, score: 8.8, ratingCount: 510000, status: 'Airing', emoji: '👊', watchingNow: 39800),
@@ -125,7 +129,7 @@ class SampleData {
     AnimeModel(id: 'an22', title: 'Death Note', japaneseTitle: 'デスノート', studio: 'Madhouse', genre: 'Thriller', genres: ['Mystery', 'Supernatural'], year: 2006, episodes: 37, score: 8.5, ratingCount: 690000, status: 'Finished', emoji: '📓'),
     AnimeModel(id: 'an23', title: 'Tokyo Revengers', japaneseTitle: '東京卍リベンジャーズ', studio: 'Liden Films', genre: 'Action', genres: ['Action', 'Drama'], year: 2021, episodes: 50, score: 7.5, ratingCount: 180000, status: 'Finished', emoji: '⏳'),
     AnimeModel(id: 'an24', title: 'Mob Psycho 100', japaneseTitle: 'モブサイコ100', studio: 'Bones', genre: 'Supernatural', genres: ['Action', 'Comedy'], year: 2016, episodes: 37, score: 8.6, ratingCount: 250000, status: 'Finished', emoji: '🌀'),
-    AnimeModel(id: 'an25', title: 'Code Geass', japaneseTitle: 'コードギアス', studio: 'Sunrise', genre: 'Mecha', genres: ['Mecha', 'Drama'], year: 2006, episodes: 50, score: 8.7, ratingCount: 380000, status: 'Finished', emoji: '♟️'),
+    AnimeModel(id: 'an25', title: 'Code Geass: Lelouch of the Rebellion', japaneseTitle: 'コードギアス', studio: 'Sunrise', genre: 'Mecha', genres: ['Mecha', 'Drama'], year: 2006, episodes: 50, score: 8.7, ratingCount: 380000, status: 'Finished', emoji: '♟️'),
     AnimeModel(id: 'an26', title: 'Steins;Gate', japaneseTitle: 'シュタインズ・ゲート', studio: 'White Fox', genre: 'Sci-Fi', genres: ['Sci-Fi', 'Thriller'], year: 2011, episodes: 24, score: 9.1, ratingCount: 470000, status: 'Finished', emoji: '⏰'),
     AnimeModel(id: 'an27', title: 'Black Clover', japaneseTitle: 'ブラッククローバー', studio: 'Pierrot', genre: 'Shonen', genres: ['Action', 'Fantasy'], year: 2017, episodes: 170, score: 8.2, ratingCount: 200000, status: 'Finished', emoji: '🍀'),
     AnimeModel(id: 'an28', title: 'Fairy Tail', japaneseTitle: 'フェアリーテイル', studio: 'A-1 Pictures', genre: 'Fantasy', genres: ['Action', 'Adventure'], year: 2009, episodes: 328, score: 7.6, ratingCount: 230000, status: 'Finished', emoji: '🧚'),
