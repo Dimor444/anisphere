@@ -118,6 +118,11 @@ class DmService {
   /// aggregation — deliberately NO stored unread counter to drift or forge;
   /// the per-uid lastReadAt mark on the conversation doc is the only state.
   /// A missing mark means the whole thread is unread.
+  ///
+  /// With a mark this is two inequalities, which Firestore sorts by field
+  /// path — so the composite index in firestore.indexes.json must be
+  /// (createdAt, senderId) in that order. Without it the count fails and the
+  /// tile shows no dot, as if nothing were unread.
   Future<int> unreadCount(String cid, String uid) {
     return _guard('unreadCount($cid)', () async {
       final convo = await _conversations.doc(cid).get().timeout(writeTimeout);

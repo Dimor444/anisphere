@@ -56,8 +56,8 @@
       "collectionGroup": "messages",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "senderId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
+        { "fieldPath": "createdAt", "order": "ASCENDING" },
+        { "fieldPath": "senderId", "order": "ASCENDING" }
       ]
     },
     {
