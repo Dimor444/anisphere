@@ -25,6 +25,23 @@ bool titleMatches(String requested, String candidate) {
   return rWords.intersection(cWords).isNotEmpty;
 }
 
+/// True if one of an AniList media's MAIN titles (romaji / English / native)
+/// is a reasonable match for [requested].
+///
+/// Synonyms are deliberately left out. AniList lists "Demon Slayer" as a
+/// synonym of Onigiri, a 2016 short with harem cover art, which is why its
+/// search ranks Onigiri first for that name; counting synonyms would wave it
+/// straight through.
+bool aniListMediaMatches(String requested, Map<String, dynamic> media) {
+  final title = media['title'] as Map<String, dynamic>?;
+  final candidates = <String?>[
+    title?['romaji'] as String?,
+    title?['english'] as String?,
+    title?['native'] as String?,
+  ];
+  return candidates.any((c) => c != null && titleMatches(requested, c));
+}
+
 /// True if any of a Jikan `/anime` result's titles (default / English /
 /// Japanese / synonyms) is a reasonable match for [requested].
 bool jikanResultMatches(String requested, Map<String, dynamic> anime) {

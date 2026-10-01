@@ -220,7 +220,7 @@ class MyListService {
 
   static const String _metaQuery = r'''
 query ($id: Int) {
-  Media(id: $id, type: ANIME) {
+  Media(id: $id, type: ANIME, isAdult: false) {
     episodes
     seasonYear
     genres

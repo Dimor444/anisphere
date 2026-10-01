@@ -265,7 +265,7 @@ class AnimeDnaService {
   static const String _metaQuery = r'''
 query ($ids: [Int]) {
   Page(perPage: 50) {
-    media(id_in: $ids, type: ANIME) {
+    media(id_in: $ids, type: ANIME, isAdult: false) {
       id
       title { english romaji }
       coverImage { large }

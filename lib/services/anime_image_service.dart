@@ -171,14 +171,18 @@ class AnimeImageService {
     }
   }
 
-  /// Primary source — AniList GraphQL. AniList's search ranks the correct anime
-  /// first, so we trust the top result and use its cover directly (no title
-  /// matching — that only produced false "no match" letters).
+  /// Primary source — AniList GraphQL. Adult titles are excluded, and the top
+  /// few hits are walked for the first whose main title matches [animeName]
+  /// (see [aniListMediaMatches]) — trusting the top hit put Onigiri's cover on
+  /// "Demon Slayer". No match falls through to Jikan, like a miss.
   Future<_SourceResult> _fetchFromAniList(String animeName, {bool priority = false}) async {
     const query = r'''
 query ($search: String) {
-  Media(search: $search, type: ANIME) {
-    coverImage { large }
+  Page(perPage: 5) {
+    media(search: $search, type: ANIME, isAdult: false, sort: SEARCH_MATCH) {
+      title { romaji english native }
+      coverImage { large }
+    }
   }
 }''';
     try {
@@ -208,13 +212,19 @@ query ($search: String) {
       }
 
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final media = (body['data'] as Map<String, dynamic>?)?['Media'] as Map<String, dynamic>?;
-      if (media == null) return const _SourceResult();
-
-      // Trust AniList's top result — just take its cover image.
-      final cover = media['coverImage'] as Map<String, dynamic>?;
-      final url = cover?['large'] as String?;
-      return _SourceResult(url: (url != null && url.isNotEmpty) ? url : null);
+      final page = (body['data'] as Map<String, dynamic>?)?['Page'] as Map<String, dynamic>?;
+      final results = page?['media'] as List<dynamic>? ?? const [];
+      for (final item in results) {
+        final media = item as Map<String, dynamic>;
+        if (!aniListMediaMatches(animeName, media)) continue;
+        final url = (media['coverImage'] as Map<String, dynamic>?)?['large'] as String?;
+        if (url != null && url.isNotEmpty) return _SourceResult(url: url);
+      }
+      if (results.isNotEmpty) {
+        debugPrint('[AnimeImageService] AniList: no title match for "$animeName" '
+            'among ${results.length} results — falling through.');
+      }
+      return const _SourceResult();
     } catch (e, st) {
       debugPrint('[AnimeImageService] AniList EXCEPTION for "$animeName": $e\n$st');
       return const _SourceResult(errored: true);

@@ -40,7 +40,7 @@ class AnimeSearchService {
   static const String _query = r'''
 query ($search: String) {
   Page(perPage: 24) {
-    media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+    media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: false) {
       id
       title { romaji english }
       genres

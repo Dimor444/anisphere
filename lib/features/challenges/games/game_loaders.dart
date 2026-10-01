@@ -60,6 +60,7 @@ query ($page: Int) {
       id
       name { full }
       image { large }
+      media(perPage: 5) { nodes { isAdult } }
     }
   }
 }''';
@@ -79,6 +80,10 @@ Future<List<QuizQuestion>> loadCharacterQuizQuestions() async {
     final name = ((map['name'] as Map<String, dynamic>?)?['full'] as String?)?.trim();
     final image = (map['image'] as Map<String, dynamic>?)?['large'] as String?;
     if (name == null || name.isEmpty || image == null || image.isEmpty) continue;
+    // Characters take no isAdult argument, so the filter is applied here: skip
+    // anyone who appears in an adult title.
+    final media = ((map['media'] as Map<String, dynamic>?)?['nodes'] as List<dynamic>?) ?? const [];
+    if (media.any((m) => (m as Map<String, dynamic>)['isAdult'] == true)) continue;
     if (!seen.add(name.toLowerCase())) continue;
     pool.add((name: name, image: image));
   }
@@ -127,7 +132,7 @@ Future<List<QuizQuestion>> loadEmojiAnimeQuestions() async {
 const String _voiceMatchQuery = r'''
 query ($page: Int) {
   Page(page: $page, perPage: 20) {
-    media(sort: POPULARITY_DESC, type: ANIME) {
+    media(sort: POPULARITY_DESC, type: ANIME, isAdult: false) {
       title { romaji }
       characters(role: MAIN, perPage: 2) {
         edges {

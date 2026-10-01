@@ -90,7 +90,7 @@ class TrendingService {
   static const String _query = r'''
 query {
   Page(perPage: 10) {
-    media(sort: [TRENDING_DESC, POPULARITY_DESC], type: ANIME) {
+    media(sort: [TRENDING_DESC, POPULARITY_DESC], type: ANIME, isAdult: false) {
       id
       title { english romaji }
       coverImage { large }
@@ -108,7 +108,7 @@ query {
   // session, on top of whatever the trending list already knows.
   static const String _byIdQuery = r'''
 query ($id: Int) {
-  Media(id: $id, type: ANIME) {
+  Media(id: $id, type: ANIME, isAdult: false) {
     id
     title { english romaji }
     coverImage { large }
@@ -128,7 +128,7 @@ query ($id: Int) {
   static const String _searchQuery = r'''
 query ($search: String) {
   Page(page: 1, perPage: 20) {
-    media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+    media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: false) {
       id
       title { english romaji }
       coverImage { large }

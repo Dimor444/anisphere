@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'anilist_rate_limiter.dart';
+import 'title_match.dart';
 
 /// The character's billing in this specific anime (AniList `CharacterRole`).
 enum CharacterRole {
@@ -56,9 +57,11 @@ class AnimeCast {
 /// characters for large casts. `role` lives on the edge and `favourites` on
 /// the node; both feed the True Fan difficulty logic.
 ///
-/// AniList's search ranks the correct anime first, so we trust the top result
-/// (no title-match gate). Results are cached per anime name, and any failure
-/// resolves to an empty cast so callers can fall back gracefully.
+/// Adult titles are excluded, and the top result is used only if one of its
+/// main titles matches the name asked for (see [aniListMediaMatches]) — the
+/// unchecked top hit once built a "Demon Slayer" quiz from Onigiri's cast.
+/// Results are cached per anime name, and any failure or mismatch resolves to
+/// an empty cast so callers can fall back gracefully.
 class AnimeCharacterService {
   AnimeCharacterService._();
 
@@ -70,9 +73,9 @@ class AnimeCharacterService {
 
   static const String _query = r'''
 query ($search: String) {
-  Media(search: $search, type: ANIME) {
+  Media(search: $search, type: ANIME, isAdult: false) {
     id
-    title { romaji english }
+    title { romaji english native }
     page1: characters(sort: FAVOURITES_DESC, page: 1, perPage: 25) {
       edges {
         role
@@ -158,10 +161,13 @@ query ($search: String) {
         debugPrint('[AnimeCharacterService] AniList: no Media for "$animeName" (data.Media is null).');
         return _cache[key] = const AnimeCast();
       }
+      if (!aniListMediaMatches(animeName, media)) {
+        debugPrint('[AnimeCharacterService] AniList: top result for "$animeName" '
+            'is ${media['title']} — no title match, not using its cast.');
+        return _cache[key] = const AnimeCast();
+      }
       final mediaId = (media['id'] as num?)?.toInt();
 
-      // Trust AniList's top result — no title-match gate (it only produced false
-      // "mismatch" rejections that left the quiz with no character images).
       // page1 then page2 preserves the FAVOURITES_DESC ordering across both.
       final edges = <dynamic>[
         ...((media['page1'] as Map<String, dynamic>?)?['edges'] as List<dynamic>?) ?? const [],

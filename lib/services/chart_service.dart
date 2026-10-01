@@ -138,10 +138,10 @@ class ChartService {
   Future<List<AnimeChartEntry>> _fetchPage(ChartFilter filter, int page, int rankOffset) async {
     final s = currentSeason(DateTime.now());
     final args = switch (filter) {
-      ChartFilter.allTime => 'type: ANIME, sort: SCORE_DESC',
+      ChartFilter.allTime => 'type: ANIME, isAdult: false, sort: SCORE_DESC',
       ChartFilter.season =>
-        'type: ANIME, season: ${s.season}, seasonYear: ${s.year}, sort: SCORE_DESC',
-      ChartFilter.year => 'type: ANIME, seasonYear: ${s.year}, sort: SCORE_DESC',
+        'type: ANIME, isAdult: false, season: ${s.season}, seasonYear: ${s.year}, sort: SCORE_DESC',
+      ChartFilter.year => 'type: ANIME, isAdult: false, seasonYear: ${s.year}, sort: SCORE_DESC',
     };
     final query = '''
 query {
