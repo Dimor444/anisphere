@@ -184,7 +184,10 @@ class _UserAvatarState extends State<UserAvatar>
   }
 
   List<BoxShadow> _aura(double t) {
-    switch (widget.level.aura) {
+    // With levels off, everyone gets the constructor default — the aura a
+    // real person already has, since nothing passes them a level.
+    final aura = kUserLevelsEnabled ? widget.level.aura : UserLevel.animeFan.aura;
+    switch (aura) {
       case AuraType.none:
         return const [];
       case AuraType.white:

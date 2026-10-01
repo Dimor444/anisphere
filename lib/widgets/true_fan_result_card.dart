@@ -252,7 +252,7 @@ class TrueFanResultCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('@${user.username}', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
-                Text(user.level.title, style: AppTextStyles.captionMuted),
+                if (kUserLevelsEnabled) Text(user.level.title, style: AppTextStyles.captionMuted),
               ],
             ),
           ),

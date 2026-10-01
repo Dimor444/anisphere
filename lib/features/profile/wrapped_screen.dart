@@ -7,6 +7,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/user_avatar.dart';
+import '../../data/models/user_model.dart';
 import '../../data/sample_data.dart';
 
 class WrappedScreen extends StatefulWidget {
@@ -139,7 +140,7 @@ class _WrappedScreenState extends State<WrappedScreen> {
                   _row('Hours', '438'),
                   _row('Top anime', 'Frieren'),
                   _row('Top genre', 'Drama'),
-                  _row('Level', 'Otaku Elite 👑'),
+                  if (kUserLevelsEnabled) _row('Level', 'Otaku Elite 👑'),
                 ],
               ),
             ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),

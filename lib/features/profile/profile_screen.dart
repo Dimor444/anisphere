@@ -384,7 +384,7 @@ class _ProfileHeader extends ConsumerWidget {
                     badgeGap: 6,
                   ),
                 ),
-                if (isOwn) ...[
+                if (isOwn && kUserLevelsEnabled) ...[
                   const SizedBox(width: 8),
                   LevelBadge(level: ref.watch(userProvider).level),
                 ],
@@ -725,7 +725,8 @@ void _shareCard(BuildContext context, UserModel u) {
             UserAvatar.fromUser(u, radius: 36),
             const SizedBox(height: 10),
             Text(u.username, style: AppTextStyles.display.copyWith(color: Colors.white)),
-            Text(u.level.title, style: AppTextStyles.body.copyWith(color: Colors.white70)),
+            if (kUserLevelsEnabled)
+              Text(u.level.title, style: AppTextStyles.body.copyWith(color: Colors.white70)),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,

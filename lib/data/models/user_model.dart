@@ -1,6 +1,23 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 
+/// Whether a user's level shows anywhere: the profile badge, the AniCard,
+/// the True Fan share card, Wrapped, and the avatar aura.
+///
+/// Nothing computes a level. Every level in the app is a constant in
+/// SampleData, and the signed-in user's is SampleData.mainUser's, so a
+/// brand-new guest with no activity was titled "Otaku Elite 👑", carried a
+/// purple elite aura in the drawer, and had that title printed on every True
+/// Fan card it shared. While this is off, no title shows and every avatar
+/// draws the aura that real people already get, since nothing passes them a
+/// level.
+///
+/// Coming back needs: a definition of what a level is earned by, computed
+/// from real activity and written server-side so a client cannot set its
+/// own, and a field on users/{uid} to hold it — read through the identity the
+/// screens already watch, not the sample userProvider.
+const bool kUserLevelsEnabled = false;
+
 /// Progression levels — each unlocks a distinct avatar "aura" glow.
 enum UserLevel {
   newbie('Newbie', '🌱', AuraType.none),
