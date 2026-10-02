@@ -28,7 +28,10 @@ class AnimeChartEntry {
   final int anilistId;
   final String title;
   final String coverImage;
-  final double score; // out of 10
+  /// Out of 10, or null while AniList has no score for the show yet — a new
+  /// season fills the bottom of the chart with these. Zero is a rating;
+  /// absent is not, so absence is never stored as 0.
+  final double? score;
   final int ratings; // AniList popularity (list count)
 
   /// Rank change vs the previous (different-day) snapshot: positive = climbed,
@@ -54,7 +57,7 @@ class AnimeChartEntry {
       anilistId: (m['id'] as num?)?.toInt() ?? 0,
       title: (title?['english'] ?? title?['romaji']) as String? ?? '?',
       coverImage: cover?['large'] as String? ?? '',
-      score: avg is num ? avg / 10.0 : 0.0,
+      score: avg is num ? avg / 10.0 : null,
       ratings: (m['popularity'] as num?)?.toInt() ?? 0,
     );
   }

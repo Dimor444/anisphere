@@ -8,7 +8,9 @@ import 'package:integration_test/integration_test.dart';
 import 'package:anisphere/app.dart';
 import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/firebase_options.dart';
+import 'package:anisphere/services/auth_service.dart';
 import 'package:anisphere/services/chart_service.dart';
+import 'package:anisphere/services/follow_service.dart';
 import 'package:anisphere/services/trending_service.dart';
 
 /// Chart service talks to the LIVE AniList GraphQL API (read-only, a handful
@@ -30,6 +32,13 @@ void main() {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
     FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+
+    // A guest with a claimed handle, so the shell's claim gate — a modal
+    // sheet every new guest gets — never covers the chart the UI test taps.
+    // Per-run handle: the emulator keeps claims for as long as it runs.
+    await AuthService.instance.signInAsGuest();
+    await FollowService.instance.ensureProfile();
+    await FollowService.instance.claimUserName('zzchart${DateTime.now().millisecondsSinceEpoch % 1000000}');
   });
 
   testWidgets('service: 100 entries, three genuinely different lists, instant cache', (tester) async {
@@ -49,7 +58,7 @@ void main() {
     }
     // Sorted by score (ties allowed).
     for (var i = 1; i < allTime.length; i++) {
-      expect(allTime[i].score, lessThanOrEqualTo(allTime[i - 1].score));
+      expect(allTime[i].score!, lessThanOrEqualTo(allTime[i - 1].score!));
     }
     expect(allTime.first.score, greaterThan(8.5), reason: 'top of all-time should score high');
     expect(allTime.first.ratings, greaterThan(0));
@@ -100,11 +109,11 @@ void main() {
     await tester.pump();
     appRouter.go('/discover');
 
-    await pumpUntil(tester, find.text('📊 Chart'));
+    await pumpUntil(tester, find.text('Chart'));
     // The tab bar is scrollable — Chart starts off-screen; bring it in first.
-    await tester.ensureVisible(find.text('📊 Chart'));
+    await tester.ensureVisible(find.text('Chart'));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('📊 Chart'));
+    await tester.tap(find.text('Chart'));
     await pumpUntil(tester, find.text('AniSphere Top 100'));
     // Cached from the service test → rows paint without a new fetch.
     await pumpUntil(tester, find.textContaining('ratings'));

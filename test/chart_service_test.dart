@@ -60,7 +60,7 @@ void main() {
       }, 42);
       expect(e.title, 'Cowboy Bebop');
       expect(e.rank, 42);
-      expect(e.score, 0.0);
+      expect(e.score, isNull, reason: 'no averageScore is absent, not a rating of 0');
       expect(e.ratings, 0);
       expect(e.coverImage, '');
     });

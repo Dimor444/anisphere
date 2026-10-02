@@ -758,7 +758,8 @@ class _ChartTabState extends State<_ChartTab> {
                 description: '',
                 genres: const [],
                 status: '',
-                score: e.score,
+                // TrendingAnime's own convention: 0 = no score, hidden by its > 0 checks.
+                score: e.score ?? 0,
               ),
             );
           },
@@ -795,13 +796,16 @@ class _ChartTabState extends State<_ChartTab> {
                     ],
                   ),
                 ),
-                Row(
-                  children: [
-                    const Icon(Icons.star_rounded, color: AppColors.aniGold, size: 16),
-                    const SizedBox(width: 3),
-                    Text(e.score.toStringAsFixed(1), style: AppTextStyles.numbers),
-                  ],
-                ),
+                // No score yet → no star, the way the rest of the app shows an
+                // absent score; a "★ 0.0" read as the worst rating there is.
+                if (e.score != null)
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rounded, color: AppColors.aniGold, size: 16),
+                      const SizedBox(width: 3),
+                      Text(e.score!.toStringAsFixed(1), style: AppTextStyles.numbers),
+                    ],
+                  ),
               ],
             ),
           ),
