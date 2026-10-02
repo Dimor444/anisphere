@@ -199,8 +199,7 @@ class _GlobalPopularSection extends ConsumerWidget {
               ? Text(ref.tr('observatoryPopularEmpty'), style: AppTextStyles.bodyMuted)
               : Column(
                   children: [
-                    for (var i = 0; i < list.length; i++)
-                      _PopularRow(rank: i + 1, anime: list[i]),
+                    for (final anime in list) _PopularRow(rank: anime.rank, anime: anime),
                   ],
                 ),
         ),

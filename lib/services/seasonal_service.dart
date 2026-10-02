@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'anilist_content_filter.dart';
 import 'anilist_rate_limiter.dart';
 
 /// ONE AIRING — a single episode broadcast at a specific time.
@@ -73,9 +74,10 @@ class SeasonalService {
   /// `FALL 1999` forever and no current-season filter can ever match it —
   /// which is why this asks the airing schedule what is actually broadcasting.
   ///
-  /// `isAdult` is fetched per-media because `airingSchedules` takes no
-  /// isAdult argument: unlike the old `Page.media` query this CANNOT be
-  /// filtered server-side, and skipping it ships adult cover art.
+  /// `isAdult`, `genres` and `tags` are fetched per-media because
+  /// `airingSchedules` takes none of the filter arguments: unlike the old
+  /// `Page.media` query this CANNOT be filtered server-side, and skipping it
+  /// ships adult cover art. See anilist_content_filter.dart for the line.
   static const String _query = r'''
 query ($from: Int, $to: Int, $page: Int, $perPage: Int) {
   Page(page: $page, perPage: $perPage) {
@@ -92,6 +94,8 @@ query ($from: Int, $to: Int, $page: Int, $perPage: Int) {
         format
         countryOfOrigin
         isAdult
+        genres
+        tags { name rank }
       }
     }
   }
@@ -111,7 +115,7 @@ query ($from: Int, $to: Int, $page: Int, $perPage: Int) {
 
     final results = <AiringEntry>[];
     final seen = <String>{};
-    var adultDropped = 0;
+    var excludedDropped = 0;
     var page = 1;
     var requests = 0;
 
@@ -124,9 +128,9 @@ query ($from: Int, $to: Int, $page: Int, $perPage: Int) {
         if (schedules == null) throw const FormatException('Unexpected AniList response shape');
 
         for (final s in schedules) {
-          final (entry, wasAdult) = _parseSchedule(s as Map<String, dynamic>);
-          if (wasAdult) {
-            adultDropped++;
+          final (entry, wasExcluded) = _parseSchedule(s as Map<String, dynamic>);
+          if (wasExcluded) {
+            excludedDropped++;
             continue;
           }
           if (entry == null) continue;
@@ -142,7 +146,7 @@ query ($from: Int, $to: Int, $page: Int, $perPage: Int) {
       }
 
       results.sort((a, b) => a.airingAt.compareTo(b.airingAt));
-      _logComposition(results, requests: requests, adultDropped: adultDropped);
+      _logComposition(results, requests: requests, excludedDropped: excludedDropped);
       return results;
     } on SocketException catch (e) {
       debugPrint('[SeasonalService] socket error: $e');
@@ -180,13 +184,14 @@ query ($from: Int, $to: Int, $page: Int, $perPage: Int) {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  /// Schedule row → (entry, wasAdult). Entry is null when the row is
-  /// unusable; `wasAdult` is reported separately so the drop can be counted
-  /// rather than silently conflated with malformed rows.
+  /// Schedule row → (entry, wasExcluded). Entry is null when the row is
+  /// unusable; `wasExcluded` — adult, or over the content line — is reported
+  /// separately so the drop can be counted rather than silently conflated
+  /// with malformed rows.
   (AiringEntry?, bool) _parseSchedule(Map<String, dynamic> map) {
     final media = map['media'] as Map<String, dynamic>?;
     if (media == null) return (null, false);
-    if (media['isAdult'] == true) return (null, true);
+    if (media['isAdult'] == true || overContentLine(media)) return (null, true);
 
     final id = media['id'] as int?;
     final airingAt = map['airingAt'] as int?; // unix SECONDS
@@ -217,7 +222,7 @@ query ($from: Int, $to: Int, $page: Int, $perPage: Int) {
   /// Composition breakdown for the UI review: country and format are
   /// deliberately NOT filtered yet, so log what a real week contains before
   /// anyone decides whether to cut CN / ONA / TV_SHORT.
-  void _logComposition(List<AiringEntry> rows, {required int requests, required int adultDropped}) {
+  void _logComposition(List<AiringEntry> rows, {required int requests, required int excludedDropped}) {
     if (!kDebugMode) return;
     final byCountry = <String, int>{};
     final byFormat = <String, int>{};
@@ -227,7 +232,7 @@ query ($from: Int, $to: Int, $page: Int, $perPage: Int) {
     }
     final shows = rows.map((r) => r.mediaId).toSet().length;
     debugPrint('[SeasonalService] ${rows.length} airings / $shows shows '
-        'over $requests request(s); dropped $adultDropped adult. '
+        'over $requests request(s); dropped $excludedDropped adult or over the content line. '
         'country=$byCountry format=$byFormat');
   }
 }

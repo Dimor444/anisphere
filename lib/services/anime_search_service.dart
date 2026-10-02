@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'anilist_content_filter.dart';
 import 'anilist_rate_limiter.dart';
 
 /// One anime returned by a search — enough to render a selectable card and to
@@ -40,7 +41,7 @@ class AnimeSearchService {
   static const String _query = r'''
 query ($search: String) {
   Page(perPage: 24) {
-    media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: false) {
+    media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: false, ''' '$kAniListContentArgs' r''') {
       id
       title { romaji english }
       genres

@@ -36,9 +36,17 @@ void main() {
     final svc = ChartService.instance;
 
     final allTime = await svc.getTopAnime(ChartFilter.allTime);
-    expect(allTime.length, ChartService.topCount, reason: 'all-time must be a full Top 100');
-    expect(allTime.first.rank, 1);
-    expect(allTime.last.rank, ChartService.topCount);
+    // Rows keep their place in AniList's list. A title over the content line
+    // is dropped after numbering, so it leaves a gap and the chart can hold
+    // fewer than topCount rows — but never a number past topCount, and never
+    // a number twice.
+    expect(allTime.length, lessThanOrEqualTo(ChartService.topCount));
+    expect(allTime.length, greaterThan(ChartService.topCount ~/ 2),
+        reason: 'all-time is mostly full; a near-empty chart means the filter misfired');
+    expect(allTime.last.rank, lessThanOrEqualTo(ChartService.topCount));
+    for (var i = 1; i < allTime.length; i++) {
+      expect(allTime[i].rank, greaterThan(allTime[i - 1].rank));
+    }
     // Sorted by score (ties allowed).
     for (var i = 1; i < allTime.length; i++) {
       expect(allTime[i].score, lessThanOrEqualTo(allTime[i - 1].score));
@@ -48,7 +56,8 @@ void main() {
     expect(allTime.first.coverImage, startsWith('http'));
 
     final year = await svc.getTopAnime(ChartFilter.year);
-    expect(year.length, ChartService.topCount);
+    expect(year.length, lessThanOrEqualTo(ChartService.topCount));
+    expect(year.last.rank, lessThanOrEqualTo(ChartService.topCount));
 
     // Season can legitimately be shorter than 100, but must not be empty.
     final season = await svc.getTopAnime(ChartFilter.season);
@@ -73,8 +82,9 @@ void main() {
   testWidgets('service: fetchById resolves chart entries, even deep in the list', (tester) async {
     final chart = await ChartService.instance.getTopAnime(ChartFilter.allTime);
 
-    // Rank 95 — a pagination-fetched entry that is certainly not trending.
-    final deep = chart[94];
+    // Near the end — a pagination-fetched entry that is certainly not
+    // trending. Counted from the end because filtered titles leave gaps.
+    final deep = chart[chart.length - 5];
     final full = await TrendingService.instance.fetchById(deep.anilistId);
     expect(full, isNotNull, reason: 'every chart id must resolve');
     expect(full!.id, deep.anilistId);

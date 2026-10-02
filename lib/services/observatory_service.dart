@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'anilist_content_filter.dart';
 import 'anilist_rate_limiter.dart';
 
 /// One globally-popular anime, straight from AniList.
@@ -15,6 +16,11 @@ import 'anilist_rate_limiter.dart';
 /// that matters.
 class PopularAnime {
   final int id; // anilist_id
+
+  /// 1-based place in AniList's popularity list — not the row's position on
+  /// screen. A title over the content line is dropped after numbering, so it
+  /// leaves a gap rather than renumbering the rows below it.
+  final int rank;
   final String title;
   final String coverUrl;
 
@@ -23,6 +29,7 @@ class PopularAnime {
 
   const PopularAnime({
     required this.id,
+    required this.rank,
     required this.title,
     required this.coverUrl,
     required this.popularity,
@@ -224,6 +231,8 @@ query ($perPage: Int) {
       title { english romaji }
       coverImage { large }
       popularity
+      genres
+      tags { name rank }
     }
   }
 }''';
@@ -257,8 +266,10 @@ query ($perPage: Int) {
 
       final out = <PopularAnime>[];
       final seen = <int>{};
-      for (final raw in media) {
-        final m = raw as Map<String, dynamic>;
+      for (var i = 0; i < media.length; i++) {
+        final m = media[i] as Map<String, dynamic>;
+        // Numbered by place in AniList's list first, then filtered.
+        if (overContentLine(m)) continue;
         final id = m['id'] as int?;
         if (id == null || !seen.add(id)) continue;
         final title = m['title'] as Map<String, dynamic>?;
@@ -268,6 +279,7 @@ query ($perPage: Int) {
         if (name.isEmpty) continue;
         out.add(PopularAnime(
           id: id,
+          rank: i + 1,
           title: name,
           coverUrl: (m['coverImage'] as Map<String, dynamic>?)?['large'] as String? ?? '',
           // Absent popularity would be a fabricated 0, so drop the row instead.

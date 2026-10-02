@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'anilist_content_filter.dart';
 import 'anilist_rate_limiter.dart';
 
 /// A single trending anime from AniList.
@@ -90,7 +91,7 @@ class TrendingService {
   static const String _query = r'''
 query {
   Page(perPage: 10) {
-    media(sort: [TRENDING_DESC, POPULARITY_DESC], type: ANIME, isAdult: false) {
+    media(sort: [TRENDING_DESC, POPULARITY_DESC], type: ANIME, isAdult: false, ''' '$kAniListContentArgs' r''') {
       id
       title { english romaji }
       coverImage { large }
@@ -128,7 +129,7 @@ query ($id: Int) {
   static const String _searchQuery = r'''
 query ($search: String) {
   Page(page: 1, perPage: 20) {
-    media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: false) {
+    media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: false, ''' '$kAniListContentArgs' r''') {
       id
       title { english romaji }
       coverImage { large }

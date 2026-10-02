@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'anilist_content_filter.dart';
 import 'anilist_rate_limiter.dart';
 
 /// Which slice of the Top 100 chart to show.
@@ -18,7 +19,12 @@ enum ChartFilter {
 
 /// One ranked row of the Top 100.
 class AnimeChartEntry {
-  final int rank; // 1-based
+  /// 1-based place in AniList's own list for the filter — not this row's
+  /// position on screen. Titles over the content line are dropped after
+  /// numbering, so a removed title leaves a gap instead of renumbering the
+  /// rows after it. (AniList's `rankings` field can't stand in: it ranks
+  /// within one format, so a mixed chart would show a #1 TV and a #1 MOVIE.)
+  final int rank;
   final int anilistId;
   final String title;
   final String coverImage;
@@ -120,14 +126,12 @@ class ChartService {
       return hit;
     }
 
-    final pages = <List<AnimeChartEntry>>[];
-    for (var page = 1; pages.length * _perPage < topCount; page++) {
-      final offset = pages.fold(0, (n, p) => n + p.length);
-      final batch = await _fetchPage(filter, page, offset);
-      pages.add(batch);
-      if (batch.length < _perPage) break; // AniList ran out (short seasons)
+    final entries = <AnimeChartEntry>[];
+    for (var page = 1; (page - 1) * _perPage < topCount; page++) {
+      final (kept, fetched) = await _fetchPage(filter, page);
+      entries.addAll(kept);
+      if (fetched < _perPage) break; // AniList ran out (short seasons)
     }
-    final entries = pages.expand((p) => p).toList();
 
     final ranked = await _applyMovements(filter, entries);
     _cache[filter] = ranked;
@@ -135,7 +139,11 @@ class ChartService {
     return ranked;
   }
 
-  Future<List<AnimeChartEntry>> _fetchPage(ChartFilter filter, int page, int rankOffset) async {
+  /// One page of AniList's list, numbered by place in that list, with titles
+  /// over the content line dropped AFTER numbering. Returns the kept rows and
+  /// how many AniList sent, which is what decides whether another page exists.
+  Future<(List<AnimeChartEntry>, int)> _fetchPage(ChartFilter filter, int page) async {
+    final rankOffset = (page - 1) * _perPage;
     final s = currentSeason(DateTime.now());
     final args = switch (filter) {
       ChartFilter.allTime => 'type: ANIME, isAdult: false, sort: SCORE_DESC',
@@ -153,6 +161,8 @@ query {
       averageScore
       popularity
       favourites
+      genres
+      tags { name rank }
     }
   }
 }''';
@@ -178,10 +188,12 @@ query {
             as List<dynamic>?;
     if (media == null) throw const FormatException('AniList: no media in response');
 
-    return [
+    final kept = [
       for (var i = 0; i < media.length; i++)
-        AnimeChartEntry.fromMedia(media[i] as Map<String, dynamic>, rankOffset + i + 1),
+        if (!overContentLine(media[i] as Map<String, dynamic>))
+          AnimeChartEntry.fromMedia(media[i] as Map<String, dynamic>, rankOffset + i + 1),
     ];
+    return (kept, media.length);
   }
 
   // ── Movement history (SharedPreferences) ───────────────────────────────

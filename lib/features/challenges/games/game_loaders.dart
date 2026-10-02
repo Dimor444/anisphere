@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
+import '../../../services/anilist_content_filter.dart';
 import '../../../services/anilist_rate_limiter.dart';
 import 'emoji_anime_bank.dart';
 import 'quiz_question.dart';
@@ -60,7 +61,7 @@ query ($page: Int) {
       id
       name { full }
       image { large }
-      media(perPage: 5) { nodes { isAdult } }
+      media(sort: POPULARITY_DESC, perPage: 5) { nodes { isAdult genres tags { name rank } } }
     }
   }
 }''';
@@ -80,10 +81,13 @@ Future<List<QuizQuestion>> loadCharacterQuizQuestions() async {
     final name = ((map['name'] as Map<String, dynamic>?)?['full'] as String?)?.trim();
     final image = (map['image'] as Map<String, dynamic>?)?['large'] as String?;
     if (name == null || name.isEmpty || image == null || image.isEmpty) continue;
-    // Characters take no isAdult argument, so the filter is applied here: skip
-    // anyone who appears in an adult title.
+    // Characters take no isAdult or genre/tag arguments, so the filters are
+    // applied here: skip anyone who appears in an adult title, or whose
+    // best-known show (their most popular) is over the content line. Judging
+    // by any title instead drops Anya Forger over one tagged special.
     final media = ((map['media'] as Map<String, dynamic>?)?['nodes'] as List<dynamic>?) ?? const [];
     if (media.any((m) => (m as Map<String, dynamic>)['isAdult'] == true)) continue;
+    if (media.isNotEmpty && overContentLine(media.first as Map<String, dynamic>)) continue;
     if (!seen.add(name.toLowerCase())) continue;
     pool.add((name: name, image: image));
   }
@@ -132,7 +136,7 @@ Future<List<QuizQuestion>> loadEmojiAnimeQuestions() async {
 const String _voiceMatchQuery = r'''
 query ($page: Int) {
   Page(page: $page, perPage: 20) {
-    media(sort: POPULARITY_DESC, type: ANIME, isAdult: false) {
+    media(sort: POPULARITY_DESC, type: ANIME, isAdult: false, ''' '$kAniListContentArgs' r''') {
       title { romaji }
       characters(role: MAIN, perPage: 2) {
         edges {
