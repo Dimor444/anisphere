@@ -8,9 +8,10 @@ import 'package:integration_test/integration_test.dart';
 import 'package:anisphere/app.dart';
 import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/firebase_options.dart';
-import 'package:anisphere/services/auth_service.dart';
 import 'package:anisphere/services/feed_service.dart';
 import 'package:anisphere/services/follow_service.dart';
+
+import 'support/session.dart';
 
 const _postA = 'ZZFollow post from A #zzfollow';
 
@@ -38,6 +39,8 @@ void main() {
 
   late String aUid;
   late String bUid;
+  late String aHandle;
+  late String bHandle;
 
   setUpAll(() async {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -51,19 +54,18 @@ void main() {
     final feed = FeedService.instance;
 
     // ── User A: profile + one post
-    await AuthService.instance.signOut();
-    aUid = (await AuthService.instance.initAuth()).uid;
-    await follow.ensureProfile(userName: 'ZZUserA', bio: 'ZZ bio for A');
-    await feed.createPost(content: _postA, userName: 'ZZUserA', isVerified: true);
+    aUid = await freshGuest();
+    await follow.ensureProfile(bio: 'ZZ bio for A');
+    aHandle = await claimTestHandle('zzusera');
+    await feed.createPost(content: _postA);
     var profileA = (await follow.watchUser(aUid).first)!;
     expect(profileA.postsCount, 1);
-    expect(profileA.userName, 'ZZUserA');
+    expect(profileA.userName, aHandle);
 
     // ── User B: fresh identity
-    await AuthService.instance.signOut();
-    bUid = (await AuthService.instance.initAuth()).uid;
+    bUid = await freshGuest();
     expect(bUid, isNot(aUid));
-    await follow.ensureProfile(userName: 'ZZUserB');
+    bHandle = await claimTestHandle('zzuserb');
 
     // B doesn't follow A yet: A appears in suggestions and search.
     var suggestions = await follow.getFollowSuggestions(limit: 10).first;
@@ -113,7 +115,7 @@ void main() {
     appRouter.go('/profile/$aUid');
 
     // Header renders A's live profile.
-    await pumpUntil(tester, find.text('ZZUserA'));
+    await pumpUntil(tester, find.text('@$aHandle'));
     await pumpUntil(tester, find.text('ZZ bio for A'));
 
     // Outline "Follow" → tap → gradient "Following" (confirmed by Firestore).
@@ -127,7 +129,7 @@ void main() {
 
     // Followers screen lists B in real time.
     appRouter.push('/profile/$aUid/followers');
-    await pumpUntil(tester, find.text('ZZUserB'));
+    await pumpUntil(tester, find.textContaining(bHandle));
 
     // Cleanup: revert the follow.
     await FollowService.instance.unfollowUser(aUid);

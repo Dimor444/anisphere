@@ -49,6 +49,7 @@ Future<String> signInEmail(String email) async {
     if (e.code != 'email-already-in-use') rethrow;
     await auth.signInWithEmailAndPassword(email: email, password: 'zz-phase31-pass');
   }
+  await AuthService.instance.debugMarkSignedIn();
   return auth.currentUser!.uid;
 }
 

@@ -14,6 +14,8 @@ import 'package:anisphere/services/auth_service.dart';
 import 'package:anisphere/services/feed_service.dart';
 import 'package:anisphere/services/follow_service.dart';
 
+import 'support/session.dart';
+
 // 'ZZTest' marker keeps seeded content identifiable for cleanup.
 const _postContent = 'ZZTest feed post about #zztesttag greatness';
 const _spoilerContent = 'ZZTest spoiler: the mentor dies';
@@ -63,12 +65,12 @@ void main() {
     // follow pins the feed to following mode, so the UI test sees the
     // tester's seeded posts newest-first instead of the popular-ranked
     // fallback (whose ordering depends on leftover emulator data).
-    await AuthService.instance.signOut();
-    final helperUid = (await AuthService.instance.initAuth()).uid;
-    await FollowService.instance.ensureProfile(userName: 'ZZFeedHelper');
-    await AuthService.instance.signOut();
-    await AuthService.instance.initAuth();
-    await FollowService.instance.ensureProfile(userName: 'ZZTester');
+    final helperUid = await freshGuest();
+    await FollowService.instance.ensureProfile();
+    await freshGuest();
+    // The tester drives the UI, so it needs a claimed handle: otherwise the
+    // claim gate's sheet covers the feed and swallows the taps.
+    await claimTestHandle('zztester');
     if (!await FollowService.instance.isFollowing(helperUid)) {
       await FollowService.instance.followUser(helperUid);
     }
@@ -84,8 +86,6 @@ void main() {
     // create — hashtags extracted, counters start at zero
     final postId = await svc.createPost(
       content: _postContent,
-      userName: 'ZZTester',
-      isVerified: true,
       anilistId: 154587,
       animeTitle: 'Frieren',
       isSpoiler: false,
@@ -108,7 +108,7 @@ void main() {
     expect((trending.data()?['count'] as num).toInt(), greaterThanOrEqualTo(1));
 
     // like / unlike round trip with counter
-    await svc.likePost(postId, uid);
+    await svc.likePost(postId, uid, postAuthorId: uid);
     expect(await svc.isPostLikedByUser(postId, uid), isTrue);
     post = (await svc.watchPost(postId).first)!;
     expect(post.likes, 1);
@@ -118,7 +118,7 @@ void main() {
     expect(post.likes, 0);
 
     // comment / delete comment with counter
-    final commentId = await svc.addComment(postId, _commentContent, userName: 'ZZTester');
+    final commentId = await svc.addComment(postId, _commentContent);
     var comments = await svc.getComments(postId).first;
     expect(comments.any((c) => c.id == commentId && c.content == _commentContent), isTrue);
     post = (await svc.watchPost(postId).first)!;
@@ -137,8 +137,8 @@ void main() {
 
   testWidgets('ui: feed renders posts, like, spoiler reveal, comments', (tester) async {
     final svc = FeedService.instance;
-    final spoilerId = await svc.createPost(content: _spoilerContent, userName: 'ZZTester', isSpoiler: true);
-    final postId = await svc.createPost(content: _postContent, userName: 'ZZTester');
+    final spoilerId = await svc.createPost(content: _spoilerContent, isSpoiler: true);
+    final postId = await svc.createPost(content: _postContent);
     expect(spoilerId, isNotEmpty);
 
     await tester.pumpWidget(const ProviderScope(child: AniSphereApp()));

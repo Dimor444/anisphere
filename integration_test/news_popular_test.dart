@@ -12,10 +12,11 @@ import 'package:anisphere/app.dart';
 import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/data/models/news.dart';
 import 'package:anisphere/firebase_options.dart';
-import 'package:anisphere/services/auth_service.dart';
 import 'package:anisphere/services/feed_service.dart';
 import 'package:anisphere/services/follow_service.dart';
 import 'package:anisphere/services/news_service.dart';
+
+import 'support/session.dart';
 
 const _newsTitleSeason = 'ZZNews: Frieren Season 2 announced';
 const _newsTitleMovie = 'ZZNews: Chainsaw Man movie premiere';
@@ -119,8 +120,7 @@ void main() {
 
   testWidgets('service: news stream, category filter, save + view tallies', (tester) async {
     final svc = NewsService.instance;
-    await AuthService.instance.signOut();
-    await AuthService.instance.initAuth();
+    await freshGuest();
 
     // Newest first, both seeded articles present.
     final all = await svc.getNewsArticles().first;
@@ -169,17 +169,15 @@ void main() {
     final follow = FollowService.instance;
 
     // User A publishes two posts and likes the second.
-    await AuthService.instance.signOut();
-    final aUid = (await AuthService.instance.initAuth()).uid;
-    await follow.ensureProfile(userName: 'ZZPopA');
-    await feed.createPost(content: _popPostLow, userName: 'ZZPopA');
-    final hotId = await feed.createPost(content: _popPostHot, userName: 'ZZPopA');
-    await feed.likePost(hotId, aUid);
+    final aUid = await freshGuest();
+    await claimTestHandle('zzpopa');
+    await feed.createPost(content: _popPostLow);
+    final hotId = await feed.createPost(content: _popPostHot);
+    await feed.likePost(hotId, aUid, postAuthorId: aUid);
 
     // User B follows nobody → popular fallback, most-liked first.
-    await AuthService.instance.signOut();
-    await AuthService.instance.initAuth();
-    await follow.ensureProfile(userName: 'ZZPopB');
+    await freshGuest();
+    await follow.ensureProfile();
     expect(await follow.hasAnyFollowing(), isFalse);
     expect(await feed.isUserFollowingAnyone('ignored'), isFalse);
 

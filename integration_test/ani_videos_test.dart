@@ -15,7 +15,8 @@ import 'package:anisphere/data/models/ani_video.dart';
 import 'package:anisphere/firebase_options.dart';
 import 'package:anisphere/services/ani_video_service.dart';
 import 'package:anisphere/services/auth_service.dart';
-import 'package:anisphere/services/follow_service.dart';
+
+import 'support/session.dart';
 
 // 'ZZTest' marker keeps seeded content identifiable for cleanup.
 const _caption = 'ZZTest video caption #zzvideotag';
@@ -78,24 +79,33 @@ Future<void> _cleanup() async {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  late String testerHandle;
 
-  // Live-project run (like production_smoke_test): all seeded docs carry the
-  // ZZTest marker and are removed in tearDownAll. The emulator would be
-  // preferable, but firebase-ios-sdk 12.15's gRPC WatchStream fails against
-  // cloud-firestore-emulator v1.21 ('Unknown: An internal error') — verified
-  // 2026-07-06 with a raw TCP probe (socket connects; gRPC handshake dies).
-  // Flip with --dart-define=USE_EMULATOR=true once that incompatibility is
-  // fixed upstream.
-  const useEmulator = bool.fromEnvironment('USE_EMULATOR');
+  // Emulator by default, like the other UI tests. This test seeds videos,
+  // files a report and claims a handle, so running it against the live
+  // project is a deliberate opt-in that has to name the project:
+  //   --dart-define=TEST_AGAINST_PRODUCTION=anisphere-36cb0
+  // Anything else — no define, `=true`, a typo — stays on the emulator. Until
+  // 2026-10-02 the default was the live project, and a batch run took that
+  // default without anyone choosing it.
+  //
+  // It defaulted live because firebase-ios-sdk 12.15's gRPC WatchStream
+  // failed against cloud-firestore-emulator v1.21 (2026-07-06). That no
+  // longer reproduces: this and the other UI tests run on the same emulator.
+  const productionTarget = String.fromEnvironment('TEST_AGAINST_PRODUCTION');
+  final againstProduction =
+      productionTarget == DefaultFirebaseOptions.currentPlatform.projectId;
 
   setUpAll(() async {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    if (useEmulator) {
+    if (!againstProduction) {
       await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
       FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
     }
+    debugPrint('[ani_videos_test] backend: '
+        '${againstProduction ? 'PRODUCTION ($productionTarget)' : 'emulator'}');
     await AuthService.instance.initAuth();
-    await FollowService.instance.ensureProfile(userName: 'ZZTester');
+    testerHandle = await claimTestHandle('zztester');
     await _cleanup();
   });
 
@@ -105,13 +115,14 @@ void main() {
     final svc = AniVideoService.instance;
     final uid = (await AuthService.instance.initAuth()).uid;
 
-    // >60s uploads are rejected before any bytes move.
+    // Over-limit uploads are rejected before any bytes move. The limit, not a
+    // literal: it went from 60s to 120s, which left a hard-coded 61 legal.
     await expectLater(
       () => svc.uploadVideo(
         videoFile: File('/nonexistent.mp4'),
-        durationSeconds: 61,
+        videoId: svc.newVideoId(),
+        durationSeconds: AniVideoData.maxDurationSeconds + 1,
         caption: 'too long',
-        userName: 'ZZTester',
       ),
       throwsArgumentError,
     );
@@ -136,7 +147,7 @@ void main() {
     expect(video.likes, 0);
 
     // Comment / delete comment with counter.
-    final commentId = await svc.addComment(videoId, _commentContent, userName: 'ZZTester');
+    final commentId = await svc.addComment(videoId, _commentContent);
     var comments = await svc.getComments(videoId).first;
     expect(comments.any((c) => c.id == commentId && c.content == _commentContent), isTrue);
     video = (await svc.watchVideo(videoId).first)!;
@@ -163,9 +174,14 @@ void main() {
     svc.incrementShareCount(videoId);
     await svc.reportVideo(videoId, 'spam');
 
-    // Delete (Storage cleanup inside is best-effort and must not throw).
-    await svc.deleteVideo(videoId);
-    expect(await svc.watchVideo(videoId).first, isNull);
+    // Delete runs through the deleteVideoObjects callable, which removes the
+    // clip from R2 with the real bucket's credentials. The emulator suite has
+    // no R2 and must not reach the real one, so only a production run
+    // exercises it; on the emulator, tearDownAll removes the seeded doc.
+    if (againstProduction) {
+      await svc.deleteVideo(videoId);
+      expect(await svc.watchVideo(videoId).first, isNull);
+    }
   });
 
   testWidgets('ui: nav restructure + video feed, like, spoiler, comments', (tester) async {
@@ -192,11 +208,14 @@ void main() {
     // feed, e.g. "Trending This Season").
     await tester.tap(find.byIcon(LucideIcons.menu).first);
     await pumpUntil(tester, find.textContaining('Rooms'));
-    expect(find.text('🔥 Trending'), findsOneWidget);
-    expect(find.text('📺 My List'), findsOneWidget);
+    // Scoped to the drawer: since the emoji went, 'Trending' alone is also a
+    // Discover tab label.
+    final inDrawer = find.byType(Drawer);
+    expect(find.descendant(of: inDrawer, matching: find.text('Trending')), findsOneWidget);
+    expect(find.descendant(of: inDrawer, matching: find.text('My List')), findsOneWidget);
 
     // Drawer → My List still works (former tab, now pushed).
-    await tester.tap(find.text('📺 My List'));
+    await tester.tap(find.descendant(of: inDrawer, matching: find.text('My List')));
     await pumpUntil(tester, find.text('Nothing here yet'));
     appRouter.pop();
     // Let the popped route animate fully out — a tap during the transition
@@ -210,7 +229,7 @@ void main() {
     await tester.tap(find.text('Spoiler — tap to reveal'));
     await pumpUntilGone(tester, find.text('Spoiler — tap to reveal'));
     expect(find.textContaining('ZZTest spoiler video'), findsOneWidget);
-    expect(find.text('@ZZTester'), findsWidgets);
+    expect(find.text('@$testerHandle'), findsWidgets);
     expect(find.text('Frieren'), findsWidgets);
 
     // Optimistic like: heart fills immediately.

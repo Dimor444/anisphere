@@ -12,6 +12,8 @@ import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/firebase_options.dart';
 import 'package:anisphere/services/trending_service.dart';
 
+import 'support/session.dart';
+
 /// Search hits the LIVE AniList API (read-only, rate-limited). Firebase
 /// points at the emulators so pumping the app can't touch production.
 const _nonsense = 'zzqxvwkjy anime that cannot exist 4242';
@@ -32,6 +34,10 @@ void main() {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
     FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+    // A guest with a claimed handle, so the claim gate's sheet doesn't cover
+    // the search field the UI test types into and clears.
+    await freshGuest();
+    await claimTestHandle('zzsearch');
     // Start from clean search history — previous runs leave entries behind.
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('search_history_v1');

@@ -12,9 +12,10 @@ import 'package:integration_test/integration_test.dart';
 import 'package:anisphere/app.dart';
 import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/firebase_options.dart';
-import 'package:anisphere/services/auth_service.dart';
 import 'package:anisphere/services/community_vote_service.dart';
 import 'package:anisphere/services/follow_service.dart';
+
+import 'support/session.dart';
 
 Future<void> pumpUntil(WidgetTester tester, Finder finder, {Duration timeout = const Duration(seconds: 30)}) async {
   final end = DateTime.now().add(timeout);
@@ -23,6 +24,21 @@ Future<void> pumpUntil(WidgetTester tester, Finder finder, {Duration timeout = c
     if (finder.evaluate().isNotEmpty) return;
   }
   fail('Timed out waiting for $finder');
+}
+
+/// AniPlus is server-managed: the create rule pins isPlus to false and no
+/// client update may touch it. So the Plus voter gets it the way the server
+/// grants it — an owner write — rather than through ensureProfile.
+Future<void> _grantPlus(String uid) async {
+  const base = 'http://localhost:8080/v1/projects/anisphere-36cb0/databases/(default)/documents';
+  final res = await http.patch(
+    Uri.parse('$base/users/$uid?updateMask.fieldPaths=isPlus'),
+    headers: {'Authorization': 'Bearer owner', 'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'fields': {'isPlus': {'booleanValue': true}},
+    }),
+  );
+  expect(res.statusCode, 200, reason: 'grant Plus failed: ${res.body}');
 }
 
 /// Owner-credential writes through the emulator REST API — used to seed a
@@ -77,9 +93,8 @@ void main() {
   });
 
   testWidgets('service: free user gets exactly one FINAL vote', (tester) async {
-    await AuthService.instance.signOut();
-    freeUid = (await AuthService.instance.initAuth()).uid;
-    await FollowService.instance.ensureProfile(userName: 'ZZVoterFree');
+    freeUid = await freshGuest();
+    await FollowService.instance.ensureProfile();
 
     expect(await svc.getRemainingVotes(isPlus: false), 1);
     await svc.castVote(anilistId: 900001, animeTitle: 'ZZVote Anime 1', isPlus: false);
@@ -132,9 +147,9 @@ void main() {
   });
 
   testWidgets('service: AniPlus user gets four votes, no dupes, hard cap', (tester) async {
-    await AuthService.instance.signOut();
-    plusUid = (await AuthService.instance.initAuth()).uid;
-    await FollowService.instance.ensureProfile(userName: 'ZZVoterPlus', isPlus: true);
+    plusUid = await freshGuest();
+    await FollowService.instance.ensureProfile();
+    await _grantPlus(plusUid);
 
     for (var i = 1; i <= 4; i++) {
       await svc.castVote(anilistId: 900000 + i, animeTitle: 'ZZVote Anime $i', isPlus: true);
@@ -180,19 +195,22 @@ void main() {
   });
 
   testWidgets('ui: vote tab, cast flow with confirmation, live board, limits', (tester) async {
-    // Fresh user for the UI run; MainShell mirrors the sample session
-    // (AniPlus) into the profile, so 4 slots are available.
-    await AuthService.instance.signOut();
-    await AuthService.instance.initAuth();
+    // Fresh Plus user for the UI run, so 4 slots are available. Plus is
+    // server-managed now (the screen reads users/{uid}.isPlus, as the rules
+    // do), so it is granted the way the server grants it.
+    final uid = await freshGuest();
+    // A claimed handle, so the claim gate's sheet doesn't cover the tab bar.
+    await claimTestHandle('zzvoter');
+    await _grantPlus(uid);
 
     await tester.pumpWidget(const ProviderScope(child: AniSphereApp()));
     await tester.pump();
     appRouter.go('/discover');
 
-    await pumpUntil(tester, find.text('🗳️ Vote'));
-    await tester.ensureVisible(find.text('🗳️ Vote'));
+    await pumpUntil(tester, find.text('Vote'));
+    await tester.ensureVisible(find.text('Vote'));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('🗳️ Vote'));
+    await tester.tap(find.text('Vote'));
 
     await pumpUntil(tester, find.textContaining("Community Vote"));
     await pumpUntil(tester, find.textContaining('Resets in'));
@@ -209,7 +227,8 @@ void main() {
 
     // Irreversibility is spelled out before anything is written.
     await pumpUntil(tester, find.textContaining("can't be undone"));
-    await tester.tap(find.text('Vote'));
+    // The dialog's button, not the tab: both read 'Vote' since the tab lost its emoji.
+    await tester.tap(find.descendant(of: find.byType(Dialog), matching: find.text('Vote')));
     await pumpUntil(tester, find.textContaining('Vote cast!'));
 
     // Status, own-votes list and leaderboard all update in real time.

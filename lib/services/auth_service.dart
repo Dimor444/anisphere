@@ -121,6 +121,14 @@ class AuthService {
   Future<bool> hasSession() async =>
       !await _isSignedOut() && _auth.currentUser != null;
 
+  /// Test seam: what a real provider sign-in will do once one exists — lift
+  /// the deliberate-sign-out refusal. Integration tests sign email users in
+  /// through FirebaseAuth directly (the app has no email sign-in), so nothing
+  /// clears the flag their preceding [signOut] set, and every service call
+  /// then refuses with [SignedOutException].
+  @visibleForTesting
+  Future<void> debugMarkSignedIn() => _setSignedOut(false);
+
   /// Test seam: drop the hydrated flag so the next read comes off disk again.
   @visibleForTesting
   void debugResetSignedOutFlag() => _signedOut = null;

@@ -8,10 +8,10 @@ import 'package:integration_test/integration_test.dart';
 import 'package:anisphere/app.dart';
 import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/firebase_options.dart';
-import 'package:anisphere/services/auth_service.dart';
 import 'package:anisphere/services/chart_service.dart';
-import 'package:anisphere/services/follow_service.dart';
 import 'package:anisphere/services/trending_service.dart';
+
+import 'support/session.dart';
 
 /// Chart service talks to the LIVE AniList GraphQL API (read-only, a handful
 /// of rate-limited queries). Firebase still points at the emulators so
@@ -33,12 +33,10 @@ void main() {
     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
     FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
 
-    // A guest with a claimed handle, so the shell's claim gate — a modal
-    // sheet every new guest gets — never covers the chart the UI test taps.
-    // Per-run handle: the emulator keeps claims for as long as it runs.
-    await AuthService.instance.signInAsGuest();
-    await FollowService.instance.ensureProfile();
-    await FollowService.instance.claimUserName('zzchart${DateTime.now().millisecondsSinceEpoch % 1000000}');
+    // A guest with a claimed handle, so the claim gate's sheet never covers
+    // the chart the UI test taps.
+    await freshGuest();
+    await claimTestHandle('zzchart');
   });
 
   testWidgets('service: 100 entries, three genuinely different lists, instant cache', (tester) async {

@@ -8,9 +8,10 @@ import 'package:integration_test/integration_test.dart';
 import 'package:anisphere/app.dart';
 import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/firebase_options.dart';
-import 'package:anisphere/services/auth_service.dart';
 import 'package:anisphere/services/follow_service.dart';
 import 'package:anisphere/shared/widgets/follow_button.dart';
+
+import 'support/session.dart';
 
 /// Phase 1 verification: follow/unfollow reflects live in lists and in both
 /// profile headers (relationship-derived counts), and an immediate re-follow
@@ -54,15 +55,13 @@ void main() {
     final follow = FollowService.instance;
 
     // ── User A: fresh anonymous identity + rules-legal generated handle
-    await AuthService.instance.signOut();
-    aUid = (await AuthService.instance.initAuth()).uid;
+    aUid = await freshGuest();
     await follow.ensureProfile();
     aHandle = (await follow.getUser(aUid))!.userName;
     expect(aHandle, startsWith('anifan_'));
 
     // ── User B
-    await AuthService.instance.signOut();
-    bUid = (await AuthService.instance.initAuth()).uid;
+    bUid = await freshGuest();
     expect(bUid, isNot(aUid));
     await follow.ensureProfile();
     bHandle = (await follow.getUser(bUid))!.userName;
