@@ -386,11 +386,48 @@ service cloud.firestore {
             || request.resource.data.viewCount == resource.data.viewCount + 1);
       }
 
+      // Public read hosts of the Ani Videos R2 bucket. A video's urls must
+      // name one of these. Moving reads to a custom domain is one more entry
+      // here while both hosts serve; retiring r2.dev is one fewer.
+      function aniVideoBases() {
+        return ['https://pub-d6e4c414f2c04681bbafc54bd2375308.r2.dev'];
+      }
+      // True only for <base>/ani_videos/<uid>/<videoId><ext> on an allowed
+      // base: the exact key requestVideoUploadUrl signs for this author and
+      // this document. Anything else — another host, another author's
+      // object, another video, a query string — is a url the upload path
+      // never produced.
+      function isAniVideoObjectUrl(url, uid, ext) {
+        let parts = url.split('/ani_videos/');
+        return url is string
+          && parts.size() == 2
+          && parts[0] in aniVideoBases()
+          && parts[1] == uid + '/' + videoId + ext;
+      }
+      // The author snapshot installed builds store beside the video — name,
+      // avatar, badge — which viewers see until the live profile loads, and
+      // in share text always. Each must be empty/false or the author's real
+      // value at upload, so it can go stale but can never be invented. The
+      // name is UserData.nameToShow: displayName if set, else the handle.
+      function authorSnapshotIsReal(d) {
+        let author = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+        return (!('userName' in d) || d.userName == ''
+                || d.userName == author.userName || d.userName == author.displayName.trim())
+          && (!('userAvatar' in d) || d.userAvatar == '' || d.userAvatar == author.userAvatar)
+          && (!('isVerified' in d) || d.isVerified == false
+                || (d.isVerified == true && author.isVerified == true));
+      }
+
       allow read: if signedIn();
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.videoUrl is string
-        && request.resource.data.videoUrl.size() > 0
+        && isAniVideoObjectUrl(request.resource.data.videoUrl, request.auth.uid, '.mp4')
+        // The thumbnail is best-effort: an upload whose thumbnail failed
+        // stores ''.
+        && (!('thumbnailUrl' in request.resource.data)
+            || request.resource.data.thumbnailUrl == ''
+            || isAniVideoObjectUrl(request.resource.data.thumbnailUrl, request.auth.uid, '.jpg'))
+        && authorSnapshotIsReal(request.resource.data)
         && request.resource.data.caption is string
         && request.resource.data.caption.size() <= 200
         && request.resource.data.durationSeconds is int
@@ -401,11 +438,14 @@ service cloud.firestore {
         && request.resource.data.viewCount == 0;
       allow delete: if isVideoAuthor();
       // Author may edit content fields (never counters); anyone signed in may
-      // bump counters by one.
+      // bump counters by one. The urls and the author snapshot are fixed at
+      // create, where they are checked — editable afterwards, every check
+      // above could be undone by an update. No build has ever edited them.
       allow update: if signedIn()
         && ((isVideoAuthor()
               && !request.resource.data.diff(resource.data).affectedKeys()
-                  .hasAny(['likes', 'commentsCount', 'shareCount', 'viewCount', 'userId']))
+                  .hasAny(['likes', 'commentsCount', 'shareCount', 'viewCount', 'userId',
+                           'videoUrl', 'thumbnailUrl', 'userName', 'userAvatar', 'isVerified']))
             || videoCounterBump());
 
       // uid: optional, but the caller when present — the same contract as

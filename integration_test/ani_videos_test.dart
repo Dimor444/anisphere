@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -45,24 +47,59 @@ Future<void> pumpUntilGone(WidgetTester tester, Finder finder, {Duration timeout
 
 CollectionReference<Map<String, dynamic>> get _videos => FirebaseFirestore.instance.collection('ani_videos');
 
-/// Seed a video doc directly (Storage isn't part of the emulator run; the
-/// player streams [_sampleUrl] over the network instead).
+// Production only when the run names the project — see the backend comment
+// in main().
+const _productionTarget = String.fromEnvironment('TEST_AGAINST_PRODUCTION');
+bool get _againstProduction =>
+    _productionTarget == DefaultFirebaseOptions.currentPlatform.projectId;
+
+/// Seed a video doc directly, pointing at [_sampleUrl] so the player has a
+/// real clip to stream.
+///
+/// The create rule refuses that from a client: a video's urls must be the
+/// exact R2 keys the upload grant signs, and a "video" that never went
+/// through the upload path is what the rule exists to stop. So fixtures are
+/// written with the emulator's owner credential, which bypasses rules; the
+/// create rule has its own suite (functions/test/ani_videos_rules.test.js).
+/// Production has no such bypass, and fabricating a video there is exactly
+/// what the rule forbids, so a production run cannot seed — and says so.
 Future<String> _seedVideo({required String caption, bool isSpoiler = false}) async {
+  if (_againstProduction) {
+    throw StateError('ani_videos_test seeds fixtures with the emulator owner '
+        'credential; the create rule refuses fabricated videos in production.');
+  }
   final uid = (await AuthService.instance.initAuth()).uid;
-  final doc = _videos.doc();
-  await doc.set(AniVideoData(
-    id: doc.id,
-    userId: uid,
-    userName: 'ZZTester',
-    isVerified: true,
-    videoUrl: _sampleUrl,
-    caption: caption,
-    anilistId: 154587,
-    animeTitle: 'Frieren',
-    durationSeconds: 10,
-    isSpoiler: isSpoiler,
-  ).toMap());
-  return doc.id;
+  final id = _videos.doc().id;
+  final project = DefaultFirebaseOptions.currentPlatform.projectId;
+  final res = await http.patch(
+    Uri.parse('http://127.0.0.1:8080/v1/projects/$project/databases/(default)/documents/ani_videos/$id'),
+    headers: const {'Authorization': 'Bearer owner', 'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'fields': {
+        'userId': {'stringValue': uid},
+        'userName': {'stringValue': ''},
+        'userAvatar': {'stringValue': ''},
+        'isVerified': {'booleanValue': false},
+        'videoUrl': {'stringValue': _sampleUrl},
+        'thumbnailUrl': {'stringValue': ''},
+        'caption': {'stringValue': caption},
+        'anilist_id': {'integerValue': '154587'},
+        'animeTitle': {'stringValue': 'Frieren'},
+        'hashtags': {'arrayValue': <String, dynamic>{}},
+        'durationSeconds': {'integerValue': '10'},
+        'likes': {'integerValue': '0'},
+        'commentsCount': {'integerValue': '0'},
+        'shareCount': {'integerValue': '0'},
+        'viewCount': {'integerValue': '0'},
+        'createdAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
+        'isSpoiler': {'booleanValue': isSpoiler},
+      },
+    }),
+  );
+  if (res.statusCode != 200) {
+    throw StateError('seeding ani_videos/$id failed: ${res.statusCode} ${res.body}');
+  }
+  return id;
 }
 
 Future<void> _cleanup() async {
@@ -92,9 +129,7 @@ void main() {
   // It defaulted live because firebase-ios-sdk 12.15's gRPC WatchStream
   // failed against cloud-firestore-emulator v1.21 (2026-07-06). That no
   // longer reproduces: this and the other UI tests run on the same emulator.
-  const productionTarget = String.fromEnvironment('TEST_AGAINST_PRODUCTION');
-  final againstProduction =
-      productionTarget == DefaultFirebaseOptions.currentPlatform.projectId;
+  final againstProduction = _againstProduction;
 
   setUpAll(() async {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -103,7 +138,7 @@ void main() {
       FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
     }
     debugPrint('[ani_videos_test] backend: '
-        '${againstProduction ? 'PRODUCTION ($productionTarget)' : 'emulator'}');
+        '${againstProduction ? 'PRODUCTION ($_productionTarget)' : 'emulator'}');
     await AuthService.instance.initAuth();
     testerHandle = await claimTestHandle('zztester');
     await _cleanup();
@@ -177,11 +212,16 @@ void main() {
     // Delete runs through the deleteVideoObjects callable, which removes the
     // clip from R2 with the real bucket's credentials. The emulator suite has
     // no R2 and must not reach the real one, so only a production run
-    // exercises it; on the emulator, tearDownAll removes the seeded doc.
+    // exercises it. On the emulator the doc is deleted directly, through this
+    // client, so it leaves the local cache too: the next test's fixtures are
+    // written past the cache, the feed opens on what the cache holds, and the
+    // screen keeps the viewer there when the newer videos arrive above it.
     if (againstProduction) {
       await svc.deleteVideo(videoId);
-      expect(await svc.watchVideo(videoId).first, isNull);
+    } else {
+      await _videos.doc(videoId).delete();
     }
+    expect(await svc.watchVideo(videoId).first, isNull);
   });
 
   testWidgets('ui: nav restructure + video feed, like, spoiler, comments', (tester) async {
