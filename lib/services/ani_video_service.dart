@@ -148,8 +148,9 @@ class AniVideoService {
 
   /// Pin pending server timestamps (null createdAt) to the top so a just
   /// -uploaded video doesn't flash to the bottom — same trick as the feed.
-  List<AniVideoData> _sorted(QuerySnapshot<Map<String, dynamic>> snap) {
-    final list = snap.docs.map(AniVideoData.fromDoc).toList();
+  /// Videos that cannot be read are left out; see [AniVideoData.tryFromDoc].
+  List<AniVideoData> _sorted(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    final list = docs.map(AniVideoData.tryFromDoc).whereType<AniVideoData>().toList();
     list.sort((a, b) {
       if (a.createdAt == null) return -1;
       if (b.createdAt == null) return 1;
@@ -164,13 +165,26 @@ class AniVideoService {
   /// (same pattern as feed comments): the screen bumps it by [pageSize] as
   /// the user swipes near the end. A following-based feed can layer on later,
   /// mirroring FeedService's fallback split.
-  Stream<List<AniVideoData>> getVideoFeed({int limit = pageSize}) {
-    return _videos.orderBy('createdAt', descending: true).limit(limit).snapshots().map(_sorted);
+  ///
+  /// [full] says whether the query returned all [limit] documents, counted
+  /// before unreadable ones are dropped. Judged from [videos] instead, one
+  /// dropped video would make a full page look like the last and end the
+  /// feed there.
+  Stream<({List<AniVideoData> videos, bool full})> watchFeed({int limit = pageSize}) {
+    return _videos
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snap) => (videos: _sorted(snap.docs), full: snap.docs.length >= limit));
   }
 
-  /// Live view of one video — null once deleted.
+  /// [watchFeed]'s videos alone.
+  Stream<List<AniVideoData>> getVideoFeed({int limit = pageSize}) =>
+      watchFeed(limit: limit).map((page) => page.videos);
+
+  /// Live view of one video — null once deleted, or if it cannot be read.
   Stream<AniVideoData?> watchVideo(String videoId) =>
-      _videos.doc(videoId).snapshots().map((doc) => doc.exists ? AniVideoData.fromDoc(doc) : null);
+      _videos.doc(videoId).snapshots().map((doc) => doc.exists ? AniVideoData.tryFromDoc(doc) : null);
 
   // ── Upload ─────────────────────────────────────────────────────────────
 
@@ -264,8 +278,11 @@ class AniVideoService {
   /// across retries of the same clip — see that method.
   ///
   /// [durationSeconds] must be measured by the caller (via a
-  /// VideoPlayerController) and is re-checked here; >60s throws [ArgumentError]
-  /// before any bytes move. [onProgress] reports 0..1 for the video bytes.
+  /// VideoPlayerController) and is re-checked here; outside
+  /// [AniVideoData.minDurationSeconds]..[AniVideoData.maxDurationSeconds] it
+  /// throws [ArgumentError] before any bytes move — the rules refuse it at
+  /// the last step otherwise, after the upload has spent its grant.
+  /// [onProgress] reports 0..1 for the video bytes.
   /// Returns the video id.
   Future<String> uploadVideo({
     required File videoFile,
@@ -281,6 +298,9 @@ class AniVideoService {
     return _guard('uploadVideo', () async {
       if (durationSeconds > AniVideoData.maxDurationSeconds) {
         throw ArgumentError('video exceeds ${AniVideoData.maxDurationSeconds}s');
+      }
+      if (durationSeconds < AniVideoData.minDurationSeconds) {
+        throw ArgumentError('video has no measurable duration');
       }
       final trimmed = caption.trim();
       final capped = trimmed.length > AniVideoData.maxCaptionLength

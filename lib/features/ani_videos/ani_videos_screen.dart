@@ -42,9 +42,10 @@ class AniVideosScreen extends ConsumerStatefulWidget {
 
 class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsBindingObserver {
   final _page = PageController();
-  StreamSubscription<List<AniVideoData>>? _sub;
+  StreamSubscription<({List<AniVideoData> videos, bool full})>? _sub;
 
   List<AniVideoData>? _videos; // null while the first page loads
+  bool _full = false; // the last page came back full: there may be more
   Object? _error;
   int _limit = AniVideoService.pageSize;
   int _active = 0;
@@ -76,10 +77,12 @@ class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsB
 
   void _listen() {
     _sub?.cancel();
-    _sub = AniVideoService.instance.getVideoFeed(limit: _limit).listen((list) {
+    _sub = AniVideoService.instance.watchFeed(limit: _limit).listen((page) {
+      final list = page.videos;
       final current = (_videos != null && _active < _videos!.length) ? _videos![_active].id : null;
       setState(() {
         _videos = list;
+        _full = page.full;
         _error = null;
       });
       if (list.isEmpty) return;
@@ -114,7 +117,7 @@ class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsB
     setState(() => _active = i);
     // Near the end with a full page loaded → widen the listener by one page.
     final v = _videos;
-    if (v != null && v.length >= _limit && i >= v.length - 2) {
+    if (v != null && _full && i >= v.length - 2) {
       _limit += AniVideoService.pageSize;
       _listen();
     }

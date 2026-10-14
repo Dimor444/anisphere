@@ -50,7 +50,11 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
   double _progress = 0;
 
   bool get _tooLong => _durationSeconds > AniVideoData.maxDurationSeconds;
-  bool get _canPost => _file != null && _preview != null && !_tooLong && !_uploading;
+  bool get _canPost => _file != null &&
+      _preview != null &&
+      !_tooLong &&
+      _durationSeconds >= AniVideoData.minDurationSeconds &&
+      !_uploading;
 
   @override
   void dispose() {

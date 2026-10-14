@@ -4,16 +4,24 @@
  * A video's urls must be the exact R2 keys the upload grant signs for this
  * author and this document, on an allowed public host; the author snapshot
  * stored beside it (name, avatar, badge) must be the author's real values;
- * and none of those can be changed after create.
+ * the document must have the shape the app writes, a server date, a duration
+ * of at least a second, an AniList cover or none, and an upload grant behind
+ * it; and none of what is checked at create can be undone by an update.
  *
  * Cases are tagged:
- *   [compat]     what installed builds send today — must pass under any rules
- *   [new rule]   an attack the old rule allowed — must be refused now
- *   [transition] a second public host added to the list, nothing else changed
+ *   [compat]     what installed builds send — must pass under any rules
+ *   [unchanged]  what both this ruleset and the one before it decide the same
+ *                way: the url and identity refusals, and the edits still open
+ *   [new rule]   an attack the previous rules allowed — must be refused now
+ *   [transition] a second host added to a list, nothing else changed
+ *
+ * Every refusal starts from a payload that passes and changes one thing, and
+ * every create but the grant cases has its grant, so a case is refused for
+ * the reason its name gives.
  *
  * RULES_FILE points the suite at another ruleset, which is how the negative
  * control runs: against the rules before this change, exactly the [new rule]
- * cases must fail (the attacks go through) and every [compat] case must pass.
+ * cases must fail (the attacks go through) and every other case must pass.
  * [transition] needs the current rules and is skipped under RULES_FILE.
  *
  * Run with the firestore emulator up:
@@ -31,13 +39,20 @@ const {
   assertSucceeds,
   assertFails,
 } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, updateDoc, serverTimestamp, increment } = require('firebase/firestore');
+const {
+  doc, setDoc, updateDoc, writeBatch, serverTimestamp, increment, Timestamp,
+} = require('firebase/firestore');
 
 const [HOST, PORT] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
 const RULES = process.env.RULES_FILE || resolve(__dirname, '../../firestore.rules');
 
 const BASE = 'https://pub-d6e4c414f2c04681bbafc54bd2375308.r2.dev';
 const CUSTOM = 'https://videos.example.com';
+const ANILIST = 'https://s4.anilist.co';
+const ANILIST_NEXT = 'https://s5.anilist.co';
+const COVERS = '/file/anilistcdn/media/anime/cover/medium/';
+// What AniList returns as coverImage.large for Frieren (154587).
+const FRIEREN_COVER = `${ANILIST}${COVERS}bx154587-qQTzQnEJJ3oB.jpg`;
 const ALICE = 'alice';
 const BOB = 'bob';
 const VERA = 'vera'; // verified
@@ -51,11 +66,11 @@ function videoPayload(uid, videoId, profile, overrides = {}) {
     isVerified: profile ? profile.isVerified : false,
     videoUrl: `${BASE}/ani_videos/${uid}/${videoId}.mp4`,
     thumbnailUrl: `${BASE}/ani_videos/${uid}/${videoId}.jpg`,
-    caption: 'ZZRules clip',
+    caption: 'ZZRules clip #frieren',
     anilist_id: 154587,
-    animeTitle: 'Frieren',
-    animeCover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/x.jpg',
-    hashtags: [],
+    animeTitle: 'Frieren: Beyond Journey’s End',
+    animeCover: FRIEREN_COVER,
+    hashtags: ['frieren'],
     durationSeconds: 30,
     likes: 0,
     commentsCount: 0,
@@ -98,149 +113,187 @@ async function makeEnv(projectId, rules) {
   return env;
 }
 
+let n = 0;
+const id = () => `zzrules${String(++n).padStart(13, '0')}`; // 20 chars, like an auto id
+
+/** What requestVideoUploadUrl writes before it signs: upload_grants/{uid}_{videoId}. */
+function grant(env, uid, videoId) {
+  return env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'upload_grants', `${uid}_${videoId}`), { uid, videoId, tier: 'guest' }));
+}
+
+/**
+ * uploadVideo's final write, as [uid]. [overrides] is an object or a function
+ * of the video id. The grant is issued first unless [granted] is false.
+ */
+async function upload(env, uid, overrides = {}, { profile = PROFILES[uid], granted = true, videoId = id() } = {}) {
+  if (granted) await grant(env, uid, videoId);
+  const extra = typeof overrides === 'function' ? overrides(videoId) : overrides;
+  return setDoc(doc(env.authenticatedContext(uid).firestore(), 'ani_videos', videoId),
+    videoPayload(uid, videoId, profile, extra));
+}
+
+/** A video already stored, written past the rules. */
+async function stored(env, uid, overrides = {}) {
+  const v = id();
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'ani_videos', v), videoPayload(uid, v, PROFILES[uid], overrides)));
+  return v;
+}
+
 (async () => {
   const rules = readFileSync(RULES, 'utf8');
   const env = await makeEnv('demo-anivideos-rules', rules);
   const as = (uid) => env.authenticatedContext(uid).firestore();
-  let n = 0;
-  const id = () => `zzrules${String(++n).padStart(13, '0')}`; // 20 chars, like an auto id
+  const ok = (uid, overrides, opts) => assertSucceeds(upload(env, uid, overrides, opts));
+  const refused = (uid, overrides, opts) => assertFails(upload(env, uid, overrides, opts));
 
   console.log(`ani_videos rules — ${process.env.RULES_FILE ? `RULES_FILE=${RULES}` : 'current rules'}`);
 
   // ── Installed builds keep uploading ───────────────────────────────────
-  await run('[compat]', 'installed-build upload, display name set', async () => {
+  await run('[compat]', 'installed-build upload, display name set', () => ok(ALICE));
+  await run('[compat]', 'installed-build upload, no display name (handle as name)', () => ok(BOB));
+  await run('[compat]', 'thumbnail failed, stored as empty', () => ok(ALICE, { thumbnailUrl: '' }));
+  await run('[compat]', 'profile read failed, empty snapshot', () => ok(ALICE, {}, { profile: null }));
+  await run('[compat]', 'verified author stores the badge', () => ok(VERA));
+  await run('[compat]', 'no anime tagged: id, title and cover all null', () =>
+    ok(ALICE, { anilist_id: null, animeTitle: null, animeCover: null }));
+  await run('[compat]', 'anime whose AniList entry has no cover: empty', () => ok(ALICE, { animeCover: '' }));
+  await run('[compat]', "AniList's placeholder cover", () => ok(ALICE, { animeCover: `${ANILIST}${COVERS}default.jpg` }));
+  await run('[compat]', 'a .png cover with an n-prefixed name', () =>
+    ok(ALICE, { animeCover: `${ANILIST}${COVERS}nx99423-8MBxtwCeHf8B.png` }));
+  await run('[compat]', 'a sub-second clip, rounded up to 1', () => ok(ALICE, { durationSeconds: 1 }));
+  await run('[compat]', 'a 120-second clip', () => ok(ALICE, { durationSeconds: 120 }));
+  await run('[compat]', 'no caption, no hashtags', () => ok(ALICE, { caption: '', hashtags: [] }));
+  await run('[compat]', 'the upload batch with its trending hashtag', async () => {
     const v = id();
-    await assertSucceeds(setDoc(doc(as(ALICE), 'ani_videos', v), videoPayload(ALICE, v, PROFILES[ALICE])));
-  });
-  await run('[compat]', 'installed-build upload, no display name (handle as name)', async () => {
-    const v = id();
-    await assertSucceeds(setDoc(doc(as(BOB), 'ani_videos', v), videoPayload(BOB, v, PROFILES[BOB])));
-  });
-  await run('[compat]', 'thumbnail failed, stored as empty', async () => {
-    const v = id();
-    await assertSucceeds(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { thumbnailUrl: '' })));
-  });
-  await run('[compat]', 'profile read failed, empty snapshot', async () => {
-    const v = id();
-    await assertSucceeds(setDoc(doc(as(ALICE), 'ani_videos', v), videoPayload(ALICE, v, null)));
-  });
-  await run('[compat]', 'verified author stores the badge', async () => {
-    const v = id();
-    await assertSucceeds(setDoc(doc(as(VERA), 'ani_videos', v), videoPayload(VERA, v, PROFILES[VERA])));
+    await grant(env, ALICE, v);
+    const db = as(ALICE);
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'ani_videos', v), videoPayload(ALICE, v, PROFILES[ALICE]));
+    batch.set(doc(db, 'trending_hashtags', 'frieren'),
+      { tag: 'frieren', count: increment(1), lastUsed: serverTimestamp() }, { merge: true });
+    await assertSucceeds(batch.commit());
   });
   await run('[compat]', 'anyone bumps a view by one', async () => {
-    const v = id();
-    await env.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), 'ani_videos', v), videoPayload(ALICE, v, PROFILES[ALICE]));
-    });
+    const v = await stored(env, ALICE);
     await assertSucceeds(updateDoc(doc(as(BOB), 'ani_videos', v), { viewCount: increment(1) }));
   });
-
-  // ── Urls the upload path never produced ───────────────────────────────
-  await run('[new rule]', 'video on another host', async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { videoUrl: `https://evil.example/ani_videos/${ALICE}/${v}.mp4` })));
-  });
-  await run('[new rule]', "video pointing at another author's object", async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { videoUrl: `${BASE}/ani_videos/${BOB}/${v}.mp4` })));
-  });
-  await run('[new rule]', "video pointing at the author's other video", async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { videoUrl: `${BASE}/ani_videos/${ALICE}/zzother0000000000001.mp4` })));
-  });
-  await run('[new rule]', 'video key with the wrong extension', async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { videoUrl: `${BASE}/ani_videos/${ALICE}/${v}.jpg` })));
-  });
-  await run('[new rule]', 'video url with a query string', async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { videoUrl: `${BASE}/ani_videos/${ALICE}/${v}.mp4?x=1` })));
-  });
-  await run('[new rule]', 'video url with the path repeated under another prefix', async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { videoUrl: `https://evil.example/x/ani_videos/${ALICE}/${v}.mp4` })));
-  });
-  await run('[new rule]', 'thumbnail on another host', async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { thumbnailUrl: 'https://evil.example/t.jpg' })));
+  await run('[compat]', 'a like still lands on a stored video of the wrong shape', async () => {
+    const v = await stored(env, ALICE, { createdAt: 'zzz', animeCover: 'https://evil.example/c.jpg' });
+    await assertSucceeds(updateDoc(doc(as(BOB), 'ani_videos', v), { likes: increment(1) }));
   });
 
-  // ── An author snapshot that isn't the author ──────────────────────────
-  await run('[new rule]', "someone else's name", async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { userName: 'AniSphere Official' })));
-  });
-  await run('[new rule]', 'a badge the author does not have', async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { isVerified: true })));
-  });
-  await run('[new rule]', "an avatar that is not the author's", async () => {
-    const v = id();
-    await assertFails(setDoc(doc(as(ALICE), 'ani_videos', v),
-      videoPayload(ALICE, v, PROFILES[ALICE], { userAvatar: 'https://evil.example/a.jpg' })));
-  });
+  // ── Urls the upload path never produced (the previous change) ─────────
+  await run('[unchanged]', 'video on another host', () =>
+    refused(ALICE, (v) => ({ videoUrl: `https://evil.example/ani_videos/${ALICE}/${v}.mp4` })));
+  await run('[unchanged]', "video pointing at another author's object", () =>
+    refused(ALICE, (v) => ({ videoUrl: `${BASE}/ani_videos/${BOB}/${v}.mp4` })));
+  await run('[unchanged]', "video pointing at the author's other video", () =>
+    refused(ALICE, { videoUrl: `${BASE}/ani_videos/${ALICE}/zzother0000000000001.mp4` }));
+  await run('[unchanged]', 'video key with the wrong extension', () =>
+    refused(ALICE, (v) => ({ videoUrl: `${BASE}/ani_videos/${ALICE}/${v}.jpg` })));
+  await run('[unchanged]', 'video url with a query string', () =>
+    refused(ALICE, (v) => ({ videoUrl: `${BASE}/ani_videos/${ALICE}/${v}.mp4?x=1` })));
+  await run('[unchanged]', 'video url with the path repeated under another prefix', () =>
+    refused(ALICE, (v) => ({ videoUrl: `https://evil.example/x/ani_videos/${ALICE}/${v}.mp4` })));
+  await run('[unchanged]', 'thumbnail on another host', () =>
+    refused(ALICE, { thumbnailUrl: 'https://evil.example/t.jpg' }));
 
-  // ── Fixed after create ────────────────────────────────────────────────
-  const existing = id();
-  await env.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), 'ani_videos', existing), videoPayload(ALICE, existing, PROFILES[ALICE]));
+  // ── An author snapshot that isn't the author (the previous change) ────
+  await run('[unchanged]', "someone else's name", () => refused(ALICE, { userName: 'AniSphere Official' }));
+  await run('[unchanged]', 'a badge the author does not have', () => refused(ALICE, { isVerified: true }));
+  await run('[unchanged]', "an avatar that is not the author's", () =>
+    refused(ALICE, { userAvatar: 'https://evil.example/a.jpg' }));
+  await run('[unchanged]', 'a clip over 120 seconds', () => refused(ALICE, { durationSeconds: 121 }));
+
+  // ── A. The shape the app writes ───────────────────────────────────────
+  await run('[new rule]', 'createdAt stored as text', () => refused(ALICE, { createdAt: 'zzz' }));
+  await run('[new rule]', "createdAt from the client's clock, an hour ahead", () =>
+    refused(ALICE, { createdAt: Timestamp.fromMillis(Date.now() + 3600 * 1000) }));
+  await run('[new rule]', 'a field the app never writes', () => refused(ALICE, { featured: true }));
+  await run('[new rule]', 'hashtags that are not a list', () => refused(ALICE, { hashtags: 'frieren' }));
+  await run('[new rule]', 'more hashtags than a caption can hold', () =>
+    refused(ALICE, { hashtags: Array.from({ length: 101 }, (_, i) => `t${i}`) }));
+  await run('[new rule]', 'isSpoiler as text', () => refused(ALICE, { isSpoiler: 'yes' }));
+  await run('[new rule]', 'anilist_id as text', () => refused(ALICE, { anilist_id: '154587' }));
+  await run('[new rule]', 'animeTitle as a number', () => refused(ALICE, { animeTitle: 7 }));
+
+  // ── B. The upload grant ───────────────────────────────────────────────
+  await run('[new rule]', 'no upload grant', () => refused(ALICE, {}, { granted: false }));
+  await run('[new rule]', "another author's grant for the same video id", async () => {
+    const v = id();
+    await grant(env, BOB, v);
+    await assertFails(upload(env, ALICE, {}, { videoId: v, granted: false }));
   });
-  await run('[new rule]', 'author swaps the video url after create', async () => {
-    await assertFails(updateDoc(doc(as(ALICE), 'ani_videos', existing), { videoUrl: 'https://evil.example/v.mp4' }));
-  });
-  await run('[new rule]', 'author grants itself a badge after create', async () => {
-    await assertFails(updateDoc(doc(as(ALICE), 'ani_videos', existing), { isVerified: true }));
-  });
-  await run('[new rule]', 'author renames itself on the video after create', async () => {
-    await assertFails(updateDoc(doc(as(ALICE), 'ani_videos', existing), { userName: 'AniSphere Official' }));
-  });
+  await run('[new rule]', 'a video id that is not a 20-character auto id', () =>
+    refused(ALICE, {}, { videoId: 'zz_short_id' }));
+
+  // ── C. The anime cover ────────────────────────────────────────────────
+  await run('[new rule]', 'cover on another host', () => refused(ALICE, { animeCover: 'https://evil.example/c.jpg' }));
+  await run('[new rule]', 'an AniList user avatar (user-uploaded) as the cover', () =>
+    refused(ALICE, { animeCover: `${ANILIST}/file/anilistcdn/user/avatar/large/b5678-abcdefgh.png` }));
+  await run('[new rule]', 'cover url with a query string', () => refused(ALICE, { animeCover: `${FRIEREN_COVER}?x=1` }));
+
+  // ── D. The duration ───────────────────────────────────────────────────
+  await run('[new rule]', 'a zero-second clip', () => refused(ALICE, { durationSeconds: 0 }));
+  await run('[new rule]', 'a negative duration', () => refused(ALICE, { durationSeconds: -5 }));
+
+  // ── After create ──────────────────────────────────────────────────────
+  const existing = await stored(env, ALICE);
+  const edit = (data) => updateDoc(doc(as(ALICE), 'ani_videos', existing), data);
+  await run('[unchanged]', 'author swaps the video url after create', () =>
+    assertFails(edit({ videoUrl: 'https://evil.example/v.mp4' })));
+  await run('[unchanged]', 'author grants itself a badge after create', () => assertFails(edit({ isVerified: true })));
+  await run('[unchanged]', 'author renames itself on the video after create', () =>
+    assertFails(edit({ userName: 'AniSphere Official' })));
+  await run('[unchanged]', 'author edits the caption within the limit', () =>
+    assertSucceeds(edit({ caption: 'ZZRules edited', hashtags: [] })));
+  await run('[new rule]', 'caption edited to a number', () => assertFails(edit({ caption: 42 })));
+  await run('[new rule]', 'caption edited past 200 characters', () => assertFails(edit({ caption: 'x'.repeat(201) })));
+  await run('[new rule]', 'createdAt moved after create', () =>
+    assertFails(edit({ createdAt: Timestamp.fromMillis(Date.now() + 3600 * 1000) })));
+  await run('[new rule]', 'durationSeconds changed after create', () => assertFails(edit({ durationSeconds: 0 })));
+  await run('[new rule]', 'a field added after create', () => assertFails(edit({ featured: true })));
+  await run('[new rule]', 'cover swapped to another host after create', () =>
+    assertFails(edit({ animeCover: 'https://evil.example/c.jpg' })));
+  await run('[new rule]', 'isSpoiler edited to text', () => assertFails(edit({ isSpoiler: 'yes' })));
 
   await env.cleanup();
 
   // ── A second host is one more list entry ──────────────────────────────
   if (!process.env.RULES_FILE) {
-    const listed = `return ['${BASE}'];`;
-    if (!rules.includes(listed)) throw new Error('aniVideoBases() list not found in the rules');
-    const withCustom = rules.replace(listed, `return ['${BASE}', '${CUSTOM}'];`);
-    const env2 = await makeEnv('demo-anivideos-transition', withCustom);
-    const as2 = (uid) => env2.authenticatedContext(uid).firestore();
-    await run('[transition]', 'custom domain accepted once listed', async () => {
-      const v = id();
-      await assertSucceeds(setDoc(doc(as2(ALICE), 'ani_videos', v), videoPayload(ALICE, v, PROFILES[ALICE], {
+    const swap = (text, from, to, what) => {
+      if (!text.includes(from)) throw new Error(`${what} list not found in the rules`);
+      return text.replace(from, to);
+    };
+    let variant = swap(rules, `return ['${BASE}'];`, `return ['${BASE}', '${CUSTOM}'];`, 'aniVideoBases()');
+    variant = swap(variant, `return ['${ANILIST}'];`, `return ['${ANILIST}', '${ANILIST_NEXT}'];`, 'aniListImageHosts()');
+    const env2 = await makeEnv('demo-anivideos-transition', variant);
+    const ok2 = (uid, overrides) => assertSucceeds(upload(env2, uid, overrides));
+    const refused2 = (uid, overrides) => assertFails(upload(env2, uid, overrides));
+    await run('[transition]', 'custom video domain accepted once listed', () =>
+      ok2(ALICE, (v) => ({
         videoUrl: `${CUSTOM}/ani_videos/${ALICE}/${v}.mp4`,
         thumbnailUrl: `${CUSTOM}/ani_videos/${ALICE}/${v}.jpg`,
       })));
-    });
-    await run('[transition]', 'r2.dev still accepted alongside it', async () => {
-      const v = id();
-      await assertSucceeds(setDoc(doc(as2(ALICE), 'ani_videos', v), videoPayload(ALICE, v, PROFILES[ALICE])));
-    });
-    await run('[transition]', 'an unlisted host still refused', async () => {
-      const v = id();
-      await assertFails(setDoc(doc(as2(ALICE), 'ani_videos', v), videoPayload(ALICE, v, PROFILES[ALICE], {
-        videoUrl: `https://evil.example/ani_videos/${ALICE}/${v}.mp4`,
-      })));
-    });
+    await run('[transition]', 'r2.dev still accepted alongside it', () => ok2(ALICE));
+    await run('[transition]', 'an unlisted video host still refused', () =>
+      refused2(ALICE, (v) => ({ videoUrl: `https://evil.example/ani_videos/${ALICE}/${v}.mp4` })));
+    await run('[transition]', 'a second AniList image host accepted once listed', () =>
+      ok2(ALICE, { animeCover: `${ANILIST_NEXT}${COVERS}bx154587-qQTzQnEJJ3oB.jpg` }));
+    await run('[transition]', 'an unlisted image host still refused', () =>
+      refused2(ALICE, { animeCover: `https://img.example${COVERS}bx154587-qQTzQnEJJ3oB.jpg` }));
     await env2.cleanup();
   }
 
   const failed = results.filter((r) => !r.ok);
-  const by = (t) => results.filter((r) => r.tag === t);
-  console.log(`\n${results.length - failed.length}/${results.length} passed` +
-    ` — [compat] ${by('[compat]').filter((r) => r.ok).length}/${by('[compat]').length},` +
-    ` [new rule] ${by('[new rule]').filter((r) => r.ok).length}/${by('[new rule]').length},` +
-    ` [transition] ${by('[transition]').filter((r) => r.ok).length}/${by('[transition]').length}`);
+  const count = (t) => {
+    const all = results.filter((r) => r.tag === t);
+    return `${t} ${all.filter((r) => r.ok).length}/${all.length}`;
+  };
+  console.log(`\n${results.length - failed.length}/${results.length} passed — ` +
+    ['[compat]', '[unchanged]', '[new rule]', '[transition]'].map(count).join(', '));
   process.exit(failed.length ? 1 : 0);
 })().catch((e) => {
   console.error('\nSUITE ERROR:', e.message);

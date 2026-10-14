@@ -24,6 +24,7 @@ import 'support/session.dart';
 const _caption = 'ZZTest video caption #zzvideotag';
 const _spoilerCaption = 'ZZTest spoiler video — the mentor dies';
 const _commentContent = 'ZZTest video comment';
+const _malformedCaption = 'ZZTest malformed video';
 // Stable Flutter-hosted sample clip (also used by the old demo screen).
 const _sampleUrl = 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4';
 
@@ -63,7 +64,14 @@ bool get _againstProduction =>
 /// create rule has its own suite (functions/test/ani_videos_rules.test.js).
 /// Production has no such bypass, and fabricating a video there is exactly
 /// what the rule forbids, so a production run cannot seed — and says so.
-Future<String> _seedVideo({required String caption, bool isSpoiler = false}) async {
+///
+/// [raw] replaces fields with REST-encoded values as they are, which is how a
+/// test stores a document no client could: one of the wrong shape.
+Future<String> _seedVideo({
+  required String caption,
+  bool isSpoiler = false,
+  Map<String, Map<String, dynamic>> raw = const {},
+}) async {
   if (_againstProduction) {
     throw StateError('ani_videos_test seeds fixtures with the emulator owner '
         'credential; the create rule refuses fabricated videos in production.');
@@ -93,6 +101,7 @@ Future<String> _seedVideo({required String caption, bool isSpoiler = false}) asy
         'viewCount': {'integerValue': '0'},
         'createdAt': {'timestampValue': DateTime.now().toUtc().toIso8601String()},
         'isSpoiler': {'booleanValue': isSpoiler},
+        ...raw,
       },
     }),
   );
@@ -107,7 +116,10 @@ Future<void> _cleanup() async {
     final uid = (await AuthService.instance.initAuth()).uid;
     final snap = await _videos.where('userId', isEqualTo: uid).get();
     for (final d in snap.docs) {
-      if ((d.data()['caption'] as String? ?? '').startsWith('ZZTest')) {
+      // A caption that is not a string is a malformed test video, and the
+      // cast that used to be here threw on it and ended the sweep.
+      final caption = d.data()['caption'];
+      if (caption is! String || caption.startsWith('ZZTest')) {
         await d.reference.delete();
       }
     }
@@ -288,5 +300,54 @@ void main() {
     await pumpUntil(tester, find.text(_commentContent));
     final commented = (await AniVideoService.instance.watchVideo(spoilerId).first)!;
     expect(commented.commentsCount, 1);
+  });
+
+  // A video the rules never admitted — stored before they checked types, or
+  // by a path they cannot see — must cost the feed that one video, not the
+  // page. Two shapes: a createdAt that is text, which Firestore orders above
+  // every timestamp in a newest-first query, so it heads everyone's first
+  // page; and a wrong-typed field on a video that sorts normally.
+  testWidgets('ui: a malformed video drops out of the feed instead of failing it', (tester) async {
+    // Through this client, so the cache forgets the earlier tests' videos too
+    // — fixtures below are written past it.
+    await _cleanup();
+    final goodId = await _seedVideo(caption: _caption);
+    final textDateId = await _seedVideo(
+      caption: _malformedCaption,
+      raw: {'createdAt': {'stringValue': 'zzz'}},
+    );
+    final textFlagId = await _seedVideo(
+      caption: _malformedCaption,
+      raw: {'isSpoiler': {'stringValue': 'yes'}},
+    );
+
+    await tester.pumpWidget(const ProviderScope(child: AniSphereApp()));
+    await tester.pump();
+    appRouter.go('/ani-videos');
+    final good = find.textContaining('ZZTest video caption');
+    final loadError = find.text("Couldn't load videos.");
+    final end = DateTime.now().add(const Duration(seconds: 20));
+    while (DateTime.now().isBefore(end) && good.evaluate().isEmpty && loadError.evaluate().isEmpty) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(loadError, findsNothing);
+    expect(good, findsOneWidget);
+
+    final feed = await AniVideoService.instance
+        .getVideoFeed()
+        .firstWhere((list) => list.any((v) => v.id == goodId))
+        .timeout(const Duration(seconds: 20));
+    final ids = feed.map((v) => v.id);
+    expect(ids, isNot(contains(textDateId)));
+    expect(ids, isNot(contains(textFlagId)));
+
+    // Paging counts what the query returned, not what survived it: a page of
+    // three that lost two is still full, so the screen keeps asking for more.
+    final page = await AniVideoService.instance
+        .watchFeed(limit: 3)
+        .firstWhere((p) => p.videos.any((v) => v.id == goodId))
+        .timeout(const Duration(seconds: 20));
+    expect(page.videos.map((v) => v.id), [goodId]);
+    expect(page.full, isTrue);
   });
 }

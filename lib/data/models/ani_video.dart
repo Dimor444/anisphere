@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import 'post.dart';
 
@@ -33,6 +34,10 @@ class AniVideoData {
   static const int maxCaptionLength = 200;
   static const int maxDurationSeconds = 120;
 
+  /// The upload screen rounds a clip's length up, so any real clip measures
+  /// at least this. Zero means the player could not read a duration at all.
+  static const int minDurationSeconds = 1;
+
   /// Hard ceiling on the clip's bytes, mirrored by the Cloud Function.
   ///
   /// Doubling the duration doubled the bytes, and the migration to R2 dropped
@@ -65,28 +70,78 @@ class AniVideoData {
     this.isSpoiler = false,
   });
 
-  factory AniVideoData.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final d = doc.data() ?? const <String, dynamic>{};
+  /// Reads a stored video, or null when the document is not one the app
+  /// could have written: a field of another type, or no date while no write
+  /// from this device is pending.
+  ///
+  /// The rules check a video's shape only from 2026-10-13, and never reach
+  /// what was stored before. A reader that throws on one document fails the
+  /// whole snapshot it arrived in — every video on that feed page — so every
+  /// read of a video goes through here and loses only the one it cannot
+  /// read. Dropped videos are logged, not shown.
+  static AniVideoData? tryFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final d = doc.data();
+    if (d == null) return null;
+    try {
+      final video = AniVideoData.fromMap(doc.id, d);
+      // A serverTimestamp reads as null only on the device that wrote it,
+      // until the server answers. Stored without one, it is not our upload.
+      if (video.createdAt == null && !doc.metadata.hasPendingWrites) {
+        throw const FormatException('createdAt is missing');
+      }
+      return video;
+    } on FormatException catch (e) {
+      debugPrint('[AniVideoData] dropped ani_videos/${doc.id}: ${e.message}');
+      return null;
+    }
+  }
+
+  /// Reads [d], throwing [FormatException] for any field that holds a value
+  /// of another type than [toMap] writes. Absent and null fields take their
+  /// defaults, as they always have.
+  @visibleForTesting
+  factory AniVideoData.fromMap(String id, Map<String, dynamic> d) {
+    T? read<T>(String key) {
+      final v = d[key];
+      if (v == null || v is T) return v as T?;
+      throw FormatException('$key is ${v.runtimeType}, not $T');
+    }
+
+    // num, not int: a number stored as a double still reads. NaN and the
+    // infinities do not — toInt() throws on them.
+    int? readInt(String key) {
+      final v = read<num>(key);
+      if (v != null && !v.isFinite) throw FormatException('$key is $v');
+      return v?.toInt();
+    }
+
+    // Checked here rather than with cast<String>(), which is lazy: it would
+    // let the read succeed and throw later, wherever the list is used.
+    final tags = read<List<dynamic>>('hashtags');
+    if (tags != null && tags.any((t) => t is! String)) {
+      throw const FormatException('hashtags holds a value that is not a string');
+    }
+
     return AniVideoData(
-      id: doc.id,
-      userId: d['userId'] as String? ?? '',
-      userName: d['userName'] as String? ?? '',
-      userAvatar: d['userAvatar'] as String? ?? '',
-      isVerified: d['isVerified'] as bool? ?? false,
-      videoUrl: d['videoUrl'] as String? ?? '',
-      thumbnailUrl: d['thumbnailUrl'] as String? ?? '',
-      caption: d['caption'] as String? ?? '',
-      anilistId: (d['anilist_id'] as num?)?.toInt(),
-      animeTitle: d['animeTitle'] as String?,
-      animeCover: d['animeCover'] as String?,
-      hashtags: (d['hashtags'] as List<dynamic>?)?.cast<String>() ?? const [],
-      durationSeconds: (d['durationSeconds'] as num?)?.toInt() ?? 0,
-      likes: (d['likes'] as num?)?.toInt() ?? 0,
-      commentsCount: (d['commentsCount'] as num?)?.toInt() ?? 0,
-      shareCount: (d['shareCount'] as num?)?.toInt() ?? 0,
-      viewCount: (d['viewCount'] as num?)?.toInt() ?? 0,
-      createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
-      isSpoiler: d['isSpoiler'] as bool? ?? false,
+      id: id,
+      userId: read<String>('userId') ?? '',
+      userName: read<String>('userName') ?? '',
+      userAvatar: read<String>('userAvatar') ?? '',
+      isVerified: read<bool>('isVerified') ?? false,
+      videoUrl: read<String>('videoUrl') ?? '',
+      thumbnailUrl: read<String>('thumbnailUrl') ?? '',
+      caption: read<String>('caption') ?? '',
+      anilistId: readInt('anilist_id'),
+      animeTitle: read<String>('animeTitle'),
+      animeCover: read<String>('animeCover'),
+      hashtags: tags == null ? const [] : List<String>.unmodifiable(tags),
+      durationSeconds: readInt('durationSeconds') ?? 0,
+      likes: readInt('likes') ?? 0,
+      commentsCount: readInt('commentsCount') ?? 0,
+      shareCount: readInt('shareCount') ?? 0,
+      viewCount: readInt('viewCount') ?? 0,
+      createdAt: read<Timestamp>('createdAt')?.toDate(),
+      isSpoiler: read<bool>('isSpoiler') ?? false,
     );
   }
 

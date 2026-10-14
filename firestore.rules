@@ -418,9 +418,60 @@ service cloud.firestore {
                 || (d.isVerified == true && author.isVerified == true));
       }
 
+      // AniList's image CDN. A video's anime cover is fetched by every viewer
+      // and copied into their My List when they add the anime, so it must be
+      // an AniList anime cover — the anime picker's coverImage.large — or
+      // empty. Only covers: AniList also serves user-uploaded avatars and
+      // banners from this host. If AniList moves its images, the new host is
+      // one more entry here; until it is added, uploads tagged with an anime
+      // whose cover is on the new host are refused.
+      function aniListImageHosts() {
+        return ['https://s4.anilist.co'];
+      }
+      function isAniListCover(url) {
+        let parts = url.split('/file/anilistcdn/media/anime/cover/');
+        return parts.size() == 2
+          && parts[0] in aniListImageHosts()
+          && parts[1].matches('(small|medium|large|extraLarge)/[A-Za-z0-9_-]+[.](jpg|jpeg|png|gif|webp)');
+      }
+      // The shape AniVideoData.toMap writes, unchanged since the first build:
+      // these fields and no others, each of the type the app reads. A single
+      // field of another type fails a whole feed page in every build without
+      // the tolerant reader, so this holds on every write that can change
+      // the content, not only the first.
+      function videoShapeIsValid(d) {
+        return d.keys().hasOnly(['userId', 'userName', 'userAvatar', 'isVerified',
+                                 'videoUrl', 'thumbnailUrl', 'caption', 'anilist_id',
+                                 'animeTitle', 'animeCover', 'hashtags', 'durationSeconds',
+                                 'likes', 'commentsCount', 'shareCount', 'viewCount',
+                                 'createdAt', 'isSpoiler'])
+          && d.caption is string
+          && d.caption.size() <= 200
+          // Extracted from the caption: at most one tag per two characters.
+          && (!('hashtags' in d) || (d.hashtags is list && d.hashtags.size() <= 100))
+          && (!('anilist_id' in d) || d.anilist_id == null
+                || (d.anilist_id is int && d.anilist_id > 0))
+          && (!('animeTitle' in d) || d.animeTitle == null
+                || (d.animeTitle is string && d.animeTitle.size() <= 500))
+          && (!('animeCover' in d) || d.animeCover == null || d.animeCover == ''
+                || isAniListCover(d.animeCover))
+          && (!('isSpoiler' in d) || d.isSpoiler is bool);
+      }
+      // requestVideoUploadUrl records upload_grants/{uid}_{videoId} — after
+      // its quota check, before it signs anything — and every build that can
+      // upload asks for it before writing this document. A video without one
+      // never went through the upload limits. The function accepts only
+      // 20-character alphanumeric ids, so the id is checked to be one too and
+      // "{uid}_{videoId}" cannot be read as another pair.
+      function uploadWasGranted() {
+        return videoId.matches('[A-Za-z0-9]{20}')
+          && exists(/databases/$(database)/documents/upload_grants/$(request.auth.uid + '_' + videoId));
+      }
+
       allow read: if signedIn();
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid
+        && videoShapeIsValid(request.resource.data)
         && isAniVideoObjectUrl(request.resource.data.videoUrl, request.auth.uid, '.mp4')
         // The thumbnail is best-effort: an upload whose thumbnail failed
         // stores ''.
@@ -428,24 +479,33 @@ service cloud.firestore {
             || request.resource.data.thumbnailUrl == ''
             || isAniVideoObjectUrl(request.resource.data.thumbnailUrl, request.auth.uid, '.jpg'))
         && authorSnapshotIsReal(request.resource.data)
-        && request.resource.data.caption is string
-        && request.resource.data.caption.size() <= 200
+        // Every build writes serverTimestamp(), which is request.time. A
+        // client clock could date a video into the future and hold it at the
+        // top of the feed.
+        && request.resource.data.createdAt == request.time
+        // Measured with the clip and rounded up, so any real clip is >= 1.
         && request.resource.data.durationSeconds is int
+        && request.resource.data.durationSeconds >= 1
         && request.resource.data.durationSeconds <= 120
+        && uploadWasGranted()
         && request.resource.data.likes == 0
         && request.resource.data.commentsCount == 0
         && request.resource.data.shareCount == 0
         && request.resource.data.viewCount == 0;
       allow delete: if isVideoAuthor();
       // Author may edit content fields (never counters); anyone signed in may
-      // bump counters by one. The urls and the author snapshot are fixed at
-      // create, where they are checked — editable afterwards, every check
-      // above could be undone by an update. No build has ever edited them.
+      // bump counters by one. The urls, the author snapshot, the date and the
+      // duration are fixed at create, where they are checked — editable
+      // afterwards, every check above could be undone by an update. What
+      // stays editable keeps the create shape. No build has ever edited a
+      // video's content.
       allow update: if signedIn()
         && ((isVideoAuthor()
               && !request.resource.data.diff(resource.data).affectedKeys()
                   .hasAny(['likes', 'commentsCount', 'shareCount', 'viewCount', 'userId',
-                           'videoUrl', 'thumbnailUrl', 'userName', 'userAvatar', 'isVerified']))
+                           'videoUrl', 'thumbnailUrl', 'userName', 'userAvatar', 'isVerified',
+                           'createdAt', 'durationSeconds'])
+              && videoShapeIsValid(request.resource.data))
             || videoCounterBump());
 
       // uid: optional, but the caller when present — the same contract as
