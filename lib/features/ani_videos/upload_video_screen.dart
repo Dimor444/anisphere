@@ -248,7 +248,18 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: CachedNetworkImage(
-                                  imageUrl: _anime!.coverImage, width: 26, height: 36, fit: BoxFit.cover),
+                                imageUrl: _anime!.coverImage,
+                                width: 26,
+                                height: 36,
+                                fit: BoxFit.cover,
+                                errorListener: (e) => debugPrint('[UploadVideo] cover failed: $e'),
+                                // The chip an anime without a cover shows.
+                                errorWidget: (_, __, ___) => const SizedBox(
+                                  width: 26,
+                                  height: 36,
+                                  child: Icon(LucideIcons.clapperboard, size: 18, color: AppColors.primaryLight),
+                                ),
+                              ),
                             )
                           else
                             const Icon(LucideIcons.clapperboard, size: 18, color: AppColors.primaryLight),

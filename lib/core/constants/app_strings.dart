@@ -326,6 +326,8 @@ class AppStrings {
       'videoUploadFailed': "Couldn't upload your video. Try again.",
       'noVideosYet': 'No videos yet — upload the first!',
       'videosLoadError': "Couldn't load videos.",
+      'videoPlayFailed': "Couldn't play this video.",
+      'videoUnplayable': "This video can't be played.",
       'deleteVideo': 'Delete video',
       'videoDeleted': 'Video deleted',
       'reportVideo': 'Report video',
@@ -634,6 +636,8 @@ class AppStrings {
       'videoUploadFailed': 'تعذّر رفع الفيديو. حاول مجددًا.',
       'noVideosYet': 'لا فيديوهات بعد — كن أول من يرفع!',
       'videosLoadError': 'تعذّر تحميل الفيديوهات.',
+      'videoPlayFailed': 'تعذّر تشغيل هذا الفيديو.',
+      'videoUnplayable': 'لا يمكن تشغيل هذا الفيديو.',
       'deleteVideo': 'حذف الفيديو',
       'videoDeleted': 'تم حذف الفيديو',
       'reportVideo': 'الإبلاغ عن الفيديو',
@@ -797,6 +801,8 @@ class AppStrings {
       'videoUploadFailed': '動画をアップロードできませんでした。もう一度お試しください。',
       'noVideosYet': 'まだ動画がありません — 最初の投稿者になろう！',
       'videosLoadError': '動画を読み込めませんでした。',
+      'videoPlayFailed': 'この動画を再生できませんでした。',
+      'videoUnplayable': 'この動画は再生できません。',
       'deleteVideo': '動画を削除', 'videoDeleted': '動画を削除しました', 'reportVideo': '動画を報告',
       // ── This Week (seasonal schedule) ──
       'thisWeek': '今週', 'today': '今日', 'epShort': 'EP',
@@ -955,6 +961,8 @@ class AppStrings {
       'videoUploadFailed': '동영상을 업로드하지 못했습니다. 다시 시도해 주세요.',
       'noVideosYet': '아직 동영상이 없어요 — 첫 번째로 올려보세요!',
       'videosLoadError': '동영상을 불러오지 못했습니다.',
+      'videoPlayFailed': '이 동영상을 재생하지 못했습니다.',
+      'videoUnplayable': '이 동영상은 재생할 수 없습니다.',
       'deleteVideo': '동영상 삭제', 'videoDeleted': '동영상이 삭제되었습니다', 'reportVideo': '동영상 신고',
       // ── This Week (seasonal schedule) ──
       'thisWeek': '이번 주', 'today': '오늘', 'epShort': 'EP',
@@ -1113,6 +1121,8 @@ class AppStrings {
       'videoUploadFailed': 'No se pudo subir el video. Inténtalo de nuevo.',
       'noVideosYet': 'Aún no hay videos — ¡sube el primero!',
       'videosLoadError': 'No se pudieron cargar los videos.',
+      'videoPlayFailed': 'No se pudo reproducir este video.',
+      'videoUnplayable': 'Este video no se puede reproducir.',
       'deleteVideo': 'Eliminar video', 'videoDeleted': 'Video eliminado', 'reportVideo': 'Reportar video',
       // ── This Week (seasonal schedule) ──
       'thisWeek': 'Esta semana', 'today': 'Hoy', 'epShort': 'Ep',
@@ -1272,6 +1282,8 @@ class AppStrings {
       'videoUploadFailed': "Impossible d'envoyer la vidéo. Réessaie.",
       'noVideosYet': 'Pas encore de vidéos — publie la première !',
       'videosLoadError': 'Impossible de charger les vidéos.',
+      'videoPlayFailed': 'Impossible de lire cette vidéo.',
+      'videoUnplayable': 'Cette vidéo ne peut pas être lue.',
       'deleteVideo': 'Supprimer la vidéo', 'videoDeleted': 'Vidéo supprimée', 'reportVideo': 'Signaler la vidéo',
       // ── This Week (seasonal schedule) ──
       'thisWeek': 'Cette semaine', 'today': 'Aujourd\'hui', 'epShort': 'Ép',
@@ -1431,6 +1443,8 @@ class AppStrings {
       'videoUploadFailed': 'Video yüklenemedi. Tekrar dene.',
       'noVideosYet': 'Henüz video yok — ilkini sen yükle!',
       'videosLoadError': 'Videolar yüklenemedi.',
+      'videoPlayFailed': 'Bu video oynatılamadı.',
+      'videoUnplayable': 'Bu video oynatılamıyor.',
       'deleteVideo': 'Videoyu sil', 'videoDeleted': 'Video silindi', 'reportVideo': 'Videoyu bildir',
       // ── This Week (seasonal schedule) ──
       'thisWeek': 'Bu hafta', 'today': 'Bugün', 'epShort': 'Böl',
@@ -1590,6 +1604,8 @@ class AppStrings {
       'videoUploadFailed': 'Gagal mengunggah video. Coba lagi.',
       'noVideosYet': 'Belum ada video — jadilah yang pertama mengunggah!',
       'videosLoadError': 'Gagal memuat video.',
+      'videoPlayFailed': 'Gagal memutar video ini.',
+      'videoUnplayable': 'Video ini tidak dapat diputar.',
       'deleteVideo': 'Hapus video', 'videoDeleted': 'Video dihapus', 'reportVideo': 'Laporkan video',
       // ── This Week (seasonal schedule) ──
       'thisWeek': 'Minggu ini', 'today': 'Hari ini', 'epShort': 'Eps',

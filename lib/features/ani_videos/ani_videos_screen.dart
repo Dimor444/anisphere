@@ -236,9 +236,10 @@ class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsB
 class _Message extends StatelessWidget {
   final IconData icon;
   final String text;
-  final String actionLabel;
-  final VoidCallback onAction;
-  const _Message({required this.icon, required this.text, required this.actionLabel, required this.onAction});
+  // Both or neither: a message with nothing to do shows no button.
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  const _Message({required this.icon, required this.text, this.actionLabel, this.onAction});
 
   @override
   Widget build(BuildContext context) {
@@ -249,19 +250,32 @@ class _Message extends StatelessWidget {
           Icon(icon, color: Colors.white38, size: 44),
           const SizedBox(height: 14),
           Text(text, textAlign: TextAlign.center, style: AppTextStyles.body.copyWith(color: Colors.white70)),
-          const SizedBox(height: 16),
-          OutlinedButton(
-            onPressed: onAction,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: AppColors.primary),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: onAction,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: AppColors.primary),
+              ),
+              child: Text(actionLabel!),
             ),
-            child: Text(actionLabel),
-          ),
+          ],
         ],
       ),
     );
   }
+}
+
+/// Why a page's clip is not playing.
+enum _PlaybackFailure {
+  /// The player could not load it: no signal, a network in the way, an
+  /// object that is gone. Trying again can work, so a retry is offered.
+  unreachable,
+
+  /// The stored url is not a web address, so no player was ever made.
+  /// Trying again cannot work, so no retry is offered.
+  badAddress,
 }
 
 /// One full-screen video page: player + progress bar + action rail + overlay.
@@ -285,7 +299,8 @@ class _VideoPage extends ConsumerStatefulWidget {
 class _VideoPageState extends ConsumerState<_VideoPage> {
   VideoPlayerController? _ctrl;
   bool _ready = false;
-  bool _failed = false;
+  _PlaybackFailure? _failure;
+  int _attempt = 0; // bumped by a retry, which asks for the poster again too
   bool _userPaused = false;
   bool _spoilerRevealed = false;
 
@@ -305,9 +320,17 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
   }
 
   Future<void> _init() async {
-    final c = VideoPlayerController.networkUrl(Uri.parse(widget.video.videoUrl));
-    _ctrl = c;
+    VideoPlayerController? c;
     try {
+      // Parsed in here: outside the try, a stored url that was not an
+      // address threw before any of this ran — the error went unhandled and
+      // the spinner never came down. The rules pin new urls, not old ones.
+      final uri = Uri.parse(widget.video.videoUrl);
+      if (!(uri.isScheme('https') || uri.isScheme('http')) || uri.host.isEmpty) {
+        throw FormatException('not a web address', widget.video.videoUrl);
+      }
+      c = VideoPlayerController.networkUrl(uri);
+      _ctrl = c;
       await c.initialize();
       await c.setLooping(true);
       await c.setVolume(widget.muted ? 0 : 1);
@@ -315,9 +338,25 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
       setState(() => _ready = true);
       _syncPlayback();
     } catch (e) {
-      debugPrint('[AniVideos] init ${widget.video.id} failed: $e');
-      if (mounted) setState(() => _failed = true);
+      // No player yet means the url itself was the fault.
+      final failure = c == null ? _PlaybackFailure.badAddress : _PlaybackFailure.unreachable;
+      debugPrint('[AniVideos] init ${widget.video.id} failed (${failure.name}): $e');
+      if (mounted) setState(() => _failure = failure);
     }
+  }
+
+  /// Starts the clip over with a new player: a failed one does not recover
+  /// on its own. Loading is exactly what [_init] does the first time.
+  Future<void> _retry() async {
+    Haptics.light();
+    final old = _ctrl;
+    setState(() {
+      _ctrl = null;
+      _failure = null;
+      _attempt++;
+    });
+    await old?.dispose();
+    if (mounted) await _init();
   }
 
   Future<void> _loadLikeState() async {
@@ -530,13 +569,21 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
         children: [
           // Thumbnail (or black) until the player's first frame is up.
           if (!showVideo && v.thumbnailUrl.isNotEmpty)
-            CachedNetworkImage(imageUrl: v.thumbnailUrl, fit: BoxFit.cover)
+            CachedNetworkImage(
+              key: ValueKey('poster:${v.id}:$_attempt'),
+              imageUrl: v.thumbnailUrl,
+              fit: BoxFit.cover,
+              errorListener: (e) => debugPrint('[AniVideos] poster ${v.id} failed: $e'),
+              // Without this a release build paints nothing here and a debug
+              // build paints Flutter's red error box. A poster is only a
+              // stand-in for the first frame: it falls back to the black it
+              // stands in for, and the player's state says what went wrong.
+              errorWidget: (_, __, ___) => const ColoredBox(color: Colors.black),
+            )
           else if (!showVideo)
             const ColoredBox(color: Colors.black),
-          if (!_ready && !_failed)
+          if (!_ready && _failure == null)
             const Center(child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2)),
-          if (_failed)
-            const Center(child: Icon(LucideIcons.wifiOff, color: Colors.white38, size: 40)),
           if (showVideo)
             ClipRect(
               child: FittedBox(
@@ -558,6 +605,17 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
               ),
             ),
           ),
+          // Above the scrim, which covers the whole page and would take the
+          // retry's taps if it were drawn over it.
+          if (_failure == _PlaybackFailure.unreachable)
+            _Message(
+              icon: LucideIcons.wifiOff,
+              text: ref.tr('videoPlayFailed'),
+              actionLabel: ref.tr('retry'),
+              onAction: _retry,
+            ),
+          if (_failure == _PlaybackFailure.badAddress)
+            _Message(icon: LucideIcons.videoOff, text: ref.tr('videoUnplayable')),
           if (paused)
             const Center(child: Icon(Icons.play_arrow_rounded, color: Colors.white70, size: 80)),
 
@@ -811,7 +869,20 @@ class _AnimeChipState extends ConsumerState<_AnimeChip> {
                   if (v.animeCover != null && v.animeCover!.isNotEmpty)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: CachedNetworkImage(imageUrl: v.animeCover!, width: 20, height: 28, fit: BoxFit.cover),
+                      child: CachedNetworkImage(
+                        imageUrl: v.animeCover!,
+                        width: 20,
+                        height: 28,
+                        fit: BoxFit.cover,
+                        errorListener: (e) => debugPrint('[AniVideos] cover ${v.id} failed: $e'),
+                        // The chip a video without a cover shows; its tap
+                        // still opens the anime.
+                        errorWidget: (_, __, ___) => const SizedBox(
+                          width: 20,
+                          height: 28,
+                          child: Icon(LucideIcons.clapperboard, size: 13, color: AppColors.primaryLight),
+                        ),
+                      ),
                     )
                   else
                     const Icon(LucideIcons.clapperboard, size: 13, color: AppColors.primaryLight),

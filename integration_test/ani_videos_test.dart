@@ -350,4 +350,46 @@ void main() {
     expect(page.videos.map((v) => v.id), [goodId]);
     expect(page.full, isTrue);
   });
+
+  // A clip that will not play says so in words, and offers a retry only
+  // where one can help. Two causes: nothing answering at the address — what
+  // a network in the way, no signal or a deleted object all come to — and a
+  // stored url that is not an address at all.
+  testWidgets('ui: a video that cannot play says why, with a retry where one can help', (tester) async {
+    // Through this client, so the cache forgets the earlier tests' videos.
+    await _cleanup();
+    const dead = 'http://127.0.0.1:9/zztest'; // nothing listens on the discard port
+    await _seedVideo(caption: 'ZZTest bad address', raw: {
+      'videoUrl': {'stringValue': 'http://[::1/zztest.mp4'},
+    });
+    final unreachableId = await _seedVideo(caption: 'ZZTest unreachable', raw: {
+      'videoUrl': {'stringValue': '$dead.mp4'},
+      'thumbnailUrl': {'stringValue': '$dead.jpg'},
+      'animeCover': {'stringValue': '$dead-cover.jpg'},
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: AniSphereApp()));
+    await tester.pump();
+    appRouter.go('/ani-videos');
+
+    // Newest first: the one nothing answers for.
+    await pumpUntil(tester, find.text("Couldn't play this video."));
+    expect(find.text('Retry'), findsOneWidget);
+
+    // A retry makes a new player and asks for the poster again — the poster
+    // is keyed by attempt. Nothing answers this time either. (Whether the
+    // spinner gets a frame in between is a race: a refused connection to
+    // this machine fails within milliseconds.)
+    expect(find.byKey(ValueKey('poster:$unreachableId:0')), findsOneWidget);
+    await tester.tap(find.text('Retry'));
+    await pumpUntil(tester, find.byKey(ValueKey('poster:$unreachableId:1')));
+    await pumpUntil(tester, find.text("Couldn't play this video."));
+
+    // The next page: a url no retry can fix — the words, and no button.
+    // Settled first: mid-swipe, both pages are partly on screen.
+    await tester.drag(find.byType(PageView).first, const Offset(0, -600));
+    await pumpUntilGone(tester, find.text("Couldn't play this video."));
+    expect(find.text("This video can't be played."), findsOneWidget);
+    expect(find.text('Retry'), findsNothing);
+  });
 }
