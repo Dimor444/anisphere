@@ -8,14 +8,17 @@ import '../services/anime_image_service.dart';
 /// A poster-style card for the Challenges "True Fan" grid.
 ///
 /// Fetches the anime's real cover image via [AnimeImageService] (Jikan, with an
-/// AniList fallback) and overlays the title, a genre chip and a star-rating
-/// badge. While the image is resolving a [CircularProgressIndicator] is shown.
+/// AniList fallback) and overlays the title, a genre chip and — when there is
+/// a rating — a star-rating badge. While the image is resolving a [CircularProgressIndicator] is shown.
 /// On failure it falls back to the first letter of the anime name — or a
 /// `wifi_off` icon when the device is offline — with a Retry button so the user
 /// can reload manually.
 class AnimeChallengeCard extends StatefulWidget {
   final String animeName;
   final String genre;
+
+  /// Out of 10. 0 means AniList has no score for it yet — the convention of
+  /// AnimeSearchResult and TrendingAnime, whose readers hide it with > 0.
   final double rating;
   final VoidCallback? onTap;
 
@@ -96,29 +99,31 @@ class _AnimeChallengeCardState extends State<AnimeChallengeCard> {
                 ),
               ),
 
-              // Star rating badge (top-left).
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.55),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.star_rounded, color: AppColors.aniGold, size: 13),
-                      const SizedBox(width: 2),
-                      Text(
-                        widget.rating.toStringAsFixed(1),
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-                      ),
-                    ],
+              // Star rating badge (top-left). No score yet → no badge, as on
+              // the chart: a "★ 0.0" reads as the worst rating there is.
+              if (widget.rating > 0)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.55),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded, color: AppColors.aniGold, size: 13),
+                        const SizedBox(width: 2),
+                        Text(
+                          widget.rating.toStringAsFixed(1),
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
               // Selection check (top-right).
               if (widget.selected)

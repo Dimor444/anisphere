@@ -19,7 +19,7 @@ import '../../shared/widgets/gradient_button.dart';
 import '../feed/create_post_screen.dart' show showAnimePickerSheet;
 import '../../shared/widgets/glass_modals.dart';
 
-/// Compose an Ani Video (`/ani-videos/upload`): pick/record a clip (≤60s),
+/// Compose an Ani Video (`/ani-videos/upload`): pick/record a clip (≤120s, AniVideoData.maxDurationSeconds),
 /// caption (≤200), optional anime tag, spoiler flag → upload with progress.
 class UploadVideoScreen extends ConsumerStatefulWidget {
   const UploadVideoScreen({super.key});

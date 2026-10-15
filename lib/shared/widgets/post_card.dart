@@ -542,10 +542,23 @@ class _AnimeChipState extends ConsumerState<_AnimeChip> {
                   if (p.animeCover != null && p.animeCover!.isNotEmpty)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: CachedNetworkImage(imageUrl: p.animeCover!, width: 20, height: 28, fit: BoxFit.cover),
+                      child: CachedNetworkImage(
+                        imageUrl: p.animeCover!,
+                        width: 20,
+                        height: 28,
+                        fit: BoxFit.cover,
+                        errorListener: (e) => debugPrint('[PostCard] cover ${p.id} failed: $e'),
+                        // Without this a release build leaves an empty gap
+                        // and a debug build Flutter's red error box.
+                        errorWidget: (_, __, ___) => const SizedBox(
+                          width: 20,
+                          height: 28,
+                          child: Icon(LucideIcons.clapperboard, size: 13, color: AppColors.primaryLight),
+                        ),
+                      ),
                     )
                   else
-                    const Icon(LucideIcons.hash, size: 13, color: AppColors.primaryLight),
+                    const Icon(LucideIcons.clapperboard, size: 13, color: AppColors.primaryLight),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(p.animeTitle!,

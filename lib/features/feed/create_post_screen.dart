@@ -237,7 +237,19 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                           if (_anime!.coverImage.isNotEmpty)
                             ClipRRect(
                               borderRadius: BorderRadius.circular(4),
-                              child: CachedNetworkImage(imageUrl: _anime!.coverImage, width: 26, height: 36, fit: BoxFit.cover),
+                              child: CachedNetworkImage(
+                                imageUrl: _anime!.coverImage,
+                                width: 26,
+                                height: 36,
+                                fit: BoxFit.cover,
+                                errorListener: (e) => debugPrint('[CreatePost] cover failed: $e'),
+                                // The chip an anime without a cover shows.
+                                errorWidget: (_, __, ___) => const SizedBox(
+                                  width: 26,
+                                  height: 36,
+                                  child: Icon(LucideIcons.clapperboard, size: 18, color: AppColors.primaryLight),
+                                ),
+                              ),
                             )
                           else
                             const Icon(LucideIcons.clapperboard, size: 18, color: AppColors.primaryLight),
@@ -410,7 +422,19 @@ class _AnimePickerSheetState extends ConsumerState<_AnimePickerSheet> {
                     leading: r.coverImage.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(6),
-                            child: CachedNetworkImage(imageUrl: r.coverImage, width: 36, height: 48, fit: BoxFit.cover),
+                            child: CachedNetworkImage(
+                              imageUrl: r.coverImage,
+                              width: 36,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              errorListener: (e) => debugPrint('[CreatePost] result cover failed: $e'),
+                              // The icon a result without a cover shows.
+                              errorWidget: (_, __, ___) => const SizedBox(
+                                width: 36,
+                                height: 48,
+                                child: Icon(LucideIcons.clapperboard, color: AppColors.primaryLight),
+                              ),
+                            ),
                           )
                         : const Icon(LucideIcons.clapperboard, color: AppColors.primaryLight),
                     title: Text(r.title, style: AppTextStyles.body, maxLines: 1, overflow: TextOverflow.ellipsis),

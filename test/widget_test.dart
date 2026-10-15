@@ -43,7 +43,9 @@ void main() {
       expect(u.username, 'KazeNoYuki');
       expect(u.level, UserLevel.otakuElite);
       expect(u.isVerified, isTrue);
-      expect(u.isPlusUser, isTrue);
+      // No isPlusUser check: Plus is not a fact about the sample user. Since
+      // fcaaf45 it comes from users/{uid}.isPlus, which only the server writes
+      // (isPlusProvider), and nothing reads this flag any more.
       expect(u.watchedAnime, 347);
       expect(u.followers, 2341);
       expect(u.streak, 42);
