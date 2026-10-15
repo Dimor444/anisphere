@@ -37,6 +37,7 @@ import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 import 'edit_profile_sheet.dart';
 import 'widgets/anime_dna_section.dart';
+import 'wrapped_screen.dart';
 import 'widgets/ani_card.dart';
 import 'widgets/true_fan_section.dart';
 import '../../services/currency_service.dart';
@@ -173,7 +174,7 @@ class _ProfileBody extends ConsumerWidget {
     final page = DecoratedBox(
       decoration: const BoxDecoration(gradient: AppGradients.pageBg),
       child: DefaultTabController(
-        length: isOwn ? 6 : 3,
+        length: isOwn ? (kAniStatsEnabled ? 6 : 5) : 3,
         child: RefreshIndicator(
           color: AppColors.primary,
           backgroundColor: AppColors.surface,
@@ -223,7 +224,8 @@ class _ProfileBody extends ConsumerWidget {
                           tabAlignment: TabAlignment.start,
                           tabs: [
                             Tab(text: 'Posts'), Tab(text: 'Reviews'), Tab(text: 'Lists'),
-                            Tab(text: 'Ani Videos'), Tab(text: 'Fan Art'), Tab(text: 'Stats'),
+                            Tab(text: 'Ani Videos'), Tab(text: 'Fan Art'),
+                            if (kAniStatsEnabled) Tab(text: 'Stats'),
                           ],
                         )
                       : TabBar(tabs: [
@@ -242,7 +244,7 @@ class _ProfileBody extends ConsumerWidget {
                       const _ListsTab(),
                       const _GridTab(icon: LucideIcons.playCircle, label: 'Ani Video'),
                       const _GridTab(icon: LucideIcons.image, label: 'Fan Art'),
-                      const _StatsTab(),
+                      if (kAniStatsEnabled) const _StatsTab(),
                     ]
                   : [
                       _PostsTab(userId: uid),
@@ -605,21 +607,24 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
   Widget _banners(BuildContext context) {
     return Column(
       children: [
-        GestureDetector(
-          onTap: () => context.push('/wrapped'),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(gradient: AppGradients.brandTri, borderRadius: BorderRadius.circular(16)),
-            child: Row(children: [
-              const Text('🎌', style: TextStyle(fontSize: 28)),
-              const SizedBox(width: 12),
-              Expanded(child: Text('My 2025 Wrapped', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first)))),
-              Icon(LucideIcons.chevronRight, color: AppGradients.onFill(AppGradients.brandTri.colors.first)),
-            ]),
+        // Hidden with the screen it opens; see kWrappedEnabled.
+        if (kWrappedEnabled) ...[
+          GestureDetector(
+            onTap: () => context.push('/wrapped'),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(gradient: AppGradients.brandTri, borderRadius: BorderRadius.circular(16)),
+              child: Row(children: [
+                const Text('🎌', style: TextStyle(fontSize: 28)),
+                const SizedBox(width: 12),
+                Expanded(child: Text('My 2025 Wrapped', style: AppTextStyles.subheading.copyWith(color: AppGradients.onFill(AppGradients.brandTri.colors.first)))),
+                Icon(LucideIcons.chevronRight, color: AppGradients.onFill(AppGradients.brandTri.colors.first)),
+              ]),
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
+          const SizedBox(height: 10),
+        ],
         Row(
           children: [
             Expanded(child: _quickBtn(context, '⏰', 'Time Capsule', '/time-capsule')),
@@ -893,6 +898,31 @@ class _GridTab extends StatelessWidget {
 }
 
 // ───────────────────────── AniStats
+
+/// Whether the own profile's Stats tab exists.
+///
+/// Every figure on it was the sample user's, on every account's own profile:
+/// 347 anime watched, 4.8K episodes, 1,203 hours, "50d days of life", a fixed
+/// genre chart, four watching patterns (a 62% night owl, a 14-episode
+/// Vinland Saga binge, Sunday, Chainsaw Man in two days) and twelve fixed
+/// monthly bars.
+///
+/// Almost none of it has a source. My List gives an honest count of anime
+/// marked Completed, but not episodes: completing an anime records none of
+/// its episodes, so the sum counts only what was stepped by hand. Nothing
+/// stores an episode's length, when anything was watched, or which day of
+/// the week — so no hours, patterns or monthly activity. Genres can be
+/// derived from My List through AniList (one batched query per 50 entries,
+/// cached for the session), but the profile's Anime DNA already shows them.
+/// What was left — one count the AniCard and My List already show and a
+/// repeat of Anime DNA — is not a tab.
+///
+/// Coming back needs: dated watch activity (when an episode or an anime was
+/// finished, written as it happens), episode lengths from AniList for time
+/// watched, and a completion step that records episodes. The tab is kept,
+/// not deleted.
+const bool kAniStatsEnabled = false;
+
 class _StatsTab extends StatelessWidget {
   const _StatsTab();
   @override

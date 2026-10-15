@@ -10,6 +10,30 @@ import '../../shared/widgets/user_avatar.dart';
 import '../../data/models/user_model.dart';
 import '../../data/sample_data.dart';
 
+/// Whether Wrapped exists at all: the `/wrapped` route and the profile banner
+/// that links to it.
+///
+/// Nothing in it was the user's. Seven fixed slides — 127 anime this year,
+/// "just over 18 days" watching, Frieren as the year's #1, Drama & Dark
+/// Fantasy, a 42-day streak "top 8% of fans", Otaku Elite "leveled up twice"
+/// — then the sample user's name, whoever opened it, and a "Share My
+/// Wrapped" button that announced "Saved to share 🎉" and shared nothing.
+///
+/// A year in review needs dated activity, and almost none of it is stored.
+/// My List keeps when an anime was added and when the entry last changed in
+/// any way — a later score or note moves that date — never when it was
+/// completed. Nothing records an episode's length or when it was watched,
+/// the streak keeps a current and a longest count with no history, and
+/// levels do not exist. Posts, videos, likes and follows carry dates, but
+/// none of the slides is about them.
+///
+/// Coming back needs: completion dates on My List (a completedAt written
+/// when the status becomes Completed, not overwritten by later edits),
+/// episode lengths from AniList to turn episodes into time, a dated streak
+/// history if streak slides return, and a share that sends the slide as an
+/// image the way the AniCard does. The screen is kept, not deleted.
+const bool kWrappedEnabled = false;
+
 class WrappedScreen extends StatefulWidget {
   const WrappedScreen({super.key});
   @override

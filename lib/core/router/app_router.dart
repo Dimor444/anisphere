@@ -121,7 +121,8 @@ final appRouter = GoRouter(
     // Hidden with every link to it; see kCardCollectionEnabled.
     if (kCardCollectionEnabled) _top('/cards', (c, s) => const CardCollectionScreen()),
     _top('/aniscan', (c, s) => const AniScanScreen()),
-    _top('/wrapped', (c, s) => const WrappedScreen()),
+    // Hidden with its profile banner; see kWrappedEnabled.
+    if (kWrappedEnabled) _top('/wrapped', (c, s) => const WrappedScreen()),
     _top('/time-capsule', (c, s) => const TimeCapsuleScreen()),
     _top('/create-post', (c, s) => const CreatePostScreen()),
     // '/feed/hashtag/…' must precede '/feed/:postId' so 'hashtag' never binds
