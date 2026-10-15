@@ -86,6 +86,11 @@ class UserData {
     return d.isNotEmpty ? d : userName;
   }
 
+  /// The handle as the app prints it: "@" and the claimed handle, or until
+  /// one is claimed the anifan_ placeholder, which the rules reserve so
+  /// nobody else can take it. [nameToShow] only for a profile with no handle.
+  String get shownHandle => userName.isNotEmpty ? '@$userName' : nameToShow;
+
   const UserData({
     required this.id,
     required this.userName,

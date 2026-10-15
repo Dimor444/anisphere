@@ -1,17 +1,14 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/share_capture.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/models/anime_model.dart';
 import '../../data/sample_data.dart' hide QuizQuestion;
@@ -410,27 +407,14 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
     try {
       // A card shared mid-count would carry the placeholder, not the rank.
       await _rankLoad;
-      // Make sure the latest frame (cover image, etc.) is painted before capture.
-      await WidgetsBinding.instance.endOfFrame;
-      final boundary = _cardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return;
-
-      final image = await boundary.toImage(pixelRatio: 3.0);
-      final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      image.dispose();
-      if (data == null) return;
-
-      final dir = await Directory.systemTemp.createTemp('anisphere_truefan');
-      final file = File('${dir.path}/true_fan_result.png');
-      await file.writeAsBytes(data.buffer.asUint8List());
-
       final anime = _selectedAnime?.title ?? 'this anime';
       // sharePositionOrigin is required for iPad to anchor the share popover.
       final box = context.findRenderObject() as RenderBox?;
-      await Share.shareXFiles(
-        [XFile(file.path)],
+      await shareBoundaryAsImage(
+        boundaryKey: _cardKey,
+        fileName: 'true_fan_result.png',
         text: TrueFanResultCard.shareText(anime, _correct),
-        sharePositionOrigin: box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+        origin: box != null ? box.localToGlobal(Offset.zero) & box.size : null,
       );
     } catch (e) {
       if (mounted) {

@@ -37,6 +37,7 @@ import '../../shared/widgets/user_avatar.dart';
 import '../../shared/widgets/verified_badge.dart';
 import 'edit_profile_sheet.dart';
 import 'widgets/anime_dna_section.dart';
+import 'widgets/ani_card.dart';
 import 'widgets/true_fan_section.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
@@ -205,7 +206,7 @@ class _ProfileBody extends ConsumerWidget {
                   if (isOwn)
                     IconButton(
                         icon: const Icon(LucideIcons.share2, size: 20),
-                        onPressed: () => _shareCard(context, ref.read(userProvider))),
+                        onPressed: () => showAniCardSheet(context)),
                   if (isOwn)
                     IconButton(
                         icon: const Icon(LucideIcons.settings, size: 20),
@@ -704,52 +705,6 @@ class _MessageButton extends ConsumerWidget {
     );
   }
 }
-
-void _shareCard(BuildContext context, UserModel u) {
-  Haptics.medium();
-  showModalBottomSheet(
-    context: context,
-    // Above the bottom bar: shell screens run behind it.
-    useRootNavigator: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetCtx) => Padding(
-      padding: const EdgeInsets.all(20),
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(gradient: AppGradients.brandTri, borderRadius: BorderRadius.circular(24)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('My AniCard', style: AppTextStyles.heading.copyWith(color: Colors.white)),
-            const SizedBox(height: 16),
-            UserAvatar.fromUser(u, radius: 36),
-            const SizedBox(height: 10),
-            Text(u.username, style: AppTextStyles.display.copyWith(color: Colors.white)),
-            if (kUserLevelsEnabled)
-              Text(u.level.title, style: AppTextStyles.body.copyWith(color: Colors.white70)),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _miniStat('${u.watchedAnime}', 'Anime'),
-                _miniStat(Fmt.compact(u.episodes), 'Eps'),
-                _miniStat('${u.hours}h', 'Watched'),
-                _miniStat('#${u.trueFanRank}', 'Rank'),
-              ],
-            ),
-            const SizedBox(height: 18),
-            GradientButton(label: 'Share AniCard', icon: LucideIcons.share2, gradient: const LinearGradient(colors: [Colors.white, Color(0xFFE5E7EB)]), onPressed: () => Navigator.pop(sheetCtx)),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-Widget _miniStat(String v, String l) => Column(children: [
-      Text(v, style: AppTextStyles.numbersLg(color: Colors.white)),
-      Text(l, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-    ]);
 
 class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;

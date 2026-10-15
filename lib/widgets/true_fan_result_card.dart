@@ -7,7 +7,6 @@ import '../core/constants/app_gradients.dart';
 import '../core/constants/app_text_styles.dart';
 import '../core/utils/formatters.dart';
 import '../data/models/user.dart';
-import '../services/currency_service.dart';
 import '../services/true_fan_score_service.dart';
 import '../shared/widgets/user_avatar.dart';
 
@@ -267,9 +266,6 @@ class TrueFanResultCard extends StatelessWidget {
   }
 
   Widget _playerRow(UserData p) {
-    // The handle the rest of the app shows: the claimed one, or until then
-    // the reserved anifan_ placeholder nobody else can take.
-    final name = p.userName.isNotEmpty ? '@${p.userName}' : p.nameToShow;
     final flag = Fmt.countryFlag(p.countryCode);
     return Container(
       padding: const EdgeInsets.all(10),
@@ -280,10 +276,10 @@ class TrueFanResultCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          UserAvatar(name: p.nameToShow, imageUrl: p.userAvatar, radius: 20, frame: p.equippedIn(CosmeticSlot.frame)),
+          UserAvatar.forIdentity(p, radius: 20),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(name,
+            child: Text(p.shownHandle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),

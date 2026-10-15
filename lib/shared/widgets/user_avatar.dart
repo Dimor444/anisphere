@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_gradients.dart';
+import '../../data/models/user.dart';
 import '../../data/models/user_model.dart';
+import '../../services/currency_service.dart';
 
 /// Avatar with a level-based "aura" glow. Higher tiers animate.
 /// Verification is shown by the name-row badge, not on the avatar.
@@ -42,6 +44,15 @@ class UserAvatar extends StatefulWidget {
     this.onTap,
     this.frame,
   });
+
+  /// A real user's avatar from their profile (users/{uid}): their picture,
+  /// their initials under it, and the frame they have equipped.
+  UserAvatar.forIdentity(UserData u, {super.key, this.radius = 24, this.onTap, this.isOnline = false})
+      : name = u.nameToShow,
+        level = UserLevel.animeFan,
+        imageUrl = u.userAvatar,
+        initials = null,
+        frame = u.equippedIn(CosmeticSlot.frame);
 
   UserAvatar.fromUser(UserModel u, {super.key, this.radius = 24, this.onTap, this.isOnline = false})
       : name = u.username,

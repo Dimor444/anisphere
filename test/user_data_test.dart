@@ -3,6 +3,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('UserData.shownHandle', () {
+    test('the claimed handle, with an @', () {
+      expect(const UserData(id: 'u', userName: 'mira_k', displayName: 'Mira').shownHandle, '@mira_k');
+    });
+    test("an unclaimed guest's placeholder handle, with an @", () {
+      expect(const UserData(id: 'u', userName: 'anifan_ab12cd', displayName: 'Anime Fan').shownHandle,
+          '@anifan_ab12cd');
+    });
+    test('the display name only when there is no handle at all', () {
+      expect(const UserData(id: 'u', userName: '', displayName: 'Mira').shownHandle, 'Mira');
+    });
+  });
+
   group('UserData.toMap', () {
     test('serializes profile fields, derives userNameLower, zeroes counters', () {
       const user = UserData(id: 'u1', userName: 'KazeNoYuki', bio: 'hi', isVerified: true);
