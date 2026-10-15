@@ -120,14 +120,6 @@ class _TrueFanLeaderboardState extends ConsumerState<TrueFanLeaderboard> {
     _load();
   }
 
-  /// "SA" → 🇸🇦. Empty for the "XX" unknown marker and non-alpha codes.
-  static String _flag(String cc) {
-    if (cc.length != 2 || cc == 'XX') return '';
-    final units = cc.toUpperCase().codeUnits;
-    if (units.any((u) => u < 0x41 || u > 0x5A)) return '';
-    return String.fromCharCodes(units.map((u) => 0x1F1E6 + u - 0x41));
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.anilistId == null) {
@@ -206,7 +198,7 @@ class _TrueFanLeaderboardState extends ConsumerState<TrueFanLeaderboard> {
 
   Widget _board(_BoardData data) {
     if (data.rows.isEmpty) {
-      final flag = _flag(_countryCode);
+      final flag = Fmt.countryFlag(_countryCode);
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 20),
         child: Text(
@@ -233,7 +225,7 @@ class _TrueFanLeaderboardState extends ConsumerState<TrueFanLeaderboard> {
 
   Widget _row(int rank, TrueFanScoreEntry entry) {
     final isMe = entry.userId == _uid;
-    final flag = _flag(entry.countryCode);
+    final flag = Fmt.countryFlag(entry.countryCode);
     // Live identity from users/{uid}; the score doc's copy (frozen at pass
     // time) is only the paint-first fallback.
     final author = identityOf(ref, entry.userId);

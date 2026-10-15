@@ -6,21 +6,35 @@ import '../core/constants/app_colors.dart';
 import '../core/constants/app_gradients.dart';
 import '../core/constants/app_text_styles.dart';
 import '../core/utils/formatters.dart';
-import '../data/models/user_model.dart';
+import '../data/models/user.dart';
+import '../services/currency_service.dart';
+import '../services/true_fan_score_service.dart';
 import '../shared/widgets/user_avatar.dart';
 
 /// A polished, share-ready "True Fan" trophy card. Rendered inside a
 /// [RepaintBoundary] so it can be captured to an image and shared.
 ///
-/// Shows the AniSphere watermark, the anime cover + name, the player's avatar,
-/// a circular score ring, time taken and a (placeholder) world rank.
+/// Shows the AniSphere watermark, the anime cover + name, a circular score
+/// ring, the time taken, the run's place on that anime's leaderboard when it
+/// has one, and the player — their own handle, avatar and flag.
 class TrueFanResultCard extends StatelessWidget {
   final String animeName;
   final String? coverUrl;
   final int score; // 0..10
   final double timeSeconds;
-  final int rank;
-  final UserModel user;
+
+  /// This run's place among everyone who has passed this anime (the World
+  /// tab of its leaderboard). Null when there is none to print: a run that
+  /// did not pass, an anime with no AniList id, or a count that failed.
+  final int? rank;
+
+  /// The rank is still being counted: its tile holds a placeholder.
+  final bool rankPending;
+
+  /// The signed-in player as the rest of the app sees them (users/{uid}).
+  /// Null while that loads; the card then prints no player row rather than
+  /// anyone else's.
+  final UserData? player;
 
   const TrueFanResultCard({
     super.key,
@@ -29,8 +43,18 @@ class TrueFanResultCard extends StatelessWidget {
     required this.score,
     required this.timeSeconds,
     required this.rank,
-    required this.user,
+    this.rankPending = false,
+    required this.player,
   });
+
+  /// A pass is what the leaderboard counts: [TrueFanScoreService.passScore]
+  /// correct or more. Only a pass may claim to have proved anything.
+  bool get _passed => score >= TrueFanScoreService.passScore;
+
+  /// The text sent with the shared image, true to the run it describes.
+  static String shareText(String anime, int score) => score >= TrueFanScoreService.passScore
+      ? "I just proved I'm a True Fan of $anime! 🎌 #AniSphere"
+      : 'I took the True Fan challenge for $anime: $score/10. 🎌 #AniSphere';
 
   String get _tier => score >= 9
       ? 'LEGENDARY FAN'
@@ -78,13 +102,20 @@ class TrueFanResultCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(child: _statTile(Icons.timer_rounded, '${timeSeconds.toStringAsFixed(1)}s', 'TIME', AppColors.accent)),
-                const SizedBox(width: 12),
-                Expanded(child: _statTile(Icons.public_rounded, '#${Fmt.thousands(rank)}', 'WORLD RANK', AppColors.primaryLight)),
+                if (rank != null || rankPending) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _statTile(Icons.public_rounded, rank == null ? '…' : '#${Fmt.thousands(rank!)}',
+                        'WORLD RANK', AppColors.primaryLight),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 16),
-            _userRow(),
-            const SizedBox(height: 12),
+            if (player != null) ...[
+              _playerRow(player!),
+              const SizedBox(height: 12),
+            ],
             _footer(),
           ],
         ),
@@ -164,8 +195,8 @@ class TrueFanResultCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('PROVED THEIR FANDOM FOR',
-                      style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
+                  Text(_passed ? 'PROVED THEIR FANDOM FOR' : 'TOOK THE TRUE FAN CHALLENGE FOR',
+                      style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
                   const SizedBox(height: 2),
                   Text(
                     animeName,
@@ -235,7 +266,11 @@ class TrueFanResultCard extends StatelessWidget {
     );
   }
 
-  Widget _userRow() {
+  Widget _playerRow(UserData p) {
+    // The handle the rest of the app shows: the claimed one, or until then
+    // the reserved anifan_ placeholder nobody else can take.
+    final name = p.userName.isNotEmpty ? '@${p.userName}' : p.nameToShow;
+    final flag = Fmt.countryFlag(p.countryCode);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -245,18 +280,15 @@ class TrueFanResultCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          UserAvatar.fromUser(user, radius: 20),
+          UserAvatar(name: p.nameToShow, imageUrl: p.userAvatar, radius: 20, frame: p.equippedIn(CosmeticSlot.frame)),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('@${user.username}', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
-                if (kUserLevelsEnabled) Text(user.level.title, style: AppTextStyles.captionMuted),
-              ],
-            ),
+            child: Text(name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
           ),
-          if (user.country.isNotEmpty) Text(user.country, style: const TextStyle(fontSize: 22)),
+          if (flag.isNotEmpty) Text(flag, style: const TextStyle(fontSize: 22)),
         ],
       ),
     );

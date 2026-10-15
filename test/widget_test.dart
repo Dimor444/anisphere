@@ -79,6 +79,13 @@ void main() {
     test('thousands', () => expect(Fmt.thousands(1240), '1,240'));
     test('compact K', () => expect(Fmt.compact(18400), '18.4K'));
     test('compact M', () => expect(Fmt.compact(1200000), '1.2M'));
+    test('country flag from an ISO code, nothing for the unknown marker', () {
+      expect(Fmt.countryFlag('TR'), '🇹🇷');
+      expect(Fmt.countryFlag('jp'), '🇯🇵');
+      expect(Fmt.countryFlag('XX'), '');
+      expect(Fmt.countryFlag(''), '');
+      expect(Fmt.countryFlag('U1'), '');
+    });
     test('translation falls back to English', () {
       expect(AppStrings.t('ja', 'feed'), 'フィード');
       expect(AppStrings.t('xx', 'feed'), 'Feed'); // unknown lang → en

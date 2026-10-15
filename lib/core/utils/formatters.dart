@@ -3,6 +3,15 @@ import 'package:timeago/timeago.dart' as timeago;
 class Fmt {
   Fmt._();
 
+  /// "SA" → 🇸🇦. Empty for the "XX" unknown marker and non-alpha codes —
+  /// what FollowService.detectCountryCode writes when the device has no region.
+  static String countryFlag(String cc) {
+    if (cc.length != 2 || cc == 'XX') return '';
+    final units = cc.toUpperCase().codeUnits;
+    if (units.any((u) => u < 0x41 || u > 0x5A)) return '';
+    return String.fromCharCodes(units.map((u) => 0x1F1E6 + u - 0x41));
+  }
+
   /// 1240 -> "1,240", 4821 -> "4,821"
   static String thousands(int n) {
     final s = n.abs().toString();

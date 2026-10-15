@@ -21,7 +21,6 @@ import '../../services/anime_image_service.dart';
 import '../../services/anime_search_service.dart';
 import '../../services/true_fan_score_service.dart';
 import '../../shared/providers/identity_provider.dart';
-import '../../shared/providers/user_provider.dart';
 import '../../shared/widgets/anime_cover_image.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/section_header.dart';
@@ -259,6 +258,10 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
   final GlobalKey _cardKey = GlobalKey(); // captured for the shareable image
   String? _coverUrl; // anime cover for the result card
   bool _sharing = false;
+  int? _rank; // this run's leaderboard place — see _loadRank
+  bool _rankPending = false;
+  Future<void>? _rankLoad; // awaited by the share, so the capture has the rank
+  int _rankRun = 0; // a newer run's count supersedes an older one's
 
   // quiz state
   late List<_FanQuestion> _questions;
@@ -372,8 +375,31 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
   }
 
   // TODO: replace with real backend leaderboard
-  int _calculateRank(int score, double timeTaken) {
-    return max(1, 50000 - (score * 4000) + (timeTaken * 10).round());
+  /// This run's place among everyone who has passed this anime, counted on
+  /// the leaderboard once as the results appear (see
+  /// [TrueFanScoreService.rankOfRun]). Only a pass has a place, and only with
+  /// an AniList id to count by. A count that fails or stalls leaves no rank:
+  /// the card drops the line rather than print a number that means nothing.
+  Future<void> _loadRank() async {
+    final run = ++_rankRun;
+    _rank = null;
+    _rankPending = false;
+    final anilistId = _anilistId;
+    if (anilistId == null || _correct < TrueFanScoreService.passScore) return;
+    _rankPending = true;
+    int? rank;
+    try {
+      rank = await TrueFanScoreService.instance
+          .rankOfRun(anilistId, _elapsedMs / 1000.0)
+          .timeout(const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint('[TrueFan] no rank for this run: $e');
+    }
+    if (!mounted || run != _rankRun) return;
+    setState(() {
+      _rank = rank;
+      _rankPending = false;
+    });
   }
 
   /// Captures the result card ([_cardKey]'s RepaintBoundary) to a PNG and opens
@@ -382,6 +408,8 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
     if (_sharing) return;
     setState(() => _sharing = true);
     try {
+      // A card shared mid-count would carry the placeholder, not the rank.
+      await _rankLoad;
       // Make sure the latest frame (cover image, etc.) is painted before capture.
       await WidgetsBinding.instance.endOfFrame;
       final boundary = _cardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
@@ -401,7 +429,7 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
       final box = context.findRenderObject() as RenderBox?;
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: "I just proved I'm a True Fan of $anime! 🎌 #AniSphere",
+        text: TrueFanResultCard.shareText(anime, _correct),
         sharePositionOrigin: box != null ? box.localToGlobal(Offset.zero) & box.size : null,
       );
     } catch (e) {
@@ -580,6 +608,7 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
       } else {
         _timer?.cancel();
         _recordPass();
+        _rankLoad = _loadRank();
         setState(() => _phase = 2);
       }
     });
@@ -927,9 +956,7 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
 
   // Step 3
   Widget _results() {
-    final user = ref.watch(userProvider);
     final timeSeconds = _elapsedMs / 1000.0;
-    final rank = _calculateRank(_correct, timeSeconds);
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(18),
@@ -944,8 +971,9 @@ class _TrueFanTabState extends ConsumerState<_TrueFanTab> {
                 coverUrl: _coverUrl,
                 score: _correct,
                 timeSeconds: timeSeconds,
-                rank: rank,
-                user: user,
+                rank: _rank,
+                rankPending: _rankPending,
+                player: myIdentity(ref),
               ),
             ),
           ),

@@ -161,4 +161,21 @@ class TrueFanScoreService {
       return (agg.count ?? 0) + 1;
     });
   }
+
+  /// Where a passed run of [timeSeconds] stands among everyone who has passed
+  /// [anilistId]: the players whose best is strictly faster, plus one. The
+  /// signed-in user's own best is left out of the count — it is the same
+  /// player, not someone ahead of them. Independent of whether this run's
+  /// [submitPass] has landed: a stored time equal to this run's is not faster.
+  ///
+  /// Costs one count() aggregation (one read per 1,000 faster runs, at least
+  /// one) and one document read.
+  Future<int> rankOfRun(int anilistId, double timeSeconds) {
+    return _guard('rankOfRun($anilistId)', () async {
+      final faster = await rankForTime(anilistId, timeSeconds) - 1;
+      final mine = await myEntry(anilistId);
+      final selfCounted = mine != null && mine.timeSeconds < timeSeconds;
+      return faster - (selfCounted ? 1 : 0) + 1;
+    });
+  }
 }
