@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderSliverMainAxisGroup;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -190,55 +191,56 @@ class _ProfileBody extends ConsumerWidget {
       decoration: const BoxDecoration(gradient: AppGradients.pageBg),
       child: DefaultTabController(
         length: tabs.length,
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          backgroundColor: AppColors.surface,
-          // Streams are live; the gesture is just a familiar affordance.
-          onRefresh: () async {
-            Haptics.light();
-            await Future.delayed(const Duration(milliseconds: 400));
-          },
-          child: NestedScrollView(
-            headerSliverBuilder: (context, _) => [
-              // Toolbar only — the banner lives in the header Stack below, so
-              // no sliver ever paints over the avatar.
-              // Pinned: the profile header scrolls up behind it.
-              SliverAppBar(
-                pinned: true,
-                backgroundColor: Colors.transparent,
-                surfaceTintColor: Colors.transparent,
-                shape: const Border(),
-                flexibleSpace: const GlassBarBackground(),
-                leading: fromTab
-                    ? Builder(
-                        builder: (ctx) => IconButton(
-                            icon: const Icon(LucideIcons.menu),
-                            onPressed: () => Scaffold.of(ctx).openDrawer()),
-                      )
-                    : const BackButton(),
-                title: handle.isEmpty ? null : Text('@$handle', style: AppTextStyles.subheading),
-                centerTitle: false,
-                actions: [
-                  if (isOwn)
-                    IconButton(
-                        icon: const Icon(LucideIcons.share2, size: 20),
-                        onPressed: () => showAniCardSheet(context)),
-                  if (isOwn)
-                    IconButton(
-                        icon: const Icon(LucideIcons.settings, size: 20),
-                        onPressed: () => context.push('/settings')),
-                ],
-              ),
-              SliverToBoxAdapter(child: _ProfileHeader(uid: uid, identity: identity, isOwn: isOwn)),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _TabBarDelegate(
-                  TabBar(tabs: [for (final (label, _) in tabs) Tab(text: label)]),
+        // No RefreshIndicator: it never armed under the nested scrolling, and
+        // with every stream live a refresh had nothing to do.
+        child: NestedScrollView(
+          headerSliverBuilder: (context, _) => [
+            // Both pinned bars cover the top of the tabs once the header has
+            // collapsed: absorbed here as one obstruction, injected back as
+            // room at the top of every tab (_TabScrollView).
+            SliverOverlapAbsorber(
+              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+              sliver: _PinnedHeaderGroup(slivers: [
+                // Toolbar only — the banner lives in the header Stack below, so
+                // no sliver ever paints over the avatar.
+                // Pinned: the profile header scrolls up behind it.
+                SliverAppBar(
+                  pinned: true,
+                  backgroundColor: Colors.transparent,
+                  surfaceTintColor: Colors.transparent,
+                  shape: const Border(),
+                  flexibleSpace: const GlassBarBackground(),
+                  leading: fromTab
+                      ? Builder(
+                          builder: (ctx) => IconButton(
+                              icon: const Icon(LucideIcons.menu),
+                              onPressed: () => Scaffold.of(ctx).openDrawer()),
+                        )
+                      : const BackButton(),
+                  title: handle.isEmpty ? null : Text('@$handle', style: AppTextStyles.subheading),
+                  centerTitle: false,
+                  actions: [
+                    if (isOwn)
+                      IconButton(
+                          icon: const Icon(LucideIcons.share2, size: 20),
+                          onPressed: () => showAniCardSheet(context)),
+                    if (isOwn)
+                      IconButton(
+                          icon: const Icon(LucideIcons.settings, size: 20),
+                          onPressed: () => context.push('/settings')),
+                  ],
                 ),
-              ),
-            ],
-            body: TabBarView(children: [for (final (_, view) in tabs) view]),
-          ),
+                SliverToBoxAdapter(child: _ProfileHeader(uid: uid, identity: identity, isOwn: isOwn)),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _TabBarDelegate(
+                    TabBar(tabs: [for (final (label, _) in tabs) Tab(text: label)]),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+          body: TabBarView(children: [for (final (_, view) in tabs) view]),
         ),
       ),
     );
@@ -697,6 +699,32 @@ class _MessageButton extends ConsumerWidget {
   }
 }
 
+/// The profile's header slivers — the pinned app bar, the header that
+/// scrolls away under it, the pinned tab bar — as one sliver, so a single
+/// SliverOverlapAbsorber can account for both pinned bars. A plain
+/// SliverMainAxisGroup sums its pinned children's obstruction while laying
+/// them out but reports none, and the absorber reads exactly that figure.
+class _PinnedHeaderGroup extends SliverMainAxisGroup {
+  const _PinnedHeaderGroup({required super.slivers});
+
+  @override
+  RenderSliverMainAxisGroup createRenderObject(BuildContext context) => _RenderPinnedHeaderGroup();
+}
+
+class _RenderPinnedHeaderGroup extends RenderSliverMainAxisGroup {
+  @override
+  void performLayout() {
+    super.performLayout();
+    final laidOut = geometry!;
+    if (laidOut.scrollOffsetCorrection != null) return;
+    var obstruction = 0.0;
+    for (var child = firstChild; child != null; child = childAfter(child)) {
+      obstruction += child.geometry!.maxScrollObstructionExtent;
+    }
+    geometry = laidOut.copyWith(maxScrollObstructionExtent: obstruction);
+  }
+}
+
 class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
   _TabBarDelegate(this.tabBar);
@@ -757,16 +785,51 @@ class _PostsTab extends ConsumerWidget {
       stream: FeedService.instance.getUserPosts(userId),
       builder: (context, snap) {
         final posts = snap.data;
-        if (posts == null) return const Center(child: CircularProgressIndicator());
+        if (posts == null) return const _LoadingTab();
         // The profile's own empty state — noPostsYet is the feed's, and tells
         // the reader to follow people.
         if (posts.isEmpty) return _EmptyTab(text: ref.tr('profileNoPosts'));
-        return ListView(
-          padding: EdgeInsets.only(top: 8, bottom: AniBottomNav.scrollEndPadding(context)),
-          children: posts.map((p) => PostCard(key: ValueKey(p.id), post: p)).toList(),
-        );
+        return _TabScrollView(slivers: [
+          SliverPadding(
+            padding: EdgeInsets.only(top: 8, bottom: AniBottomNav.scrollEndPadding(context)),
+            sliver: SliverList.list(children: [for (final p in posts) PostCard(key: ValueKey(p.id), post: p)]),
+          ),
+        ]);
       },
     );
+  }
+}
+
+/// Every tab's scroll view. It starts with the room the pinned app bar and
+/// tab bar take once the header has collapsed — absorbed in the header's
+/// SliverOverlapAbsorber — so a tab's first row sits below them rather than
+/// under them; a tab that scrolls without it hides its newest ~150 points.
+/// Content still scrolls behind the glass bar once the tab itself scrolls.
+/// Always scrollable, so a short or empty tab still takes a drag.
+class _TabScrollView extends StatelessWidget {
+  final List<Widget> slivers;
+  const _TabScrollView({required this.slivers});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverOverlapInjector(handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context)),
+        ...slivers,
+      ],
+    );
+  }
+}
+
+class _LoadingTab extends StatelessWidget {
+  const _LoadingTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _TabScrollView(slivers: [
+      SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator())),
+    ]);
   }
 }
 
@@ -776,16 +839,14 @@ class _EmptyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      // Keeps pull-to-refresh working on an empty tab.
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        Padding(
+    return _TabScrollView(slivers: [
+      SliverToBoxAdapter(
+        child: Padding(
           padding: const EdgeInsets.all(48),
           child: Center(child: Text(text, textAlign: TextAlign.center, style: AppTextStyles.captionMuted)),
         ),
-      ],
-    );
+      ),
+    ]);
   }
 }
 
@@ -805,15 +866,19 @@ class _VideosTab extends ConsumerWidget {
       builder: (context, snap) {
         if (snap.hasError) return _EmptyTab(text: ref.tr('videosLoadError'));
         final videos = snap.data;
-        if (videos == null) return const Center(child: CircularProgressIndicator());
+        if (videos == null) return const _LoadingTab();
         if (videos.isEmpty) return _EmptyTab(text: ref.tr('profileNoVideos'));
-        return GridView.builder(
-          padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.7),
-          itemCount: videos.length,
-          itemBuilder: (_, i) => _VideoTile(video: videos[i]),
-        );
+        return _TabScrollView(slivers: [
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),
+            sliver: SliverGrid.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.7),
+              itemCount: videos.length,
+              itemBuilder: (_, i) => _VideoTile(video: videos[i]),
+            ),
+          ),
+        ]);
       },
     );
   }
@@ -902,54 +967,56 @@ class _StatsTab extends StatelessWidget {
       ('${u.hours}h', 'Hours watched', LucideIcons.clock, AppColors.secondary),
       ('${(u.hours / 24).round()}d', 'Days of life', LucideIcons.calendar, AppColors.aniGold),
     ];
-    return ListView(
-      padding: EdgeInsets.fromLTRB(14, 12, 14, AniBottomNav.scrollEndPadding(context)),
-      children: [
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.5),
-          itemCount: stats.length,
-          itemBuilder: (_, i) {
-            final s = stats[i];
-            return Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Icon(s.$3, color: s.$4, size: 22),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(s.$1, style: AppTextStyles.numbersXl()),
-                    Text(s.$2, style: AppTextStyles.captionMuted),
+    return _TabScrollView(slivers: [
+      SliverPadding(
+        padding: EdgeInsets.fromLTRB(14, 12, 14, AniBottomNav.scrollEndPadding(context)),
+        sliver: SliverList.list(children: [
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.5),
+              itemCount: stats.length,
+              itemBuilder: (_, i) {
+                final s = stats[i];
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Icon(s.$3, color: s.$4, size: 22),
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(s.$1, style: AppTextStyles.numbersXl()),
+                        Text(s.$2, style: AppTextStyles.captionMuted),
+                      ]),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            const Text('Genre DNA', style: AppTextStyles.subheading),
+            const SizedBox(height: 14),
+            SizedBox(height: 180, child: _GenreChart()),
+            const SizedBox(height: 20),
+            const Text('Watching patterns', style: AppTextStyles.subheading),
+            const SizedBox(height: 10),
+            ..._patterns().map((p) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(children: [
+                    Text(p.$1, style: const TextStyle(fontSize: 16)),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(p.$2, style: AppTextStyles.body)),
                   ]),
-                ],
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 20),
-        const Text('Genre DNA', style: AppTextStyles.subheading),
-        const SizedBox(height: 14),
-        SizedBox(height: 180, child: _GenreChart()),
-        const SizedBox(height: 20),
-        const Text('Watching patterns', style: AppTextStyles.subheading),
-        const SizedBox(height: 10),
-        ..._patterns().map((p) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(children: [
-                Text(p.$1, style: const TextStyle(fontSize: 16)),
-                const SizedBox(width: 10),
-                Expanded(child: Text(p.$2, style: AppTextStyles.body)),
-              ]),
-            )),
-        const SizedBox(height: 20),
-        const Text('Monthly activity', style: AppTextStyles.subheading),
-        const SizedBox(height: 14),
-        SizedBox(height: 170, child: _MonthlyChart()),
-      ],
-    );
+                )),
+            const SizedBox(height: 20),
+            const Text('Monthly activity', style: AppTextStyles.subheading),
+            const SizedBox(height: 14),
+            SizedBox(height: 170, child: _MonthlyChart()),
+        ]),
+      ),
+    ]);
   }
 
   List<(String, String)> _patterns() => [

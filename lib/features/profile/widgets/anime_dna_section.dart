@@ -133,7 +133,7 @@ class _AnimeDnaSectionState extends ConsumerState<AnimeDnaSection> {
             if (future == null || (dna == null && !snap.hasError))
               const _DnaSkeleton()
             else if (snap.hasError)
-              const Text("Couldn't load your Anime DNA — pull to refresh or try again later.",
+              const Text("Couldn't load your Anime DNA — try again later.",
                   style: AppTextStyles.captionMuted)
             else
               ..._loaded(context, dna!, identity),

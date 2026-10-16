@@ -97,7 +97,7 @@ class _TrueFanSectionState extends State<TrueFanSection> {
 
   Widget _body(BuildContext context) {
     if (widget.error) {
-      return const Text("Couldn't load your True Fan ranks — pull to refresh or try again later.",
+      return const Text("Couldn't load your True Fan ranks — try again later.",
           style: AppTextStyles.captionMuted);
     }
     final list = widget.entries;
