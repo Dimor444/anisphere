@@ -17,9 +17,9 @@ import '../../shared/widgets/glass_app_bar.dart';
 
 /// Basic detail view for any AniList-referenced anime (read-only).
 ///
-/// The full [AnimeDetailScreen] is keyed to local sample data, so entries
-/// referenced by anilist_id only — Trending cards, Top 100 chart rows, deep
-/// links — get this lightweight view instead. A router `extra` (even a
+/// The app's one anime detail page: every entry — Trending cards, Top 100
+/// chart rows, post and story tags, sample-anime cards through their
+/// verified ids, deep links — opens it by anilist_id. A router `extra` (even a
 /// partial one, e.g. a chart row) paints instantly; missing or partial data
 /// is fetched by id from AniList.
 class TrendingDetailScreen extends StatefulWidget {

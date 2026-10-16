@@ -7,6 +7,9 @@ import 'pressable.dart';
 import '../../core/constants/app_gradients.dart';
 
 /// Gradient anime "poster" card. Used in feeds, grids, rails and selectors.
+///
+/// A tap opens the AniList detail page for the anime's verified
+/// [AnimeModel.anilistId]; without one the card does not link at all.
 class AnimeCard extends StatelessWidget {
   final AnimeModel anime;
   final double width;
@@ -34,7 +37,8 @@ class AnimeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Pressable(
-      onTap: onTap ?? () => context.push('/anime/${anime.id}'),
+      onTap: onTap ??
+          (anime.anilistId == null ? null : () => context.push('/trending/anime/${anime.anilistId}')),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: width,

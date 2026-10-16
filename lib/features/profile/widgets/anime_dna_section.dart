@@ -22,7 +22,7 @@ import '../../feed/create_post_screen.dart' show showAnimePickerSheet;
 /// derived portion degrades gracefully where the target's list isn't
 /// client-readable). Editing — pin/unpin and first anime — is own-profile
 /// only, via the shared anime picker. Card taps deep-link through the shared
-/// AniList detail route (/trending/anime/:id → fetchById), never /anime/:id.
+/// AniList detail route (/trending/anime/:id → fetchById).
 class AnimeDnaSection extends ConsumerStatefulWidget {
   final String uid;
   final bool isOwn;

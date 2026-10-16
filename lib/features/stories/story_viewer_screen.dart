@@ -89,8 +89,8 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
 
   /// Sticker hotspot tapped: pause playback, deep-link, resume on return.
   /// Anime tags go through the shared AniList detail path
-  /// (/trending/anime/:id → fetchById) — never /anime/:id, which is keyed to
-  /// SampleData ids. Mentions go to the shared /profile/:uid route.
+  /// (/trending/anime/:id → fetchById). Mentions go to the shared
+  /// /profile/:uid route.
   Future<void> _openLink(String location) async {
     Haptics.light();
     _c.stop();

@@ -105,48 +105,46 @@ class SampleData {
   // different show: "Demon Slayer" returned Onigiri, a 2016 short with harem
   // cover art, and "Code Geass" a 2024 spin-off. Use the full English title.
   static const List<AnimeModel> animeList = [
-    AnimeModel(id: 'an1', title: 'Naruto', japaneseTitle: 'ナルト', studio: 'Pierrot', genre: 'Shonen', genres: ['Action', 'Adventure'], year: 2002, episodes: 220, score: 8.4, ratingCount: 412000, status: 'Finished', emoji: '🍥'),
-    AnimeModel(id: 'an2', title: 'One Piece', japaneseTitle: 'ワンピース', studio: 'Toei', genre: 'Shonen', genres: ['Adventure', 'Comedy'], year: 1999, episodes: 1100, score: 9.1, ratingCount: 720000, status: 'Airing', emoji: '🏴‍☠️', watchingNow: 41200),
-    AnimeModel(id: 'an3', title: 'Attack on Titan', japaneseTitle: '進撃の巨人', studio: 'Wit / MAPPA', genre: 'Dark Fantasy', genres: ['Action', 'Drama'], year: 2013, episodes: 89, score: 9.2, ratingCount: 980000, status: 'Finished', emoji: '⚔️'),
-    AnimeModel(id: 'an4', title: 'Demon Slayer: Kimetsu no Yaiba', japaneseTitle: '鬼滅の刃', studio: 'ufotable', genre: 'Shonen', genres: ['Action', 'Supernatural'], year: 2019, episodes: 55, score: 8.7, ratingCount: 660000, status: 'Airing', emoji: '🗡️', watchingNow: 33100),
-    AnimeModel(id: 'an5', title: 'Frieren', japaneseTitle: '葬送のフリーレン', studio: 'Madhouse', genre: 'Adventure', genres: ['Fantasy', 'Drama'], year: 2023, episodes: 28, score: 9.4, ratingCount: 290000, status: 'Airing', emoji: '🧝‍♀️', watchingNow: 58900),
-    AnimeModel(id: 'an6', title: 'Hunter x Hunter', japaneseTitle: 'ハンター×ハンター', studio: 'Madhouse', genre: 'Shonen', genres: ['Adventure', 'Action'], year: 2011, episodes: 148, score: 9.3, ratingCount: 540000, status: 'Finished', emoji: '🎯'),
-    AnimeModel(id: 'an7', title: 'Jujutsu Kaisen', japaneseTitle: '呪術廻戦', studio: 'MAPPA', genre: 'Shonen', genres: ['Action', 'Supernatural'], year: 2020, episodes: 47, score: 8.8, ratingCount: 510000, status: 'Airing', emoji: '👊', watchingNow: 39800),
-    AnimeModel(id: 'an8', title: 'Bleach', japaneseTitle: 'ブリーチ', studio: 'Pierrot', genre: 'Shonen', genres: ['Action', 'Supernatural'], year: 2004, episodes: 396, score: 8.5, ratingCount: 320000, status: 'Airing', emoji: '☠️'),
-    AnimeModel(id: 'an9', title: 'Fullmetal Alchemist: Brotherhood', japaneseTitle: '鋼の錬金術師', studio: 'Bones', genre: 'Adventure', genres: ['Action', 'Drama'], year: 2009, episodes: 64, score: 9.5, ratingCount: 710000, status: 'Finished', emoji: '⚗️'),
-    AnimeModel(id: 'an10', title: 'Chainsaw Man', japaneseTitle: 'チェンソーマン', studio: 'MAPPA', genre: 'Seinen', genres: ['Action', 'Horror'], year: 2022, episodes: 12, score: 8.6, ratingCount: 380000, status: 'Finished', emoji: '🪚'),
-    AnimeModel(id: 'an11', title: 'Solo Leveling', japaneseTitle: '俺だけレベルアップな件', studio: 'A-1 Pictures', genre: 'Action', genres: ['Action', 'Fantasy'], year: 2024, episodes: 25, score: 8.5, ratingCount: 270000, status: 'Airing', emoji: '⚡', watchingNow: 47600),
-    AnimeModel(id: 'an12', title: 'Vinland Saga', japaneseTitle: 'ヴィンランド・サガ', studio: 'Wit / MAPPA', genre: 'Seinen', genres: ['Action', 'Drama'], year: 2019, episodes: 48, score: 9.0, ratingCount: 240000, status: 'Finished', emoji: '🪓'),
-    AnimeModel(id: 'an13', title: 'Re:Zero', japaneseTitle: 'Re:ゼロ', studio: 'White Fox', genre: 'Isekai', genres: ['Drama', 'Fantasy'], year: 2016, episodes: 50, score: 8.7, ratingCount: 330000, status: 'Airing', emoji: '🔁'),
-    AnimeModel(id: 'an14', title: 'Spy x Family', japaneseTitle: 'スパイファミリー', studio: 'Wit / CloverWorks', genre: 'Comedy', genres: ['Comedy', 'Action'], year: 2022, episodes: 37, score: 8.6, ratingCount: 360000, status: 'Airing', emoji: '🕵️', watchingNow: 28700),
-    AnimeModel(id: 'an15', title: 'One Punch Man', japaneseTitle: 'ワンパンマン', studio: 'Madhouse', genre: 'Action', genres: ['Action', 'Comedy'], year: 2015, episodes: 24, score: 8.5, ratingCount: 470000, status: 'Airing', emoji: '👊'),
-    AnimeModel(id: 'an16', title: 'Tokyo Ghoul', japaneseTitle: '東京喰種', studio: 'Pierrot', genre: 'Dark Fantasy', genres: ['Horror', 'Action'], year: 2014, episodes: 48, score: 7.8, ratingCount: 410000, status: 'Finished', emoji: '🩸'),
-    AnimeModel(id: 'an17', title: 'Dragon Ball Z', japaneseTitle: 'ドラゴンボールZ', studio: 'Toei', genre: 'Shonen', genres: ['Action', 'Adventure'], year: 1989, episodes: 291, score: 8.6, ratingCount: 520000, status: 'Finished', emoji: '🐉'),
-    AnimeModel(id: 'an18', title: 'Blue Lock', japaneseTitle: 'ブルーロック', studio: '8bit', genre: 'Sports', genres: ['Sports', 'Drama'], year: 2022, episodes: 38, score: 8.3, ratingCount: 190000, status: 'Airing', emoji: '⚽', watchingNow: 21400),
-    AnimeModel(id: 'an19', title: 'Dandadan', japaneseTitle: 'ダンダダン', studio: 'Science SARU', genre: 'Supernatural', genres: ['Action', 'Comedy'], year: 2024, episodes: 12, score: 8.7, ratingCount: 150000, status: 'Airing', emoji: '👽', watchingNow: 35200),
-    AnimeModel(id: 'an20', title: 'Mushoku Tensei', japaneseTitle: '無職転生', studio: 'Studio Bind', genre: 'Isekai', genres: ['Fantasy', 'Adventure'], year: 2021, episodes: 47, score: 8.6, ratingCount: 210000, status: 'Airing', emoji: '🪄'),
-    AnimeModel(id: 'an21', title: 'My Hero Academia', japaneseTitle: '僕のヒーローアカデミア', studio: 'Bones', genre: 'Shonen', genres: ['Action', 'Superhero'], year: 2016, episodes: 159, score: 7.8, ratingCount: 540000, status: 'Finished', emoji: '💥'),
-    AnimeModel(id: 'an22', title: 'Death Note', japaneseTitle: 'デスノート', studio: 'Madhouse', genre: 'Thriller', genres: ['Mystery', 'Supernatural'], year: 2006, episodes: 37, score: 8.5, ratingCount: 690000, status: 'Finished', emoji: '📓'),
-    AnimeModel(id: 'an23', title: 'Tokyo Revengers', japaneseTitle: '東京卍リベンジャーズ', studio: 'Liden Films', genre: 'Action', genres: ['Action', 'Drama'], year: 2021, episodes: 50, score: 7.5, ratingCount: 180000, status: 'Finished', emoji: '⏳'),
-    AnimeModel(id: 'an24', title: 'Mob Psycho 100', japaneseTitle: 'モブサイコ100', studio: 'Bones', genre: 'Supernatural', genres: ['Action', 'Comedy'], year: 2016, episodes: 37, score: 8.6, ratingCount: 250000, status: 'Finished', emoji: '🌀'),
-    AnimeModel(id: 'an25', title: 'Code Geass: Lelouch of the Rebellion', japaneseTitle: 'コードギアス', studio: 'Sunrise', genre: 'Mecha', genres: ['Mecha', 'Drama'], year: 2006, episodes: 50, score: 8.7, ratingCount: 380000, status: 'Finished', emoji: '♟️'),
-    AnimeModel(id: 'an26', title: 'Steins;Gate', japaneseTitle: 'シュタインズ・ゲート', studio: 'White Fox', genre: 'Sci-Fi', genres: ['Sci-Fi', 'Thriller'], year: 2011, episodes: 24, score: 9.1, ratingCount: 470000, status: 'Finished', emoji: '⏰'),
-    AnimeModel(id: 'an27', title: 'Black Clover', japaneseTitle: 'ブラッククローバー', studio: 'Pierrot', genre: 'Shonen', genres: ['Action', 'Fantasy'], year: 2017, episodes: 170, score: 8.2, ratingCount: 200000, status: 'Finished', emoji: '🍀'),
-    AnimeModel(id: 'an28', title: 'Fairy Tail', japaneseTitle: 'フェアリーテイル', studio: 'A-1 Pictures', genre: 'Fantasy', genres: ['Action', 'Adventure'], year: 2009, episodes: 328, score: 7.6, ratingCount: 230000, status: 'Finished', emoji: '🧚'),
-    AnimeModel(id: 'an29', title: 'Sword Art Online', japaneseTitle: 'ソードアート・オンライン', studio: 'A-1 Pictures', genre: 'Isekai', genres: ['Action', 'Fantasy'], year: 2012, episodes: 96, score: 7.0, ratingCount: 360000, status: 'Finished', emoji: '🗡️'),
-    AnimeModel(id: 'an30', title: 'Haikyuu', japaneseTitle: 'ハイキュー!!', studio: 'Production I.G', genre: 'Sports', genres: ['Sports', 'Drama'], year: 2014, episodes: 85, score: 8.7, ratingCount: 270000, status: 'Finished', emoji: '🏐'),
+    AnimeModel(id: 'an1', anilistId: 20, title: 'Naruto', genre: 'Shonen', genres: ['Action', 'Adventure'], year: 2002, episodes: 220, score: 8.4, status: 'Finished', emoji: '🍥'),
+    AnimeModel(id: 'an2', anilistId: 21, title: 'One Piece', genre: 'Shonen', genres: ['Adventure', 'Comedy'], year: 1999, episodes: 1100, score: 9.1, status: 'Airing', emoji: '🏴‍☠️'),
+    AnimeModel(id: 'an3', anilistId: 16498, title: 'Attack on Titan', genre: 'Dark Fantasy', genres: ['Action', 'Drama'], year: 2013, episodes: 89, score: 9.2, status: 'Finished', emoji: '⚔️'),
+    AnimeModel(id: 'an4', anilistId: 101922, title: 'Demon Slayer: Kimetsu no Yaiba', genre: 'Shonen', genres: ['Action', 'Supernatural'], year: 2019, episodes: 55, score: 8.7, status: 'Airing', emoji: '🗡️'),
+    AnimeModel(id: 'an5', anilistId: 154587, title: 'Frieren', genre: 'Adventure', genres: ['Fantasy', 'Drama'], year: 2023, episodes: 28, score: 9.4, status: 'Airing', emoji: '🧝‍♀️'),
+    AnimeModel(id: 'an6', anilistId: 11061, title: 'Hunter x Hunter', genre: 'Shonen', genres: ['Adventure', 'Action'], year: 2011, episodes: 148, score: 9.3, status: 'Finished', emoji: '🎯'),
+    AnimeModel(id: 'an7', anilistId: 113415, title: 'Jujutsu Kaisen', genre: 'Shonen', genres: ['Action', 'Supernatural'], year: 2020, episodes: 47, score: 8.8, status: 'Airing', emoji: '👊'),
+    AnimeModel(id: 'an8', anilistId: 269, title: 'Bleach', genre: 'Shonen', genres: ['Action', 'Supernatural'], year: 2004, episodes: 396, score: 8.5, status: 'Airing', emoji: '☠️'),
+    AnimeModel(id: 'an9', anilistId: 5114, title: 'Fullmetal Alchemist: Brotherhood', genre: 'Adventure', genres: ['Action', 'Drama'], year: 2009, episodes: 64, score: 9.5, status: 'Finished', emoji: '⚗️'),
+    AnimeModel(id: 'an10', anilistId: 127230, title: 'Chainsaw Man', genre: 'Seinen', genres: ['Action', 'Horror'], year: 2022, episodes: 12, score: 8.6, status: 'Finished', emoji: '🪚'),
+    AnimeModel(id: 'an11', anilistId: 151807, title: 'Solo Leveling', genre: 'Action', genres: ['Action', 'Fantasy'], year: 2024, episodes: 25, score: 8.5, status: 'Airing', emoji: '⚡'),
+    AnimeModel(id: 'an12', anilistId: 101348, title: 'Vinland Saga', genre: 'Seinen', genres: ['Action', 'Drama'], year: 2019, episodes: 48, score: 9.0, status: 'Finished', emoji: '🪓'),
+    AnimeModel(id: 'an13', anilistId: 21355, title: 'Re:Zero', genre: 'Isekai', genres: ['Drama', 'Fantasy'], year: 2016, episodes: 50, score: 8.7, status: 'Airing', emoji: '🔁'),
+    AnimeModel(id: 'an14', anilistId: 140960, title: 'Spy x Family', genre: 'Comedy', genres: ['Comedy', 'Action'], year: 2022, episodes: 37, score: 8.6, status: 'Airing', emoji: '🕵️'),
+    AnimeModel(id: 'an15', anilistId: 21087, title: 'One Punch Man', genre: 'Action', genres: ['Action', 'Comedy'], year: 2015, episodes: 24, score: 8.5, status: 'Airing', emoji: '👊'),
+    AnimeModel(id: 'an16', anilistId: 20605, title: 'Tokyo Ghoul', genre: 'Dark Fantasy', genres: ['Horror', 'Action'], year: 2014, episodes: 48, score: 7.8, status: 'Finished', emoji: '🩸'),
+    AnimeModel(id: 'an17', anilistId: 813, title: 'Dragon Ball Z', genre: 'Shonen', genres: ['Action', 'Adventure'], year: 1989, episodes: 291, score: 8.6, status: 'Finished', emoji: '🐉'),
+    AnimeModel(id: 'an18', anilistId: 137822, title: 'Blue Lock', genre: 'Sports', genres: ['Sports', 'Drama'], year: 2022, episodes: 38, score: 8.3, status: 'Airing', emoji: '⚽'),
+    AnimeModel(id: 'an19', anilistId: 171018, title: 'Dandadan', genre: 'Supernatural', genres: ['Action', 'Comedy'], year: 2024, episodes: 12, score: 8.7, status: 'Airing', emoji: '👽'),
+    AnimeModel(id: 'an20', anilistId: 108465, title: 'Mushoku Tensei', genre: 'Isekai', genres: ['Fantasy', 'Adventure'], year: 2021, episodes: 47, score: 8.6, status: 'Airing', emoji: '🪄'),
+    AnimeModel(id: 'an21', anilistId: 21459, title: 'My Hero Academia', genre: 'Shonen', genres: ['Action', 'Superhero'], year: 2016, episodes: 159, score: 7.8, status: 'Finished', emoji: '💥'),
+    AnimeModel(id: 'an22', anilistId: 1535, title: 'Death Note', genre: 'Thriller', genres: ['Mystery', 'Supernatural'], year: 2006, episodes: 37, score: 8.5, status: 'Finished', emoji: '📓'),
+    AnimeModel(id: 'an23', anilistId: 120120, title: 'Tokyo Revengers', genre: 'Action', genres: ['Action', 'Drama'], year: 2021, episodes: 50, score: 7.5, status: 'Finished', emoji: '⏳'),
+    AnimeModel(id: 'an24', anilistId: 21507, title: 'Mob Psycho 100', genre: 'Supernatural', genres: ['Action', 'Comedy'], year: 2016, episodes: 37, score: 8.6, status: 'Finished', emoji: '🌀'),
+    AnimeModel(id: 'an25', anilistId: 1575, title: 'Code Geass: Lelouch of the Rebellion', genre: 'Mecha', genres: ['Mecha', 'Drama'], year: 2006, episodes: 50, score: 8.7, status: 'Finished', emoji: '♟️'),
+    AnimeModel(id: 'an26', anilistId: 9253, title: 'Steins;Gate', genre: 'Sci-Fi', genres: ['Sci-Fi', 'Thriller'], year: 2011, episodes: 24, score: 9.1, status: 'Finished', emoji: '⏰'),
+    AnimeModel(id: 'an27', anilistId: 97940, title: 'Black Clover', genre: 'Shonen', genres: ['Action', 'Fantasy'], year: 2017, episodes: 170, score: 8.2, status: 'Finished', emoji: '🍀'),
+    AnimeModel(id: 'an28', anilistId: 6702, title: 'Fairy Tail', genre: 'Fantasy', genres: ['Action', 'Adventure'], year: 2009, episodes: 328, score: 7.6, status: 'Finished', emoji: '🧚'),
+    AnimeModel(id: 'an29', anilistId: 11757, title: 'Sword Art Online', genre: 'Isekai', genres: ['Action', 'Fantasy'], year: 2012, episodes: 96, score: 7.0, status: 'Finished', emoji: '🗡️'),
+    AnimeModel(id: 'an30', anilistId: 20464, title: 'Haikyuu', genre: 'Sports', genres: ['Sports', 'Drama'], year: 2014, episodes: 85, score: 8.7, status: 'Finished', emoji: '🏐'),
   ];
 
-  static AnimeModel animeByTitle(String title) =>
-      animeList.firstWhere((a) => a.title == title, orElse: () => animeList.first);
-
-  static AnimeModel animeById(String id) =>
-      animeList.firstWhere((a) => a.id == id, orElse: () => animeList.first);
-
-  static const List<String> trendingThisSeason = [
-    'Frieren', 'Solo Leveling S3', 'Dandadan S2', 'Blue Box',
-    'Sakamoto Days', 'Medalist', 'Lazarus',
-  ];
+  /// The verified AniList id of the sample anime titled exactly [title], or
+  /// null. No fallback: an unknown title used to open Naruto.
+  static int? anilistIdForTitle(String? title) {
+    for (final a in animeList) {
+      if (a.title == title) return a.anilistId;
+    }
+    return null;
+  }
 
   // ─────────────────────────────────────────── POSTS (5)
   static List<PostModel> get posts => [

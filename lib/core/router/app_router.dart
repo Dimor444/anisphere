@@ -6,7 +6,6 @@ import '../../data/models/post.dart';
 import '../../features/achievements/achievements_screen.dart';
 import '../../features/ani_videos/ani_videos_screen.dart';
 import '../../features/ani_videos/upload_video_screen.dart';
-import '../../features/anime_detail/anime_detail_screen.dart';
 import '../../features/aniscan/aniscan_screen.dart';
 import '../../features/auth/onboarding_screen.dart';
 import '../../features/auth/signin_screen.dart';
@@ -99,7 +98,6 @@ final appRouter = GoRouter(
     _top('/room/:id', (c, s) => RoomDetailScreen(roomId: s.pathParameters['id']!)),
 
     // Full-screen pushed routes (over the bottom nav).
-    _top('/anime/:id', (c, s) => AnimeDetailScreen(animeId: s.pathParameters['id']!)),
     _top('/trending/anime/:id', (c, s) => TrendingDetailScreen(
           anilistId: int.tryParse(s.pathParameters['id'] ?? '') ?? 0,
           anime: s.extra is TrendingAnime ? s.extra as TrendingAnime : null,

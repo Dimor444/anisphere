@@ -8,18 +8,18 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/models/post.dart';
-import '../../data/sample_data.dart';
 import '../../services/feed_service.dart';
 import '../../services/follow_service.dart';
+import '../../services/trending_service.dart';
 import '../notifications/notifications_screen.dart';
 import '../stories/stories_row.dart';
 import '../../shared/providers/language_provider.dart';
-import '../../shared/widgets/anime_card.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
 import '../../shared/widgets/currency_pill.dart';
 import '../../shared/widgets/language_sheet.dart';
 import '../../shared/widgets/post_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/trending_anime_card.dart';
 import '../../shared/widgets/glass_app_bar.dart';
 
 class FeedScreen extends ConsumerStatefulWidget {
@@ -284,7 +284,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       return [SliverToBoxAdapter(child: _FeedMessage(icon: LucideIcons.usersRound, text: ref.tr('noPostsYet')))];
     }
 
-    // Interleave a "Trending This Season" rail into the feed.
+    // Interleave the trending rail into the feed.
     final items = <Widget>[];
     if (_popularMode) items.add(const _PopularHeader());
     for (var i = 0; i < all.length; i++) {
@@ -403,31 +403,57 @@ class _BellButton extends StatelessWidget {
   }
 }
 
-class _TrendingRail extends StatelessWidget {
+/// AniList's trending list — the one Discover's Trending tab shows, from the
+/// same hour-long cache — as a rail of real covers and names, each opening
+/// that anime's page. It used to pair a sample anime's cover with another
+/// show's name and open the sample. Hidden when the list cannot be read.
+class _TrendingRail extends StatefulWidget {
   const _TrendingRail();
+
+  @override
+  State<_TrendingRail> createState() => _TrendingRailState();
+}
+
+class _TrendingRailState extends State<_TrendingRail> {
+  late final Future<List<TrendingAnime>> _trending = TrendingService.instance.fetchTrending().catchError((Object e) {
+    debugPrint('[Feed] trending rail hidden: $e');
+    return const <TrendingAnime>[];
+  });
+
   @override
   Widget build(BuildContext context) {
-    const titles = SampleData.trendingThisSeason;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Consumer(builder: (context, ref, _) => SectionHeader(title: '🔥 ${ref.tr('trendingThisSeason')}')),
-        SizedBox(
-          height: 180,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: titles.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) {
-              // map trending label to a known anime for visuals
-              final base = SampleData.animeList[i % SampleData.animeList.length];
-              return AnimeCard(anime: base, subtitle: titles[i]);
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-      ],
+    return FutureBuilder<List<TrendingAnime>>(
+      future: _trending,
+      builder: (context, snap) {
+        final loading = snap.connectionState != ConnectionState.done;
+        final items = snap.data ?? const <TrendingAnime>[];
+        if (!loading && items.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // AniList's trending list, not this season's: long runners trend too.
+            Consumer(builder: (context, ref, _) => SectionHeader(title: '🔥 ${ref.tr('trending')}')),
+            SizedBox(
+              height: 180,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                itemCount: loading ? 4 : items.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (_, i) => SizedBox(
+                  width: 130,
+                  child: loading
+                      ? DecoratedBox(
+                          decoration:
+                              BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)))
+                      : TrendingAnimeCard(anime: items[i]),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        );
+      },
     );
   }
 }

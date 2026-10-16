@@ -510,14 +510,15 @@ class _AnimeChipState extends ConsumerState<_AnimeChip> {
     }
   }
 
-  void _openAnime() {
-    final p = widget.post;
+  /// The post's anime on AniList: its own id, or — for a post with
+  /// a title but no id, which the app's composer has never written
+  /// — the verified id of the sample anime with exactly that
+  /// title. Null means the chip does not link.
+  int? get _animeId => widget.post.anilistId ?? SampleData.anilistIdForTitle(widget.post.animeTitle);
+
+  void _openAnime(int id) {
     Haptics.light();
-    if (p.anilistId != null) {
-      context.push('/trending/anime/${p.anilistId}');
-    } else {
-      context.push('/anime/${SampleData.animeByTitle(p.animeTitle!).id}');
-    }
+    context.push('/trending/anime/$id');
   }
 
   @override
@@ -535,7 +536,7 @@ class _AnimeChipState extends ConsumerState<_AnimeChip> {
         children: [
           Flexible(
             child: GestureDetector(
-              onTap: _openAnime,
+              onTap: _animeId == null ? null : () => _openAnime(_animeId!),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

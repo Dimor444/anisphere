@@ -151,7 +151,6 @@ class _AiringCard extends ConsumerWidget {
         Haptics.light();
         // AniList-referenced entry — partial extra paints the header
         // instantly; the detail screen fetches the full record by id.
-        // Never route through '/anime/:id' (keyed to local sample data).
         context.push(
           '/trending/anime/${airing.mediaId}',
           extra: TrendingAnime(
