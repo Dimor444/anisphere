@@ -182,6 +182,18 @@ class AniVideoService {
   Stream<List<AniVideoData>> getVideoFeed({int limit = pageSize}) =>
       watchFeed(limit: limit).map((page) => page.videos);
 
+  /// [userId]'s videos, newest first — the profile's Ani Videos tab, for the
+  /// author and visitors alike (any signed-in user may read a video). Uses
+  /// the (userId, createdAt desc) index in firestore.indexes.json; without it
+  /// deployed the query fails and the tab shows its error. Unreadable videos
+  /// drop out the way they do from the feed.
+  Stream<List<AniVideoData>> watchUserVideos(String userId, {int limit = 30}) => _videos
+      .where('userId', isEqualTo: userId)
+      .orderBy('createdAt', descending: true)
+      .limit(limit)
+      .snapshots()
+      .map((snap) => _sorted(snap.docs));
+
   /// Live view of one video — null once deleted, or if it cannot be read.
   Stream<AniVideoData?> watchVideo(String videoId) =>
       _videos.doc(videoId).snapshots().map((doc) => doc.exists ? AniVideoData.tryFromDoc(doc) : null);

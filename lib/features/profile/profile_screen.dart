@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -13,10 +14,12 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
+import '../../data/models/ani_video.dart';
 import '../../data/models/post.dart';
 import '../../data/models/user.dart';
 import '../../data/models/user_model.dart';
 import '../../data/sample_data.dart';
+import '../../services/ani_video_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/dm_service.dart';
 import '../../services/feed_service.dart';
@@ -28,7 +31,6 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/post_count_provider.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/providers/user_provider.dart';
-import '../../shared/widgets/anime_cover_image.dart';
 import '../../shared/widgets/follow_button.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/level_badge.dart';
@@ -171,10 +173,23 @@ class _ProfileBody extends ConsumerWidget {
     }
 
     final handle = identity?.userName ?? '';
+    // One set of tabs for every profile, own or not, and only tabs with
+    // something real behind them: posts and videos, which any signed-in user
+    // may read. The controller's length, the bar and the views all come from
+    // this list — a length that disagreed with the bar broke this profile
+    // before (4af8812). Reviews, Lists, Fan Art and a visitor's Likes are gone:
+    // there is no review, custom-list or fan-art feature, My List is readable
+    // only by its owner, and likes from builds that predate their uid field
+    // cannot be found by user.
+    final tabs = <(String, Widget)>[
+      (ref.tr('posts'), _PostsTab(userId: uid)),
+      (ref.tr('aniVideos'), _VideosTab(userId: uid)),
+      if (isOwn && kAniStatsEnabled) ('Stats', const _StatsTab()),
+    ];
     final page = DecoratedBox(
       decoration: const BoxDecoration(gradient: AppGradients.pageBg),
       child: DefaultTabController(
-        length: isOwn ? (kAniStatsEnabled ? 6 : 5) : 3,
+        length: tabs.length,
         child: RefreshIndicator(
           color: AppColors.primary,
           backgroundColor: AppColors.surface,
@@ -218,40 +233,11 @@ class _ProfileBody extends ConsumerWidget {
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _TabBarDelegate(
-                  isOwn
-                      ? const TabBar(
-                          isScrollable: true,
-                          tabAlignment: TabAlignment.start,
-                          tabs: [
-                            Tab(text: 'Posts'), Tab(text: 'Reviews'), Tab(text: 'Lists'),
-                            Tab(text: 'Ani Videos'), Tab(text: 'Fan Art'),
-                            if (kAniStatsEnabled) Tab(text: 'Stats'),
-                          ],
-                        )
-                      : TabBar(tabs: [
-                          Tab(text: ref.tr('posts')),
-                          Tab(text: ref.tr('likes')),
-                          Tab(text: ref.tr('lists')),
-                        ]),
+                  TabBar(tabs: [for (final (label, _) in tabs) Tab(text: label)]),
                 ),
               ),
             ],
-            body: TabBarView(
-              children: isOwn
-                  ? [
-                      _PostsTab(userId: uid),
-                      const _ReviewsTab(),
-                      const _ListsTab(),
-                      const _GridTab(icon: LucideIcons.playCircle, label: 'Ani Video'),
-                      const _GridTab(icon: LucideIcons.image, label: 'Fan Art'),
-                      if (kAniStatsEnabled) const _StatsTab(),
-                    ]
-                  : [
-                      _PostsTab(userId: uid),
-                      _EmptyTab(text: ref.tr('emptyListTitle')),
-                      _EmptyTab(text: ref.tr('emptyListTitle')),
-                    ],
-            ),
+            body: TabBarView(children: [for (final (_, view) in tabs) view]),
           ),
         ),
       ),
@@ -772,7 +758,9 @@ class _PostsTab extends ConsumerWidget {
       builder: (context, snap) {
         final posts = snap.data;
         if (posts == null) return const Center(child: CircularProgressIndicator());
-        if (posts.isEmpty) return _EmptyTab(text: ref.tr('noPostsYet'));
+        // The profile's own empty state — noPostsYet is the feed's, and tells
+        // the reader to follow people.
+        if (posts.isEmpty) return _EmptyTab(text: ref.tr('profileNoPosts'));
         return ListView(
           padding: EdgeInsets.only(top: 8, bottom: AniBottomNav.scrollEndPadding(context)),
           children: posts.map((p) => PostCard(key: ValueKey(p.id), post: p)).toList(),
@@ -801,98 +789,78 @@ class _EmptyTab extends StatelessWidget {
   }
 }
 
-class _ReviewsTab extends StatelessWidget {
-  const _ReviewsTab();
+/// The player's own videos, newest first, for the author and visitors alike.
+/// Thumbnails only: a spoiler shows no picture, the way the feed covers it,
+/// and a missing or failed thumbnail shows the play icon. Not tappable — there
+/// is no route that plays one video yet, and the grid it replaces was not
+/// tappable either.
+class _VideosTab extends ConsumerWidget {
+  final String userId;
+  const _VideosTab({required this.userId});
+
   @override
-  Widget build(BuildContext context) {
-    final reviews = [
-      ('Frieren', 9.5, 'A meditation on time and memory. Peak storytelling.'),
-      ('Vinland Saga', 9.0, 'Thorfinn\'s arc from revenge to pacifism is unmatched.'),
-      ('Hunter x Hunter', 9.3, 'The Chimera Ant arc rewired my brain.'),
-    ];
-    return ListView.separated(
-      padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),
-      itemCount: reviews.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) {
-        final r = reviews[i];
-        final a = SampleData.animeByTitle(r.$1);
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(borderRadius: BorderRadius.circular(8), child: SizedBox(width: 44, height: 60, child: AnimeCoverImage(animeName: a.title, gradient: a.gradient, emoji: a.emoji, emojiSize: 22))),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Text(r.$1, style: AppTextStyles.subheading),
-                      const Spacer(),
-                      const Icon(Icons.star_rounded, color: AppColors.aniGold, size: 16),
-                      Text(' ${r.$2}', style: AppTextStyles.numbers),
-                    ]),
-                    const SizedBox(height: 4),
-                    Text(r.$3, style: AppTextStyles.bodyMuted),
-                  ],
-                ),
-              ),
-            ],
-          ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return StreamBuilder<List<AniVideoData>>(
+      stream: AniVideoService.instance.watchUserVideos(userId),
+      builder: (context, snap) {
+        if (snap.hasError) return _EmptyTab(text: ref.tr('videosLoadError'));
+        final videos = snap.data;
+        if (videos == null) return const Center(child: CircularProgressIndicator());
+        if (videos.isEmpty) return _EmptyTab(text: ref.tr('profileNoVideos'));
+        return GridView.builder(
+          padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.7),
+          itemCount: videos.length,
+          itemBuilder: (_, i) => _VideoTile(video: videos[i]),
         );
       },
     );
   }
 }
 
-class _ListsTab extends StatelessWidget {
-  const _ListsTab();
-  @override
-  Widget build(BuildContext context) {
-    final lists = [('🏆 All-Time Top 10', 10), ('😭 Made Me Cry', 6), ('⚔️ Best Fights', 14), ('🍂 Cozy Watches', 8)];
-    return ListView.separated(
-      padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),
-      itemCount: lists.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
-        child: Row(children: [
-          Text(lists[i].$1.split(' ').first, style: const TextStyle(fontSize: 24)),
-          const SizedBox(width: 12),
-          Expanded(child: Text(lists[i].$1.substring(lists[i].$1.indexOf(' ') + 1), style: AppTextStyles.subheading)),
-          Text('${lists[i].$2} anime', style: AppTextStyles.captionMuted),
-          const SizedBox(width: 8),
-          const Icon(LucideIcons.chevronRight, size: 18, color: AppColors.textMuted),
-        ]),
-      ),
-    );
-  }
-}
+const _tileShadow = Shadow(color: Colors.black87, blurRadius: 4);
 
-class _GridTab extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _GridTab({required this.icon, required this.label});
+class _VideoTile extends StatelessWidget {
+  final AniVideoData video;
+  const _VideoTile({required this.video});
+
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.7),
-      itemCount: 9,
-      itemBuilder: (_, i) {
-        final a = SampleData.animeList[(i + 3) % SampleData.animeList.length];
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Stack(fit: StackFit.expand, children: [
-            AnimeCoverImage(animeName: a.title, gradient: a.gradient, emoji: a.emoji, emojiSize: 36),
-            Positioned(left: 6, bottom: 6, child: Icon(icon, size: 16, color: Colors.white)),
+    const fallback = ColoredBox(
+      color: AppColors.surfaceAlt,
+      child: Center(child: Icon(LucideIcons.playCircle, color: AppColors.textMuted, size: 28)),
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(fit: StackFit.expand, children: [
+        if (video.isSpoiler)
+          const ColoredBox(
+            color: AppColors.surfaceAlt,
+            child: Center(child: Icon(LucideIcons.eyeOff, color: AppColors.textMuted, size: 26)),
+          )
+        else if (video.thumbnailUrl.isNotEmpty)
+          CachedNetworkImage(
+            imageUrl: video.thumbnailUrl,
+            fit: BoxFit.cover,
+            errorListener: (e) => debugPrint('[Profile] video thumbnail ${video.id} failed: $e'),
+            errorWidget: (_, __, ___) => fallback,
+          )
+        else
+          fallback,
+        Positioned(
+          left: 6,
+          bottom: 6,
+          // Shadowed: the count sits on the thumbnail, which can be bright.
+          child: Row(children: [
+            const Icon(LucideIcons.play, size: 13, color: Colors.white, shadows: [_tileShadow]),
+            const SizedBox(width: 3),
+            Text(Fmt.compact(video.viewCount),
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, shadows: [_tileShadow])),
           ]),
-        );
-      },
+        ),
+      ]),
     );
   }
 }

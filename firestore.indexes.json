@@ -9,6 +9,14 @@
       ]
     },
     {
+      "collectionGroup": "ani_videos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "news",
       "queryScope": "COLLECTION",
       "fields": [
