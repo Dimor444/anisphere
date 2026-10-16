@@ -81,15 +81,24 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
   @override
   Widget build(BuildContext context) {
     final isPlus = ref.watch(isPlusProvider);
+    // The bar, the controller's length and the views all come from this one
+    // list, so they cannot disagree — a length that did is what broke the
+    // profile once (4af8812).
+    final tabs = <(String, Widget)>[
+      ('Games', _GamesTab(gate: _gate)),
+      ('True Fan', _TrueFanTab(gate: _gate, remaining: _remaining)),
+      if (kChallengeLeagueEnabled) ('League', const _LeagueTab()),
+      if (kChallengeEventsEnabled) ('Events', const _EventsTab()),
+    ];
     return DefaultTabController(
-      length: 4,
+      length: tabs.length,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Challenges'),
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            tabs: [Tab(text: 'Games'), Tab(text: 'True Fan'), Tab(text: 'League'), Tab(text: 'Events')],
+            tabs: [for (final (label, _) in tabs) Tab(text: label)],
           ),
         ),
         body: Column(
@@ -107,12 +116,7 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
               ),
             ),
             Expanded(
-              child: TabBarView(children: [
-                _GamesTab(gate: _gate),
-                _TrueFanTab(gate: _gate, remaining: _remaining),
-                const _LeagueTab(),
-                const _EventsTab(),
-              ]),
+              child: TabBarView(children: [for (final (_, view) in tabs) view]),
             ),
           ],
         ),
@@ -202,7 +206,9 @@ class _GamesTab extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(color: Colors.black.withOpacity(0.4), borderRadius: BorderRadius.circular(20)),
-                            child: Text('▶ Play  ·  +${g.reward}🟡', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                            // No "+N🟡": nothing records a game result, so nothing
+                            // pays it — see QuizScreen._finish.
+                            child: const Text('▶ Play', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
                           ),
                         ],
                       ),
@@ -1042,6 +1048,24 @@ class _SelectedAnime {
 }
 
 // ───────────────────────── LEAGUE
+/// Whether Challenges has a League tab.
+///
+/// Nothing on it was real. "Spring Season · Ends in 12d 4h" never moved;
+/// "Gold III", 1,980 LP, "320 to Platinum" and a bar at 72% were the same for
+/// everyone, as was Gold highlighted in the tier strip; the "Earn LP" chips
+/// (+100 True Fan 10/10, +20 daily login, +50 a win, +150 a 7-day streak)
+/// were paid by nothing; the Top 10 was six sample people with KazeNoYuki at
+/// #5; and the Weekly Tournament "starts Saturday" with a 500🟡 prize every
+/// week. No LP field, league, season or tier exists anywhere — not in a
+/// model, a service, a function or a rule.
+///
+/// Coming back needs: LP granted server-side for actions the server can
+/// verify (a True Fan pass is recorded; a "win" or a login streak would need
+/// to be), a season with stored start and end dates, tiers computed from LP,
+/// and a leaderboard of real players — plus a tournament that exists before
+/// it is advertised. The tab is kept, not deleted.
+const bool kChallengeLeagueEnabled = false;
+
 class _LeagueTab extends StatelessWidget {
   const _LeagueTab();
   @override
@@ -1151,6 +1175,19 @@ class _LpChip extends StatelessWidget {
 }
 
 // ───────────────────────── EVENTS
+/// Whether Challenges has an Events tab.
+///
+/// Nothing on it was real either. The 30-Day Challenge read "Day 12/30" with
+/// its first two tasks ticked for everyone; the Community Raid stood at
+/// 684,201 of 1,000,000 episodes with "2d 6h left" and never moved; and the
+/// Upcoming Events were fixed dates — Apr 14, Apr 20, May 1 — long past. No
+/// challenge progress, raid counter or event is stored anywhere.
+///
+/// Coming back needs: per-player challenge progress written as the tasks
+/// happen, a raid total fed by real counted activity with a stored deadline,
+/// and an events calendar with real dates. The tab is kept, not deleted.
+const bool kChallengeEventsEnabled = false;
+
 class _EventsTab extends StatelessWidget {
   const _EventsTab();
   @override
