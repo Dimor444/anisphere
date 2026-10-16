@@ -16,6 +16,13 @@ class AppStrings {
 
   static const Map<String, Map<String, String>> values = {
     'en': {
+      // ── Onboarding slides ──
+      'onbTitle1': 'One World, Every Anime',
+      'onbBody1': 'Follow, post, and react with fellow fans. Your feed, your fandom.',
+      'onbTitle2': "Prove You're a True Fan",
+      'onbBody2': 'Play anime quizzes, race the True Fan leaderboard, and earn AniGold with your daily spin.',
+      'onbTitle3': 'Find Your People',
+      'onbBody3': 'Search fans by handle, follow them, and message them directly.',
       // Observatory — real-data rebuild. No plurals: t() has no plural
       // support, so the count is always rendered separately from its label.
       'observatoryCommunity': 'Community',
@@ -344,6 +351,13 @@ class AppStrings {
       'seasonSummer': 'Summer', 'seasonFall': 'Fall',
     },
     'ar': {
+      // ── Onboarding slides ──
+      'onbTitle1': 'عالم واحد، كل الأنمي',
+      'onbBody1': 'تابِع وانشر وتفاعل مع معجبين مثلك. خلاصتك، ومجتمعك.',
+      'onbTitle2': 'أثبت أنك معجب حقيقي',
+      'onbBody2': 'العب اختبارات الأنمي، وتسابق على لوحة صدارة True Fan، واكسب AniGold من عجلة الحظ اليومية.',
+      'onbTitle3': 'اعثر على رفاقك',
+      'onbBody3': 'ابحث عن المعجبين باسم المستخدم، وتابعهم، وراسلهم مباشرة.',
       // Observatory — real-data rebuild. No plurals: t() has no plural
       // support, so the count is always rendered separately from its label.
       'observatoryCommunity': 'المجتمع',
@@ -655,6 +669,13 @@ class AppStrings {
       'seasonSummer': 'الصيف', 'seasonFall': 'الخريف',
     },
     'ja': {
+      // ── Onboarding slides ──
+      'onbTitle1': 'ひとつの世界、すべてのアニメ',
+      'onbBody1': 'ファン仲間をフォローして、投稿して、リアクションしよう。あなたのフィード、あなたのファンダム。',
+      'onbTitle2': '真のファンだと証明しよう',
+      'onbBody2': 'アニメクイズに挑戦し、True Fanランキングで速さを競い、毎日のスピンでAniGoldをゲットしよう。',
+      'onbTitle3': '仲間を見つけよう',
+      'onbBody3': 'ユーザー名でファンを検索して、フォローして、直接メッセージを送ろう。',
       // Observatory — real-data rebuild. No plurals: t() has no plural
       // support, so the count is always rendered separately from its label.
       'observatoryCommunity': 'コミュニティ',
@@ -817,6 +838,13 @@ class AppStrings {
       'seasonWinter': '冬', 'seasonSpring': '春', 'seasonSummer': '夏', 'seasonFall': '秋',
     },
     'ko': {
+      // ── Onboarding slides ──
+      'onbTitle1': '하나의 세계, 모든 애니',
+      'onbBody1': '다른 팬들을 팔로우하고, 게시하고, 반응해 보세요. 나만의 피드, 나만의 팬덤.',
+      'onbTitle2': '진정한 팬임을 증명하세요',
+      'onbBody2': '애니 퀴즈를 풀고, True Fan 리더보드에서 속도를 겨루고, 매일 룰렛으로 AniGold를 받으세요.',
+      'onbTitle3': '함께할 팬을 찾아보세요',
+      'onbBody3': '사용자 이름으로 팬을 검색하고, 팔로우하고, 바로 메시지를 보내세요.',
       // Observatory — real-data rebuild. No plurals: t() has no plural
       // support, so the count is always rendered separately from its label.
       'observatoryCommunity': '커뮤니티',
@@ -979,6 +1007,13 @@ class AppStrings {
       'seasonWinter': '겨울', 'seasonSpring': '봄', 'seasonSummer': '여름', 'seasonFall': '가을',
     },
     'es': {
+      // ── Onboarding slides ──
+      'onbTitle1': 'Un mundo, todo el anime',
+      'onbBody1': 'Sigue, publica y reacciona con otros fans. Tu feed, tu fandom.',
+      'onbTitle2': 'Demuestra que eres un verdadero fan',
+      'onbBody2': 'Juega a quizzes de anime, compite en la clasificación de True Fan y gana AniGold con tu giro diario.',
+      'onbTitle3': 'Encuentra a tu gente',
+      'onbBody3': 'Busca fans por su nombre de usuario, síguelos y escríbeles directamente.',
       // Observatory — real-data rebuild. No plurals: t() has no plural
       // support, so the count is always rendered separately from its label.
       'observatoryCommunity': 'Comunidad',
@@ -1142,6 +1177,13 @@ class AppStrings {
       'seasonSummer': 'Verano', 'seasonFall': 'Otoño',
     },
     'fr': {
+      // ── Onboarding slides ──
+      'onbTitle1': 'Un monde, tous les animes',
+      'onbBody1': "Suis, publie et réagis avec d'autres fans. Ton fil, ton fandom.",
+      'onbTitle2': 'Prouve que tu es un vrai fan',
+      'onbBody2': "Joue à des quiz d'anime, grimpe au classement True Fan et gagne de l'AniGold avec ton tour de roue quotidien.",
+      'onbTitle3': 'Trouve ta communauté',
+      'onbBody3': 'Cherche des fans par pseudo, suis-les et écris-leur directement.',
       // Observatory — real-data rebuild. No plurals: t() has no plural
       // support, so the count is always rendered separately from its label.
       'observatoryCommunity': 'Communauté',
@@ -1305,6 +1347,13 @@ class AppStrings {
       'seasonSummer': 'Été', 'seasonFall': 'Automne',
     },
     'tr': {
+      // ── Onboarding slides ──
+      'onbTitle1': 'Tek Dünya, Tüm Animeler',
+      'onbBody1': 'Diğer hayranları takip et, paylaş ve tepki ver. Senin akışın, senin fandomun.',
+      'onbTitle2': 'Gerçek Bir Hayran Olduğunu Kanıtla',
+      'onbBody2': 'Anime testleri çöz, True Fan sıralamasında yarış ve günlük çarkla AniGold kazan.',
+      'onbTitle3': 'Topluluğunu Bul',
+      'onbBody3': 'Hayranları kullanıcı adıyla ara, takip et ve doğrudan mesaj gönder.',
       // Observatory — real-data rebuild. No plurals: t() has no plural
       // support, so the count is always rendered separately from its label.
       'observatoryCommunity': 'Topluluk',
@@ -1468,6 +1517,13 @@ class AppStrings {
       'seasonSummer': 'Yaz', 'seasonFall': 'Sonbahar',
     },
     'id': {
+      // ── Onboarding slides ──
+      'onbTitle1': 'Satu Dunia, Semua Anime',
+      'onbBody1': 'Ikuti, posting, dan beri reaksi bersama sesama penggemar. Feed-mu, fandom-mu.',
+      'onbTitle2': 'Buktikan Kamu Penggemar Sejati',
+      'onbBody2': 'Main kuis anime, berlomba di papan peringkat True Fan, dan dapatkan AniGold dari putaran harianmu.',
+      'onbTitle3': 'Temukan Kawan Sesama Fan',
+      'onbBody3': 'Cari penggemar lewat nama pengguna, ikuti mereka, dan kirim pesan langsung.',
       // Observatory — real-data rebuild. No plurals: t() has no plural
       // support, so the count is always rendered separately from its label.
       'observatoryCommunity': 'Komunitas',

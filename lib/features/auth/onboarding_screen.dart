@@ -24,25 +24,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // Each slide's art is drawn in code — flat brand-green shapes, nothing
   // bundled or fetched, so nothing on the first screens belongs to anyone else.
+  //
+  // Each slide promises only what the app does today, since it is the first
+  // thing anyone sees: following, posts and likes; the quizzes, the True Fan
+  // leaderboard and the daily spin (the one way a quiz player earns AniGold —
+  // quizzes pay none); user search, follows and direct messages. Not the
+  // League or AniMatch, which are hidden, and not "millions of fans".
   static const _pages = [
-    _OnbData(
-      'One World, Every Anime',
-      'Follow, post, and react with millions of fans. Your feed, your fandom.',
-      AppColors.primaryDark,
-      _OrbitArt(),
-    ),
-    _OnbData(
-      'Prove You\'re a True Fan',
-      'Compete in quizzes, climb the League, and earn AniGold for what you love.',
-      AniSphereBrand.blue,
-      _ClimbArt(),
-    ),
-    _OnbData(
-      'Find Your Anime Soulmate',
-      'AniMatch connects you with people who share your exact taste.',
-      AniSphereBrand.indigo,
-      _MatchArt(),
-    ),
+    _OnbData('onbTitle1', 'onbBody1', AppColors.primaryDark, _OrbitArt()),
+    _OnbData('onbTitle2', 'onbBody2', AniSphereBrand.blue, _ClimbArt()),
+    _OnbData('onbTitle3', 'onbBody3', AniSphereBrand.indigo, _MatchArt()),
   ];
 
   @override
@@ -155,18 +146,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 }
 
 class _OnbData {
-  final String title;
-  final String sub;
+  final String titleKey; // AppStrings keys: the slides are translated
+  final String subKey;
   final Color background;
   final CustomPainter art;
-  const _OnbData(this.title, this.sub, this.background, this.art);
+  const _OnbData(this.titleKey, this.subKey, this.background, this.art);
 }
 
-class _OnbPage extends StatelessWidget {
+class _OnbPage extends ConsumerWidget {
   final _OnbData data;
   const _OnbPage({required this.data});
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 36, 24, 16),
       child: Column(
@@ -183,9 +174,9 @@ class _OnbPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30),
-          Text(data.title, style: AppTextStyles.display, textAlign: TextAlign.center),
+          Text(ref.tr(data.titleKey), style: AppTextStyles.display, textAlign: TextAlign.center),
           const SizedBox(height: 12),
-          Text(data.sub, style: AppTextStyles.bodyMuted, textAlign: TextAlign.center),
+          Text(ref.tr(data.subKey), style: AppTextStyles.bodyMuted, textAlign: TextAlign.center),
         ],
       ),
     );

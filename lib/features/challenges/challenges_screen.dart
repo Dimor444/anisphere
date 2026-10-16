@@ -207,8 +207,10 @@ class _GamesTab extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(color: Colors.black.withOpacity(0.4), borderRadius: BorderRadius.circular(20)),
                             // No "+N🟡": nothing records a game result, so nothing
-                            // pays it — see QuizScreen._finish.
-                            child: const Text('▶ Play', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                            // pays it — see QuizScreen._finish. A game with no
+                            // questions to load says so before it is tapped.
+                            child: Text(g.loader == null ? 'Coming soon' : '▶ Play',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
                           ),
                         ],
                       ),

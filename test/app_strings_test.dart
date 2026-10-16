@@ -21,4 +21,17 @@ void main() {
     }
     expect(stale, isEmpty);
   });
+
+  // The onboarding slides are the first thing anyone sees, and they once
+  // promised a League and AniMatch the app does not show. Every language
+  // carries every slide.
+  test('every language has all six onboarding slide strings', () {
+    const keys = ['onbTitle1', 'onbBody1', 'onbTitle2', 'onbBody2', 'onbTitle3', 'onbBody3'];
+    final missing = <String>[
+      for (final MapEntry(key: lang, value: strings) in AppStrings.values.entries)
+        for (final k in keys)
+          if ((strings[k] ?? '').trim().isEmpty) '$lang.$k',
+    ];
+    expect(missing, isEmpty);
+  });
 }
