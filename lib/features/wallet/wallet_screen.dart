@@ -151,8 +151,17 @@ class _LuckySpin extends ConsumerStatefulWidget {
 
 class _LuckySpinState extends ConsumerState<_LuckySpin>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 3200));
+  // Created in initState, not lazily: a lazy controller nobody spun was first
+  // built in dispose(), where creating its ticker looks up an ancestor of a
+  // deactivated element — an error every time someone left the wallet
+  // without spinning.
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200));
+  }
   /// Where the wheel is resting. State, not a build-local, so the rebuild
   /// that todaySpinProvider triggers when the spin record lands leaves the
   /// wheel where it stopped instead of snapping it back to zero.
