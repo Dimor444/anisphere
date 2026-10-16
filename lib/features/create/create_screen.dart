@@ -9,6 +9,15 @@ import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/glass_modals.dart';
 
+/// Whether the create sheet offers Go Live.
+///
+/// Nothing streams. The option was locked behind 1K followers or AniPlus — a
+/// paywall for a plan nobody can buy, for nearly everyone — and once
+/// unlocked it showed "Going live… 🔴" and did nothing else. Coming back
+/// needs live streaming: an ingest and playback service, a live-room record
+/// viewers can find, and moderation for it.
+const bool kGoLiveEnabled = false;
+
 /// The center "+" FAB action sheet.
 void showCreateSheet(BuildContext context) {
   showGlassSheet(
@@ -48,22 +57,24 @@ class _CreateSheet extends ConsumerWidget {
               close();
               _toast(context, 'Story camera opening…');
             }),
-            _option(
-              context,
-              '🔴',
-              'Go Live',
-              liveLocked ? 'Unlocks at 1K followers or AniPlus' : 'Start a live stream',
-              () {
-                if (liveLocked) {
-                  close();
-                  showAniPlusPaywall(context, 'Go Live');
-                } else {
-                  close();
-                  _toast(context, 'Going live… 🔴');
-                }
-              },
-              locked: liveLocked,
-            ),
+            // Hidden with kGoLiveEnabled.
+            if (kGoLiveEnabled)
+              _option(
+                context,
+                '🔴',
+                'Go Live',
+                liveLocked ? 'Unlocks at 1K followers or AniPlus' : 'Start a live stream',
+                () {
+                  if (liveLocked) {
+                    close();
+                    showAniPlusPaywall(context, 'Go Live');
+                  } else {
+                    close();
+                    _toast(context, 'Going live… 🔴');
+                  }
+                },
+                locked: liveLocked,
+              ),
           ],
         ),
       ),

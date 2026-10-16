@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/purchases.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -91,10 +92,12 @@ class AppDrawer extends ConsumerWidget {
                           const AniGoldIcon(size: BadgeSize.sm),
                           const SizedBox(width: 4),
                           Text(Fmt.balance(me?.aniGold), style: AppTextStyles.numbers),
-                          const SizedBox(width: 14),
-                          const AniGemIcon(size: BadgeSize.sm),
-                          const SizedBox(width: 4),
-                          Text(Fmt.balance(me?.aniGem), style: AppTextStyles.numbers),
+                          if (kAniGemsEnabled) ...[
+                            const SizedBox(width: 14),
+                            const AniGemIcon(size: BadgeSize.sm),
+                            const SizedBox(width: 4),
+                            Text(Fmt.balance(me?.aniGem), style: AppTextStyles.numbers),
+                          ],
                         ],
                       ),
                     ],
@@ -125,16 +128,9 @@ class AppDrawer extends ConsumerWidget {
                     ],
                   ),
                 ),
-                if (!(me?.isPlus ?? false))
-                  Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: GradientButton(
-                      label: 'Upgrade to AniPlus 💎',
-                      icon: LucideIcons.sparkles,
-                      onPressed: () => go('/wallet?tab=plus'),
-                    ),
-                  )
-                else
+                // A Plus account sees its badge. Anyone else would see an upgrade to
+                // a plan nobody can buy — a dead end; see kAniPlusForSale.
+                if (me?.isPlus ?? false)
                   Padding(
                     padding: const EdgeInsets.all(14),
                     child: Container(
@@ -146,6 +142,15 @@ class AppDrawer extends ConsumerWidget {
                       ),
                       child: Text('💎 AniPlus active',
                           style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontWeight: FontWeight.w700)),
+                    ),
+                  )
+                else if (kAniPlusForSale)
+                  Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: GradientButton(
+                      label: 'Upgrade to AniPlus 💎',
+                      icon: LucideIcons.sparkles,
+                      onPressed: () => go('/wallet?tab=plus'),
                     ),
                   ),
               ],

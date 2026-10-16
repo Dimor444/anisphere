@@ -23,6 +23,7 @@ import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/verified_badge.dart';
 import '../profile/card_collection_screen.dart';
 import '../../shared/widgets/glass_modals.dart';
+import '../../core/constants/purchases.dart';
 
 class WalletScreen extends ConsumerWidget {
   final String? initialTab;
@@ -35,19 +36,21 @@ class WalletScreen extends ConsumerWidget {
     // through the spendGold callable and the spin wheel grants nothing, so
     // currencyProvider is not imported here at all.
     final me = myIdentity(ref);
-    final initial = switch (initialTab) {
-      'spend' => 1,
-      'recharge' => 2,
-      'plus' => 3,
-      _ => 0,
-    };
-    // FIVE tabs, and five things move together: this length, the tabs list,
-    // the TabBarView children, and the initialTab switch above. A length that
-    // disagrees with the tab count is the assertion that bit the profile
-    // header — the new tab is APPENDED so every existing index keeps its
-    // meaning and that switch needs no edit.
+    // The bar, the controller's length, the views and the ?tab= lookup all
+    // come from this one list, so none can disagree with another — a length
+    // that disagreed is what broke the profile header. Recharge and AniPlus
+    // sold what could not be bought; see core/constants/purchases.dart.
+    final tabs = <(String, String, Widget)>[
+      ('earn', 'Earn', const _EarnTab()),
+      ('spend', 'Spend', const _SpendTab()),
+      if (kAniGemsEnabled) ('recharge', 'Recharge', const _RechargeTab()),
+      if (kAniPlusForSale) ('plus', '💎 AniPlus', const _PlusTab()),
+      ('items', 'My Items', const _MyItemsTab()),
+    ];
+    // A link to a hidden tab opens the first one.
+    final initial = tabs.indexWhere((t) => t.$1 == initialTab).clamp(0, tabs.length - 1);
     return DefaultTabController(
-      length: 5,
+      length: tabs.length,
       initialIndex: initial,
       child: Scaffold(
         appBar: AppBar(
@@ -59,28 +62,22 @@ class WalletScreen extends ConsumerWidget {
                 const AniGoldIcon(size: BadgeSize.lg),
                 const SizedBox(width: 5),
                 Text(Fmt.balance(me?.aniGold), style: AppTextStyles.numbersLg()),
-                const SizedBox(width: 14),
-                const AniGemIcon(size: BadgeSize.md),
-                const SizedBox(width: 5),
-                Text(Fmt.balance(me?.aniGem), style: AppTextStyles.numbersLg()),
+                if (kAniGemsEnabled) ...[
+                  const SizedBox(width: 14),
+                  const AniGemIcon(size: BadgeSize.md),
+                  const SizedBox(width: 5),
+                  Text(Fmt.balance(me?.aniGem), style: AppTextStyles.numbersLg()),
+                ],
               ]),
             ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            tabs: [
-              Tab(text: 'Earn'),
-              Tab(text: 'Spend'),
-              Tab(text: 'Recharge'),
-              Tab(text: '💎 AniPlus'),
-              Tab(text: 'My Items'),
-            ],
+            tabs: [for (final (_, label, _) in tabs) Tab(text: label)],
           ),
         ),
-        body: const TabBarView(
-          children: [_EarnTab(), _SpendTab(), _RechargeTab(), _PlusTab(), _MyItemsTab()],
-        ),
+        body: TabBarView(children: [for (final (_, _, view) in tabs) view]),
       ),
     );
   }

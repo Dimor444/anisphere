@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/purchases.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
@@ -41,8 +42,11 @@ class CurrencyBar extends ConsumerWidget {
         children: [
           _Pill(icon: const AniGoldIcon(size: BadgeSize.sm), value: Fmt.balance(me?.aniGold)),
           const SizedBox(width: 10),
-          _Pill(icon: const AniGemIcon(size: BadgeSize.sm), value: Fmt.balance(me?.aniGem)),
-          const SizedBox(width: 10),
+          // Nothing grants a gem, so it would always read 0; see kAniGemsEnabled.
+          if (kAniGemsEnabled) ...[
+            _Pill(icon: const AniGemIcon(size: BadgeSize.sm), value: Fmt.balance(me?.aniGem)),
+            const SizedBox(width: 10),
+          ],
           _Pill(
             icon: const Text('🔥', style: TextStyle(fontSize: 14)),
             // "1 days" was reachable the moment this read a real value — a

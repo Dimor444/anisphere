@@ -7,9 +7,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../services/auth_service.dart';
-import '../../shared/providers/identity_provider.dart';
 import '../../shared/providers/language_provider.dart';
-import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/glass_modals.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -25,7 +23,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _private = false;
   bool _showStreak = true;
   bool _showRank = true;
-  bool _spoilerShield = true;
   /// Stored as a stable code; the label is resolved at render time.
   String _dmWho = 'everyone';
   String _birthdayVis = 'Friends';
@@ -108,11 +105,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // The LIVE users/{uid} doc, not the SampleData mirror. isPlus is
-    // server-managed (nothing client-side can grant it), so this reads false
-    // for everyone today — but it reads the real field, so the gate starts
-    // working the moment a subscription can set it.
-    final isPlus = myIdentity(ref)?.isPlus ?? false;
     final lang = ref.watch(languageProvider).code;
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -134,13 +126,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _switchTile('Show streak', _showStreak, (v) => setState(() => _showStreak = v)),
           _switchTile('Show True Fan rank', _showRank, (v) => setState(() => _showRank = v)),
           _choiceTile('Birthday visibility', _birthdayVis, ['Public', 'Friends', 'Private'], (v) => setState(() => _birthdayVis = v)),
-          _switchTile('Spoiler Shield 💎', _spoilerShield, (v) {
-            if (!isPlus) {
-              showAniPlusPaywall(context, 'Spoiler Shield');
-            } else {
-              setState(() => _spoilerShield = v);
-            }
-          }),
+          // Spoiler Shield stood here, switched on: nothing read it, so it
+          // shielded nothing, and everyone without Plus — everyone — was sent
+          // to a paywall for a plan nobody can buy. Spoilers are covered where
+          // they are marked (posts and videos), for everyone.
 
           // The Notifications section stood here: five toggles and a sound
           // picker with an animated waveform. firebase_messaging is not a

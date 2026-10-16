@@ -16,6 +16,7 @@ import '../../services/community_vote_service.dart';
 import '../../services/trending_service.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/providers/identity_provider.dart';
+import '../../core/constants/purchases.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
@@ -237,7 +238,9 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
               style: AppTextStyles.label,
             ),
           ),
-          if (!isPlus)
+          // Plus vote slots are real (the rules grant them); the link to buy
+          // them is not, while nothing sells Plus — see kAniPlusForSale.
+          if (!isPlus && kAniPlusForSale)
             GestureDetector(
               onTap: () {
                 Haptics.light();
