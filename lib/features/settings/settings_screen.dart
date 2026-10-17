@@ -17,16 +17,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  // NOTE: every field below is screen-local and resets when this route is
-  // popped — nothing reads them and nothing persists them. They are kept
-  // pending a decision on what each should actually write; see the audit.
-  bool _private = false;
-  bool _showStreak = true;
-  bool _showRank = true;
-  /// Stored as a stable code; the label is resolved at render time.
-  String _dmWho = 'everyone';
-  String _birthdayVis = 'Friends';
-
   /// Guards the logout button while the sign-out is in flight.
   bool _loggingOut = false;
 
@@ -119,13 +109,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // paywall for everyone else, so no branch reached a theme picker.
           // A chevron that does nothing is worse than an absent row.
 
-          _section('Privacy'),
-          _switchTile('Private account', _private, (v) => setState(() => _private = v)),
-          _choiceTile(ref.tr('whoCanDM'), _dmWho, const ['everyone', 'friends'],
-              (v) => setState(() => _dmWho = v), labelFor: ref.tr),
-          _switchTile('Show streak', _showStreak, (v) => setState(() => _showStreak = v)),
-          _switchTile('Show True Fan rank', _showRank, (v) => setState(() => _showRank = v)),
-          _choiceTile('Birthday visibility', _birthdayVis, ['Public', 'Friends', 'Private'], (v) => setState(() => _birthdayVis = v)),
+          // The Privacy section stood here: Private account, Who can DM, Show
+          // streak, Show True Fan rank and Birthday visibility. All five lived
+          // in this screen's state and reset when it closed; nothing saved or
+          // read them. So "Private account" told a player their account was
+          // private while their posts, videos, follows and profile stayed
+          // readable by anyone signed in. A privacy control that does nothing
+          // must not be shown. Coming back needs enforcement in the rules, not
+          // a client check:
+          //  - Private account: users/{uid}.isPrivate is still on the doc and
+          //    read by nothing. It needs read rules on posts, ani_videos,
+          //    stories and the profile that admit only approved followers, and
+          //    follow requests instead of follows.
+          //  - Who can DM: a stored choice the conversation create rule
+          //    checks; "friends" would mean testing both follow docs there.
+          //  - Show streak: currentStreak is on the user doc, which everyone
+          //    signed in can read, and rules cannot hide one field of a doc —
+          //    it would have to move to a doc with its own read rule.
+          //  - Show True Fan rank: a stored choice the trueFanScores read rule
+          //    enforces, so the leaderboard cannot read a hidden score.
+          //  - Birthday visibility: a birthday. The app stores none.
+          // Block List stays under More: it works, and it is a chat block —
+          // the rules refuse messages in a blocked conversation — not a
+          // profile one, which a Privacy heading would suggest.
+
           // Spoiler Shield stood here, switched on: nothing read it, so it
           // shielded nothing, and everyone without Plus — everyone — was sent
           // to a paywall for a plan nobody can buy. Spoilers are covered where
@@ -209,37 +216,4 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         onTap: onTap,
       );
 
-  Widget _switchTile(String label, bool value, ValueChanged<bool> onChanged) => SwitchListTile(
-        title: Text(label, style: AppTextStyles.body),
-        value: value,
-        onChanged: (v) {
-          Haptics.light();
-          onChanged(v);
-        },
-        activeColor: Colors.white,
-        activeTrackColor: AppColors.primary,
-      );
-
-  /// [labelFor] maps an option's stored value to its display text; omit it
-  /// when the value IS the label (the untranslated tiles).
-  Widget _choiceTile(String label, String value, List<String> options, ValueChanged<String> onChanged,
-          {String Function(String)? labelFor}) =>
-      ListTile(
-        title: Text(label, style: AppTextStyles.body),
-        trailing: DropdownButton<String>(
-          value: value,
-          underline: const SizedBox.shrink(),
-          dropdownColor: AppColors.surfaceAlt,
-          style: AppTextStyles.caption.copyWith(color: AppColors.primaryLight),
-          items: options
-              .map((o) => DropdownMenuItem(value: o, child: Text(labelFor?.call(o) ?? o)))
-              .toList(),
-          onChanged: (v) {
-            if (v != null) {
-              Haptics.select();
-              onChanged(v);
-            }
-          },
-        ),
-      );
 }

@@ -8,6 +8,7 @@ import '../../core/utils/haptics.dart';
 import '../../shared/providers/identity_provider.dart';
 import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/glass_modals.dart';
+import '../stories/story_upload_sheet.dart';
 
 /// Whether the create sheet offers Go Live.
 ///
@@ -22,12 +23,16 @@ const bool kGoLiveEnabled = false;
 void showCreateSheet(BuildContext context) {
   showGlassSheet(
     context: context,
-    builder: (_) => const _CreateSheet(),
+    builder: (_) => _CreateSheet(host: context),
   );
 }
 
 class _CreateSheet extends ConsumerWidget {
-  const _CreateSheet();
+  /// The context that opened the sheet — the bottom bar's screen. The story
+  /// flow waits on a source, a photo and the editor, and stops if its
+  /// context has gone; the sheet's own goes as soon as the sheet closes.
+  final BuildContext host;
+  const _CreateSheet({required this.host});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,7 +60,8 @@ class _CreateSheet extends ConsumerWidget {
             }),
             _option(context, '⭕', 'Add Story', '24-hour story', () {
               close();
-              _toast(context, 'Story camera opening…');
+              // The feed's Add Story flow: source, photo, editor, upload.
+              startStoryUpload(host, ref);
             }),
             // Hidden with kGoLiveEnabled.
             if (kGoLiveEnabled)
