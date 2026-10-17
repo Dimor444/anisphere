@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 /// The header slice of the signed-in user's `users/{uid}` profile doc.
 ///
@@ -35,20 +36,35 @@ class UserProfile {
     this.createdAt,
   });
 
-  factory UserProfile.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final d = doc.data() ?? const <String, dynamic>{};
-    final display = (d['displayName'] as String?)?.trim() ?? '';
-    final userName = (d['userName'] as String?)?.trim() ?? '';
-    final avatar = (d['userAvatar'] as String?)?.trim() ?? '';
+  factory UserProfile.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) =>
+      UserProfile.fromMap(doc.id, doc.data() ?? const <String, dynamic>{});
+
+  /// A field of another type than [UserData.toMap] writes reads as absent
+  /// and is logged, as in [UserData.fromMap] and for the same reason: the
+  /// profile header must not fail on a profile stored before the rules
+  /// checked types.
+  @visibleForTesting
+  factory UserProfile.fromMap(String id, Map<String, dynamic> d) {
+    T? read<T>(String key) {
+      final v = d[key];
+      if (v == null || v is T) return v as T?;
+      debugPrint('[UserProfile] users/$id: $key is ${v.runtimeType}, not $T — read as unset');
+      return null;
+    }
+
+    final streak = read<num>('currentStreak');
+    final display = read<String>('displayName')?.trim() ?? '';
+    final userName = read<String>('userName')?.trim() ?? '';
+    final avatar = read<String>('userAvatar')?.trim() ?? '';
     return UserProfile(
       displayName: display.isNotEmpty ? display : userName,
       userName: userName,
-      bio: d['bio'] as String? ?? '',
+      bio: read<String>('bio') ?? '',
       avatarUrl: avatar.isEmpty ? null : avatar,
-      isVerified: d['isVerified'] as bool? ?? false,
-      currentStreak: (d['currentStreak'] as num?)?.toInt() ?? 0,
-      lastActiveDay: d['lastActiveDay'] as String? ?? '',
-      createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+      isVerified: read<bool>('isVerified') ?? false,
+      currentStreak: streak != null && streak.isFinite ? streak.toInt() : 0,
+      lastActiveDay: read<String>('lastActiveDay') ?? '',
+      createdAt: read<Timestamp>('createdAt')?.toDate(),
     );
   }
 

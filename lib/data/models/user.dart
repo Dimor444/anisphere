@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 /// A user's public profile, stored at `users/{userId}`.
 ///
@@ -116,43 +117,73 @@ class UserData {
     this.firstAnimeId,
   }) : userNameLower = userNameLower ?? '';
 
-  factory UserData.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final d = doc.data() ?? const <String, dynamic>{};
-    final name = d['userName'] as String? ?? '';
+  factory UserData.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) =>
+      UserData.fromMap(doc.id, doc.data() ?? const <String, dynamic>{});
+
+  /// Reads a stored profile. A field holding a value of another type than
+  /// [toMap] writes reads as absent — its default — and is logged.
+  ///
+  /// The rules check the types of displayName, userAvatar, isPrivate and
+  /// createdAt only from 2026-10-17; before that a profile could hold text
+  /// in isPrivate, and the cast that read it threw. A reader that throws on
+  /// one profile fails every list it arrives in — follow suggestions, user
+  /// search — so nothing here throws. Unlike a video, a profile is not
+  /// dropped whole: it is its owner's name on everything they posted, so a
+  /// bad field costs that field, not the person.
+  @visibleForTesting
+  factory UserData.fromMap(String id, Map<String, dynamic> d) {
+    T? read<T>(String key) {
+      final v = d[key];
+      if (v == null || v is T) return v as T?;
+      debugPrint('[UserData] users/$id: $key is ${v.runtimeType}, not $T — read as unset');
+      return null;
+    }
+
+    // num, not int: a number stored as a double still reads. NaN and the
+    // infinities read as unset — toInt() throws on them.
+    int? readInt(String key) {
+      final v = read<num>(key);
+      if (v == null || v.isFinite) return v?.toInt();
+      debugPrint('[UserData] users/$id: $key is $v — read as unset');
+      return null;
+    }
+
+    final name = read<String>('userName') ?? '';
     return UserData(
-      id: doc.id,
+      id: id,
       userName: name,
-      userNameLower: d['userNameLower'] as String? ?? name.toLowerCase(),
-      displayName: d['displayName'] as String? ?? '',
-      userAvatar: d['userAvatar'] as String? ?? '',
-      bio: d['bio'] as String? ?? '',
-      isVerified: d['isVerified'] as bool? ?? false,
-      isPlus: d['isPlus'] as bool? ?? false,
-      countryCode: d['countryCode'] as String? ?? '',
-      followerCount: (d['followerCount'] as num?)?.toInt() ?? 0,
-      followingCount: (d['followingCount'] as num?)?.toInt() ?? 0,
-      postsCount: (d['postsCount'] as num?)?.toInt() ?? 0,
-      isPrivate: d['isPrivate'] as bool? ?? false,
-      currentStreak: (d['currentStreak'] as num?)?.toInt() ?? 0,
-      longestStreak: (d['longestStreak'] as num?)?.toInt() ?? 0,
-      lastActiveDay: d['lastActiveDay'] as String? ?? '',
-      aniGold: (d['aniGold'] as num?)?.toInt() ?? 0,
-      aniGem: (d['aniGem'] as num?)?.toInt() ?? 0,
+      userNameLower: read<String>('userNameLower') ?? name.toLowerCase(),
+      displayName: read<String>('displayName') ?? '',
+      userAvatar: read<String>('userAvatar') ?? '',
+      bio: read<String>('bio') ?? '',
+      isVerified: read<bool>('isVerified') ?? false,
+      isPlus: read<bool>('isPlus') ?? false,
+      countryCode: read<String>('countryCode') ?? '',
+      followerCount: readInt('followerCount') ?? 0,
+      followingCount: readInt('followingCount') ?? 0,
+      postsCount: readInt('postsCount') ?? 0,
+      isPrivate: read<bool>('isPrivate') ?? false,
+      currentStreak: readInt('currentStreak') ?? 0,
+      longestStreak: readInt('longestStreak') ?? 0,
+      lastActiveDay: read<String>('lastActiveDay') ?? '',
+      aniGold: readInt('aniGold') ?? 0,
+      aniGem: readInt('aniGem') ?? 0,
       // Values that are not strings are dropped rather than coerced: a
       // malformed slot should render nothing, never a widget keyed off a
       // number.
       equipped: <String, String>{
-        for (final e in (d['equipped'] as Map<Object?, Object?>? ?? const {}).entries)
+        for (final e in (read<Map<Object?, Object?>>('equipped') ?? const {}).entries)
           if (e.key is String && e.value is String) e.key as String: e.value as String,
       },
-      createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
-      dnaPinned: (d['dnaPinned'] as List<dynamic>?)
+      createdAt: read<Timestamp>('createdAt')?.toDate(),
+      dnaPinned: read<List<dynamic>>('dnaPinned')
               ?.whereType<num>()
+              .where((n) => n.isFinite)
               .map((n) => n.toInt())
               .where((id) => id > 0)
               .toList() ??
           const [],
-      firstAnimeId: (d['firstAnimeId'] as num?)?.toInt(),
+      firstAnimeId: readInt('firstAnimeId'),
     );
   }
 
