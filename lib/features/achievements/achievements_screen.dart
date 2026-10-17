@@ -6,6 +6,37 @@ import '../../core/utils/haptics.dart';
 import '../../data/sample_data.dart';
 import '../../shared/widgets/glass_modals.dart';
 
+/// Whether Achievements exists at all: the `/achievements` route and the
+/// drawer's link to it, the only two ways in.
+///
+/// Nothing on the screen was the player's. "8 / 12 unlocked", the unlock
+/// dates going back to 2014 and every progress bar came from SampleData,
+/// shown the same to every player — "Reach 1,000 followers" and "Maintain a
+/// 30-day streak" unlocked on accounts with neither.
+///
+/// Five of the twelve have no source at all: nothing records episodes
+/// watched per day (Binge Master) or the hour they were watched (Night
+/// Owl), there are no reviews (Critic), card pulls are client-side samples
+/// (Gacha God), and only the current language is kept, on the device
+/// (Polyglot). The other seven could be computed from what is stored — True
+/// Fan only partly, since a pass is kept only when it is faster, with its
+/// own score — but not dated, since nothing records when a condition was
+/// first met. And computed on the device they would un-unlock: a lost
+/// follower, a deleted video, someone else passing faster, or a faster but
+/// lower-scoring pass replacing a perfect one would take back what the
+/// screen had called an achievement. Only the longest streak never drops.
+///
+/// Coming back needs achievements recorded server-side: a function that sees
+/// each source change, checks the condition, and writes
+/// users/{uid}/achievements/{id} once with a server timestamp — not
+/// client-writable, never rewritten or deleted — which this screen reads in
+/// place of SampleData. That gives real dates and unlocks that stay.
+/// Followers should be counted from users/{uid}/followers, not
+/// followerCount, which any signed-in user can move. An achievement with no
+/// source needs one, or leaves the catalogue. The screen is kept, not
+/// deleted.
+const bool kAchievementsEnabled = false;
+
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
   @override

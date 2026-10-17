@@ -8,6 +8,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:anisphere/app.dart';
+import 'package:anisphere/features/achievements/achievements_screen.dart';
 import 'package:anisphere/core/constants/purchases.dart';
 import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/firebase_options.dart';
@@ -30,7 +31,8 @@ List<String?> tabLabels(WidgetTester tester) =>
 /// The wallet sells only what can be bought: Recharge and AniPlus follow
 /// kAniGemsEnabled and kAniPlusForSale, the gem shows only with gems, a link
 /// to a hidden tab lands on the first one, and the drawer offers no upgrade
-/// to a plan that cannot be bought.
+/// to a plan that cannot be bought — nor Achievements, which follows
+/// kAchievementsEnabled.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -72,6 +74,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     if (!kAniPlusForSale) expect(find.textContaining('Upgrade to AniPlus'), findsNothing);
     if (!kAniGemsEnabled) expect(find.byType(AniGemIcon, skipOffstage: false), findsNothing);
+    // Achievements, between Seasonal and Wallet. Its neighbours are checked
+    // first, so its absence is not just a row the list had not built.
+    Finder inDrawer(String label) =>
+        find.descendant(of: find.byType(Drawer), matching: find.text(label), skipOffstage: false);
+    expect(inDrawer('Seasonal'), findsOneWidget);
+    expect(inDrawer('Wallet'), findsOneWidget);
+    expect(inDrawer('Achievements'), kAchievementsEnabled ? findsOneWidget : findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

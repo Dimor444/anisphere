@@ -111,7 +111,8 @@ final appRouter = GoRouter(
     _top('/delete-account', (c, s) => const DeleteAccountScreen()),
     _top('/challenges', (c, s) => const ChallengesScreen()),
     _top('/seasonal', (c, s) => const SeasonalScreen()),
-    _top('/achievements', (c, s) => const AchievementsScreen()),
+    // Hidden with its drawer entry; see kAchievementsEnabled.
+    if (kAchievementsEnabled) _top('/achievements', (c, s) => const AchievementsScreen()),
     _top('/ani-videos/upload', (c, s) => const UploadVideoScreen()),
     _top('/my-list/:id', (c, s) => MyListDetailScreen(anilistId: int.tryParse(s.pathParameters['id'] ?? '') ?? 0)),
     _top('/observatory', (c, s) => const ObservatoryScreen()),

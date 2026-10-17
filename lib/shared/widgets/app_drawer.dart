@@ -8,6 +8,7 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
+import '../../features/achievements/achievements_screen.dart';
 import '../../features/profile/card_collection_screen.dart';
 import '../providers/identity_provider.dart';
 import 'glass_surface.dart';
@@ -116,7 +117,8 @@ class AppDrawer extends ConsumerWidget {
                       _tile(LucideIcons.users, ref.tr('rooms'), () => go('/community')),
                       _tile(LucideIcons.gamepad2, ref.tr('challenges'), () => go('/challenges')),
                       _tile(LucideIcons.calendar, ref.tr('seasonal'), () => go('/seasonal')),
-                      _tile(LucideIcons.award, ref.tr('achievements'), () => go('/achievements')),
+                      if (kAchievementsEnabled)
+                        _tile(LucideIcons.award, ref.tr('achievements'), () => go('/achievements')),
                       _tile(LucideIcons.wallet, ref.tr('wallet'), () => go('/wallet')),
                       _tile(LucideIcons.globe, ref.tr('observatory'), () => go('/observatory')),
                       _tile(LucideIcons.radio, ref.tr('fmRadio'), () => go('/fm-radio')),
