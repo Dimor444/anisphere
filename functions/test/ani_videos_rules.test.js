@@ -263,6 +263,20 @@ async function stored(env, uid, overrides = {}) {
   await run('[new rule]', 'cover swapped to another host after create', () =>
     assertFails(edit({ animeCover: 'https://evil.example/c.jpg' })));
   await run('[new rule]', 'isSpoiler edited to text', () => assertFails(edit({ isSpoiler: 'yes' })));
+  await run('[new rule]', 'a video like with another field', async () => {
+    const v = await stored(env, ALICE);
+    await assertFails(setDoc(doc(as(BOB), 'ani_videos', v, 'likes', BOB),
+      { likedAt: serverTimestamp(), uid: BOB, weight: 100 }));
+  });
+  await run('[new rule]', 'a video like dated by the client', async () => {
+    const v = await stored(env, ALICE);
+    await assertFails(setDoc(doc(as(BOB), 'ani_videos', v, 'likes', BOB), { likedAt: Timestamp.now(), uid: BOB }));
+  });
+  await run('[new rule]', 'a like on a video that does not exist', () => {
+    const db = as(BOB);
+    return assertFails(setDoc(doc(db, 'ani_videos', 'zznosuchvideo0000001', 'likes', BOB),
+      { likedAt: serverTimestamp(), uid: BOB }));
+  });
 
   await env.cleanup();
 

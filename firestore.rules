@@ -5,6 +5,24 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // AniList's image CDN. A video's anime cover is fetched by every viewer
+    // and copied into their My List when they add the anime, and a vote
+    // tally's cover is shown on everyone's vote board, so each must be an
+    // AniList anime cover — the anime picker's coverImage.large — or empty.
+    // Only covers: AniList also serves user-uploaded avatars and banners from
+    // this host. If AniList moves its images, the new host is one more entry
+    // here; until it is added, writes carrying a cover on the new host are
+    // refused.
+    function aniListImageHosts() {
+      return ['https://s4.anilist.co'];
+    }
+    function isAniListCover(url) {
+      let parts = url.split('/file/anilistcdn/media/anime/cover/');
+      return parts.size() == 2
+        && parts[0] in aniListImageHosts()
+        && parts[1].matches('(small|medium|large|extraLarge)/[A-Za-z0-9_-]+[.](jpg|jpeg|png|gif|webp)');
+    }
+
     // Public profile + follow graph. The profile doc is world-readable
     // (signed-in); the owner may create it (zeroed counters) and edit only
     // identity/bio fields. Counters (followerCount/followingCount/postsCount)
@@ -487,22 +505,6 @@ service cloud.firestore {
                 || (d.isVerified == true && author.isVerified == true));
       }
 
-      // AniList's image CDN. A video's anime cover is fetched by every viewer
-      // and copied into their My List when they add the anime, so it must be
-      // an AniList anime cover — the anime picker's coverImage.large — or
-      // empty. Only covers: AniList also serves user-uploaded avatars and
-      // banners from this host. If AniList moves its images, the new host is
-      // one more entry here; until it is added, uploads tagged with an anime
-      // whose cover is on the new host are refused.
-      function aniListImageHosts() {
-        return ['https://s4.anilist.co'];
-      }
-      function isAniListCover(url) {
-        let parts = url.split('/file/anilistcdn/media/anime/cover/');
-        return parts.size() == 2
-          && parts[0] in aniListImageHosts()
-          && parts[1].matches('(small|medium|large|extraLarge)/[A-Za-z0-9_-]+[.](jpg|jpeg|png|gif|webp)');
-      }
       // The shape AniVideoData.toMap writes, unchanged since the first build:
       // these fields and no others, each of the type the app reads. A single
       // field of another type fails a whole feed page in every build without
@@ -582,11 +584,22 @@ service cloud.firestore {
       // It is the field that lets an account's likes be found across every
       // video (a collection-group query cannot filter on a document id), so a
       // uid naming anyone else would plant a like in THEIR deletion.
+      //
+      // Held to what a post like is held to: the video must exist, the like
+      // carries likedAt and uid and nothing else, and likedAt is the server's
+      // clock. Before this, a like could be written under any id, video or
+      // not, with any fields. None of it refuses an installed build: their
+      // like batch also bumps the video's count, which fails on a video that
+      // does not exist, and every build has written {likedAt} at the server's
+      // time, with uid since September.
       match /likes/{likeUid} {
         allow read: if signedIn();
         allow create: if signedIn()
           && request.auth.uid == likeUid
-          && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid);
+          && request.resource.data.keys().hasOnly(['likedAt', 'uid'])
+          && request.resource.data.likedAt == request.time
+          && (!('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid)
+          && exists(/databases/$(database)/documents/ani_videos/$(videoId));
         allow delete: if signedIn() && request.auth.uid == likeUid;
       }
 
@@ -786,21 +799,53 @@ service cloud.firestore {
       function votedForThisNow() {
         return voteCastNow(1) || voteCastNow(2) || voteCastNow(3) || voteCastNow(4);
       }
+      // The title and cover the vote board shows. Not pinned: AniList can
+      // edit a title or cover during the day, and the app keeps search
+      // results for a whole session, so a later vote can honestly carry other
+      // values — pinned, that player could not vote for the anime for the
+      // rest of the day. Instead the title is text of at most 200 characters
+      // and the cover empty or an AniList cover, which is what every build
+      // sends. Checked where written: every field on create, the changed ones
+      // on an update.
+      function tallyDisplayIsAniList(keys) {
+        let d = request.resource.data;
+        return (!keys.hasAny(['animeTitle']) || (d.animeTitle is string && d.animeTitle.size() <= 200))
+          && (!keys.hasAny(['animeCover']) || d.animeCover == '' || isAniListCover(d.animeCover));
+      }
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.voteCount == 1 && votedForThisNow();
+      allow create: if signedIn()
+        && request.resource.data.voteCount == 1
+        && votedForThisNow()
+        && tallyDisplayIsAniList(request.resource.data.keys());
       allow update: if signedIn()
         && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['voteCount', 'animeTitle', 'animeCover'])
         && request.resource.data.voteCount == resource.data.voteCount + 1
-        && votedForThisNow();
+        && votedForThisNow()
+        && tallyDisplayIsAniList(request.resource.data.diff(resource.data).affectedKeys());
       allow delete: if false;
     }
 
     // Hashtag tallies — clients may only ever add one use at a time.
+    //
+    // A create or an update is the merge every build has sent with a post or
+    // video using the tag, {tag, count: +1, lastUsed: server time}, and
+    // nothing else: the tag is the document's own name, the count starts at
+    // one, and lastUsed is the server's clock. Before this, any field could
+    // ride along. A tag field planted with another value is rewritten by the
+    // next real use, not refused.
     match /trending_hashtags/{tag} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.count == 1;
-      allow update: if signedIn() && request.resource.data.count == resource.data.count + 1;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['tag', 'count', 'lastUsed'])
+        && request.resource.data.count == 1
+        && request.resource.data.tag == tag
+        && request.resource.data.lastUsed == request.time;
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tag', 'count', 'lastUsed'])
+        && request.resource.data.count == resource.data.count + 1
+        && request.resource.data.tag == tag
+        && request.resource.data.lastUsed == request.time;
     }
 
     // ── True Fan leaderboards ─────────────────────────────────────────────

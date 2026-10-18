@@ -12,7 +12,10 @@
  * and postsCount cannot be tied — their records' ids are not visible from the
  * profile — so only the owner may move them. Comment counts, views and shares
  * are unchanged: a comment's id is generated, and views and shares have no
- * record at all.
+ * record at all. A hashtag's create and update are limited to what every
+ * build writes — the tag as its own name, the count from one and +1, lastUsed
+ * the server's clock. A tally's title must be text of at most 200 characters
+ * and its cover empty or an AniList cover; neither is pinned.
  *
  * Cases are tagged:
  *   [compat]     the batches installed builds send — must pass under any rules
@@ -49,6 +52,8 @@ const RULES = process.env.RULES_FILE || resolve(__dirname, '../../firestore.rule
 
 const DAY = '2026-10-18';
 const FRIEREN = 154587;
+// What AniList returns as coverImage.large for Frieren — what the vote screen sends.
+const FRIEREN_COVER = 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx154587-qQTzQnEJJ3oB.jpg';
 const OTHER_ANIME = 21;
 
 const results = [];
@@ -132,18 +137,18 @@ const id = (prefix) => `${prefix}${String(++n).padStart(6, '0')}`;
     await seed(`users/${them}/followers/${me}`, { followedAt: Timestamp.now() });
   };
   /** FeedService.createPost, with one hashtag. */
-  const createPost = (me) => {
+  const createPost = (me, tag = 'frieren') => {
     const ref = doc(collection(as(me), 'posts'));
     return writeBatch(as(me))
       .set(ref, {
-        userId: me, userName: 'Anime Fan', userAvatar: '', isVerified: false, content: 'hello #frieren',
-        anilist_id: null, animeTitle: null, animeCover: null, imageUrls: [], hashtags: ['frieren'],
+        userId: me, userName: 'Anime Fan', userAvatar: '', isVerified: false, content: `hello #${tag}`,
+        anilist_id: null, animeTitle: null, animeCover: null, imageUrls: [], hashtags: [tag],
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(), likes: 0, commentsCount: 0, viewCount: 0,
         isSpoiler: false,
       })
       .update(doc(as(me), `users/${me}`), { postsCount: increment(1) })
-      .set(doc(as(me), 'trending_hashtags/frieren'),
-        { tag: 'frieren', count: increment(1), lastUsed: serverTimestamp() }, { merge: true })
+      .set(doc(as(me), `trending_hashtags/${tag}`),
+        { tag, count: increment(1), lastUsed: serverTimestamp() }, { merge: true })
       .commit();
   };
   /** FeedService.deletePost. */
@@ -184,13 +189,13 @@ const id = (prefix) => `${prefix}${String(++n).padStart(6, '0')}`;
     .update(doc(as(me), `news/${a}`), { saves: increment(-1) })
     .commit();
   /** CommunityVoteService.castVote: the vote and the tally, in one batch. */
-  const vote = (me, slot, anime, tallyAnime = anime) => writeBatch(as(me))
+  const vote = (me, slot, anime, tallyAnime = anime, { title = 'Frieren', cover = '' } = {}) => writeBatch(as(me))
     .set(doc(as(me), `community_votes/${DAY}/votes/${me}_${slot}`), {
-      userId: me, anilist_id: anime, animeTitle: 'Frieren', animeCover: '', dayId: DAY, voteSlot: slot,
+      userId: me, anilist_id: anime, animeTitle: title, animeCover: cover, dayId: DAY, voteSlot: slot,
       votedAt: serverTimestamp(),
     })
     .set(doc(as(me), `community_votes/${DAY}/tally/${tallyAnime}`), {
-      anilist_id: tallyAnime, animeTitle: 'Frieren', animeCover: '', dayId: DAY, voteCount: increment(1),
+      anilist_id: tallyAnime, animeTitle: title, animeCover: cover, dayId: DAY, voteCount: increment(1),
     }, { merge: true })
     .commit();
 
@@ -204,6 +209,16 @@ const id = (prefix) => `${prefix}${String(++n).padStart(6, '0')}`;
     await assertSucceeds(unfollow(me, them));
   });
   await run('[compat]', 'create a post with a hashtag', async () => assertSucceeds(createPost(await profile())));
+  await run('[compat]', "a second post with a hashtag already in use", async () => {
+    const tag = id('tag');
+    await seed(`trending_hashtags/${tag}`, { tag, count: 4, lastUsed: Timestamp.now() });
+    await assertSucceeds(createPost(await profile(), tag));
+  });
+  await run('[compat]', 'a hashtag planted with another tag value: the next post rewrites it', async () => {
+    const tag = id('tag');
+    await seed(`trending_hashtags/${tag}`, { tag: 'someone-else', count: 4, lastUsed: Timestamp.now() });
+    await assertSucceeds(createPost(await profile(), tag));
+  });
   await run('[compat]', 'delete a post', async () => {
     const me = await profile();
     await assertSucceeds(deletePost(me, await post(me)));
@@ -232,6 +247,8 @@ const id = (prefix) => `${prefix}${String(++n).padStart(6, '0')}`;
     await assertSucceeds(updateDoc(doc(as(await profile()), `posts/${p}`), { viewCount: increment(1) }));
   });
   await run('[compat]', 'like a video', async () => assertSucceeds(like(await profile(), `ani_videos/${await video(await profile())}`)));
+  await run('[compat]', "a September build's video like: likedAt only", async () =>
+    assertSucceeds(like(await profile(), `ani_videos/${await video(await profile())}`, false)));
   await run('[compat]', 'unlike a video', async () => {
     const me = await profile(); const v = `ani_videos/${await video(await profile())}`;
     await seed(`${v}/likes/${me}`, { likedAt: Timestamp.now(), uid: me });
@@ -260,6 +277,13 @@ const id = (prefix) => `${prefix}${String(++n).padStart(6, '0')}`;
   await run('[compat]', 'a vote adds to an existing tally', async () => {
     await tally(FRIEREN);
     await assertSucceeds(vote(await profile(), 1, FRIEREN));
+  });
+  await run('[compat]', "a vote carrying AniList's large cover, creating the tally", async () =>
+    assertSucceeds(vote(await profile(), 1, 2000 + n, undefined, { title: 'Frieren: Beyond Journey’s End', cover: FRIEREN_COVER })));
+  await run('[compat]', 'a later vote carrying an edited title and a new cover', async () => {
+    await tally(FRIEREN);
+    await assertSucceeds(vote(await profile(), 1, FRIEREN, FRIEREN,
+      { title: 'Frieren: Beyond Journey’s End', cover: FRIEREN_COVER }));
   });
   await run('[compat]', "a Plus player's second vote (slot 2)", async () => {
     const me = await profile({ isPlus: true });
@@ -352,6 +376,46 @@ const id = (prefix) => `${prefix}${String(++n).padStart(6, '0')}`;
     await tally(FRIEREN);
     await assertFails(vote(await profile(), 1, OTHER_ANIME, FRIEREN));
   });
+
+  // ── A hashtag update carrying more than every build writes ────────────
+  const hashtag = async () => {
+    const tag = id('tag');
+    await seed(`trending_hashtags/${tag}`, { tag, count: 4, lastUsed: Timestamp.now() });
+    return tag;
+  };
+  const bumpTag = async (tag, extra) => updateDoc(doc(as(await profile()), `trending_hashtags/${tag}`),
+    { tag, count: increment(1), lastUsed: serverTimestamp(), ...extra });
+  await run('[unchanged]', 'a hashtag that jumps by two', async () =>
+    assertFails(bumpTag(await hashtag(), { count: increment(2) })));
+  await run('[new rule]', 'a hashtag +1 carrying another field', async () =>
+    assertFails(bumpTag(await hashtag(), { featured: true })));
+  await run('[new rule]', 'a hashtag +1 that renames its tag', async () =>
+    assertFails(bumpTag(await hashtag(), { tag: 'renamed' })));
+  await run('[new rule]', 'a hashtag +1 dated in the future', async () =>
+    assertFails(bumpTag(await hashtag(), { lastUsed: Timestamp.fromMillis(Date.now() + 86400000) })));
+  const newTag = async (extra) => {
+    const tag = id('tag');
+    return setDoc(doc(as(await profile()), `trending_hashtags/${tag}`),
+      { tag, count: 1, lastUsed: serverTimestamp(), ...extra });
+  };
+  await run('[new rule]', 'a hashtag created with another field', async () => assertFails(newTag({ featured: true })));
+  await run('[new rule]', 'a hashtag created under another name', async () => assertFails(newTag({ tag: 'other' })));
+  await run('[new rule]', 'a hashtag created dated in the future', async () =>
+    assertFails(newTag({ lastUsed: Timestamp.fromMillis(Date.now() + 86400000) })));
+
+  // ── A tally's title and cover: AniList's, or refused ──────────────────
+  const voteOnTally = async (display) => {
+    await tally(FRIEREN);
+    return vote(await profile(), 1, FRIEREN, FRIEREN, display);
+  };
+  await run('[new rule]', 'a tally title of 201 characters', async () => assertFails(voteOnTally({ title: 'x'.repeat(201) })));
+  await run('[new rule]', 'a tally title that is not text', async () => assertFails(voteOnTally({ title: 42 })));
+  await run('[new rule]', 'a tally cover on another host', async () =>
+    assertFails(voteOnTally({ cover: 'https://evil.example/file/anilistcdn/media/anime/cover/large/bx1.jpg' })));
+  await run('[new rule]', 'a tally cover that is an AniList avatar, not a cover', async () =>
+    assertFails(voteOnTally({ cover: 'https://s4.anilist.co/file/anilistcdn/user/avatar/large/b5055-x.png' })));
+  await run('[new rule]', 'a tally created with a cover on another host', async () =>
+    assertFails(vote(await profile(), 1, 3000 + n, undefined, { cover: 'https://evil.example/c.jpg' })));
 
   await env.cleanup();
 
