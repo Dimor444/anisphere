@@ -28,13 +28,38 @@ service cloud.firestore {
             && request.resource.data.countryCode.size() >= 2
             && request.resource.data.countryCode.size() <= 3);
       }
+      // The three counts move by one per write, in the batch that writes the
+      // record they count. Before this, any signed-in player could move
+      // anyone's three counts by one per write, without limit.
+      //
+      // followerCount is tied to its record: the caller's own entry in this
+      // profile's followers/, created by this same write for +1 and deleted by
+      // it for -1 — existsAfter, because the follow batch writes the entry and
+      // the bump together and exists() sees the state before it. The follow
+      // batch of every installed build does exactly that.
+      //
+      // followingCount and postsCount count following/{targetId} and posts
+      // whose ids this document cannot see, so they cannot be tied here. Only
+      // the owner, whose follows and posts they count, may move them.
+      function followerEntryCreated() {
+        return !exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid));
+      }
+      function followerEntryDeleted() {
+        return exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
+          && !existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid));
+      }
       function profileCounterBump() {
         let d = request.resource.data;
         let r = resource.data;
         return d.diff(r).affectedKeys().hasOnly(['followerCount', 'followingCount', 'postsCount'])
-          && (d.followerCount == r.followerCount || d.followerCount == r.followerCount + 1 || d.followerCount == r.followerCount - 1)
-          && (d.followingCount == r.followingCount || d.followingCount == r.followingCount + 1 || d.followingCount == r.followingCount - 1)
-          && (d.postsCount == r.postsCount || d.postsCount == r.postsCount + 1 || d.postsCount == r.postsCount - 1);
+          && (d.followerCount == r.followerCount
+            || (d.followerCount == r.followerCount + 1 && followerEntryCreated())
+            || (d.followerCount == r.followerCount - 1 && followerEntryDeleted()))
+          && ((d.followingCount == r.followingCount && d.postsCount == r.postsCount)
+            || (request.auth.uid == userId
+              && (d.followingCount == r.followingCount || d.followingCount == r.followingCount + 1 || d.followingCount == r.followingCount - 1)
+              && (d.postsCount == r.postsCount || d.postsCount == r.postsCount + 1 || d.postsCount == r.postsCount - 1)));
       }
       // The request's UTC day as "YYYY-MM-DD" — the only value a streak
       // check-in may stamp, so days can't be forged from the client.
@@ -308,10 +333,25 @@ service cloud.firestore {
           || request.resource.data[field] == resource.data[field] + 1
           || request.resource.data[field] == resource.data[field] - 1;
       }
+      // likes is tied to its record, as a profile's followerCount is: the
+      // caller's own like, created by this same write for +1 and deleted by it
+      // for -1. commentsCount cannot be — a comment's id is generated, and
+      // nothing here can see which comment a write is about — and a view has
+      // no record at all, so those two stay as they were.
+      function likeCreated() {
+        return !exists(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid))
+          && existsAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid));
+      }
+      function likeDeleted() {
+        return exists(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid))
+          && !existsAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid));
+      }
       function counterBump() {
         return request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['likes', 'commentsCount', 'viewCount'])
-          && bumpedByOne('likes')
+          && (request.resource.data.likes == resource.data.likes
+            || (request.resource.data.likes == resource.data.likes + 1 && likeCreated())
+            || (request.resource.data.likes == resource.data.likes - 1 && likeDeleted()))
           && bumpedByOne('commentsCount')
           && (request.resource.data.viewCount == resource.data.viewCount
             || request.resource.data.viewCount == resource.data.viewCount + 1);
@@ -336,7 +376,7 @@ service cloud.firestore {
         && request.resource.data.viewCount == 0;
       allow delete: if isAuthor();
       // Author may edit content fields (never counters); anyone signed in may
-      // bump counters by one.
+      // bump counters by one — likes only with their own like (counterBump).
       allow update: if signedIn()
         && ((isAuthor()
               && !request.resource.data.diff(resource.data).affectedKeys()
@@ -392,10 +432,22 @@ service cloud.firestore {
           || request.resource.data[field] == resource.data[field] + 1
           || request.resource.data[field] == resource.data[field] - 1;
       }
+      // likes is tied to its record, as on posts; commentsCount, shares and
+      // views are not, for the same reasons.
+      function videoLikeCreated() {
+        return !exists(/databases/$(database)/documents/ani_videos/$(videoId)/likes/$(request.auth.uid))
+          && existsAfter(/databases/$(database)/documents/ani_videos/$(videoId)/likes/$(request.auth.uid));
+      }
+      function videoLikeDeleted() {
+        return exists(/databases/$(database)/documents/ani_videos/$(videoId)/likes/$(request.auth.uid))
+          && !existsAfter(/databases/$(database)/documents/ani_videos/$(videoId)/likes/$(request.auth.uid));
+      }
       function videoCounterBump() {
         return request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['likes', 'commentsCount', 'shareCount', 'viewCount'])
-          && videoBumpedByOne('likes')
+          && (request.resource.data.likes == resource.data.likes
+            || (request.resource.data.likes == resource.data.likes + 1 && videoLikeCreated())
+            || (request.resource.data.likes == resource.data.likes - 1 && videoLikeDeleted()))
           && videoBumpedByOne('commentsCount')
           && (request.resource.data.shareCount == resource.data.shareCount
             || request.resource.data.shareCount == resource.data.shareCount + 1)
@@ -675,8 +727,19 @@ service cloud.firestore {
     }
 
     // Curated news — admin-managed (Console / Admin SDK bypasses rules).
-    // Clients read and may only bump the tallies: views +1, saves ±1.
+    // Clients read and may only bump the tallies: views +1, saves ±1. saves is
+    // tied to its record, the caller's users/{uid}/savedNews/{newsId},
+    // created by this same write for +1 and deleted by it for -1, as the save
+    // batch of every installed build does. A view has no record.
     match /news/{newsId} {
+      function savedNow() {
+        return !exists(/databases/$(database)/documents/users/$(request.auth.uid)/savedNews/$(newsId))
+          && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/savedNews/$(newsId));
+      }
+      function unsavedNow() {
+        return exists(/databases/$(database)/documents/users/$(request.auth.uid)/savedNews/$(newsId))
+          && !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/savedNews/$(newsId));
+      }
       allow read: if signedIn();
       allow create, delete: if false;
       allow update: if signedIn()
@@ -684,8 +747,8 @@ service cloud.firestore {
         && (request.resource.data.views == resource.data.views
           || request.resource.data.views == resource.data.views + 1)
         && (request.resource.data.saves == resource.data.saves
-          || request.resource.data.saves == resource.data.saves + 1
-          || request.resource.data.saves == resource.data.saves - 1);
+          || (request.resource.data.saves == resource.data.saves + 1 && savedNow())
+          || (request.resource.data.saves == resource.data.saves - 1 && unsavedNow()));
     }
 
     // Daily community vote (AniSphere's own poll — separate from the AniList
@@ -707,14 +770,29 @@ service cloud.firestore {
       allow update, delete: if false; // votes are permanent
     }
 
-    // Per-anime daily tallies — +1 per write only, batched with the vote.
+    // Per-anime daily tallies — +1 per write only, and only with the vote it
+    // counts: the caller's vote for this anime, cast by this same write.
+    // Votes are keyed {uid}_{slot} and permanent, so the vote cast now is
+    // the slot that did not exist before the write and does after it. Every
+    // installed build writes the vote and the tally in one batch. Before
+    // this, any signed-in player could add one per write, without limit, and
+    // decide the day's vote.
     match /community_votes/{dayId}/tally/{animeId} {
+      function voteCastNow(slot) {
+        return !exists(/databases/$(database)/documents/community_votes/$(dayId)/votes/$(request.auth.uid + '_' + string(slot)))
+          && existsAfter(/databases/$(database)/documents/community_votes/$(dayId)/votes/$(request.auth.uid + '_' + string(slot)))
+          && string(getAfter(/databases/$(database)/documents/community_votes/$(dayId)/votes/$(request.auth.uid + '_' + string(slot))).data.anilist_id) == animeId;
+      }
+      function votedForThisNow() {
+        return voteCastNow(1) || voteCastNow(2) || voteCastNow(3) || voteCastNow(4);
+      }
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.voteCount == 1;
+      allow create: if signedIn() && request.resource.data.voteCount == 1 && votedForThisNow();
       allow update: if signedIn()
         && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['voteCount', 'animeTitle', 'animeCover'])
-        && request.resource.data.voteCount == resource.data.voteCount + 1;
+        && request.resource.data.voteCount == resource.data.voteCount + 1
+        && votedForThisNow();
       allow delete: if false;
     }
 

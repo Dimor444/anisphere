@@ -38,7 +38,7 @@ const {
   assertFails,
 } = require('@firebase/rules-unit-testing');
 const {
-  doc, setDoc, updateDoc, serverTimestamp, increment, Timestamp,
+  doc, setDoc, updateDoc, writeBatch, serverTimestamp, increment, Timestamp,
 } = require('firebase/firestore');
 
 const [HOST, PORT] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
@@ -102,6 +102,17 @@ const uid = () => `zzusr${String(++n).padStart(23, '0')}`; // 28 chars, like an 
       setDoc(doc(ctx.firestore(), 'users', u), profilePayload(u, { createdAt: Timestamp.now(), ...overrides })));
     return u;
   };
+  /** FollowService.followUser: both records and both counts, in one batch. */
+  const follow = async (target) => {
+    const me = await stored();
+    const db = as(me);
+    return writeBatch(db)
+      .set(doc(db, 'users', me, 'following', target), { followedAt: serverTimestamp() })
+      .set(doc(db, 'users', target, 'followers', me), { followedAt: serverTimestamp() })
+      .update(doc(db, 'users', me), { followingCount: increment(1) })
+      .update(doc(db, 'users', target), { followerCount: increment(1) })
+      .commit();
+  };
   const edit = async (fields, overrides) => {
     const u = await stored(overrides);
     return updateDoc(doc(as(u), 'users', u), fields);
@@ -123,8 +134,7 @@ const uid = () => `zzusr${String(++n).padStart(23, '0')}`; // 28 chars, like an 
   await run('[compat]', 'Anime DNA: pinned ids and first anime', () =>
     assertSucceeds(edit({ dnaPinned: [154587, 21], firstAnimeId: 21 })));
   await run('[compat]', 'a follow bumps the other profile\'s counter', async () => {
-    const target = await stored();
-    await assertSucceeds(updateDoc(doc(as(uid()), 'users', target), { followerCount: increment(1) }));
+    await assertSucceeds(follow(await stored()));
   });
   await run('[compat]', 'a daily check-in bumps the streak', async () => {
     const d = new Date();
@@ -139,8 +149,7 @@ const uid = () => `zzusr${String(++n).padStart(23, '0')}`; // 28 chars, like an 
   await run('[legacy]', 'bad isPrivate stored: owner sets it to false', () =>
     assertSucceeds(edit({ isPrivate: false }, { isPrivate: 'yes' })));
   await run('[legacy]', 'bad isPrivate stored: a follow still bumps the counter', async () => {
-    const target = await stored({ isPrivate: 'yes' });
-    await assertSucceeds(updateDoc(doc(as(uid()), 'users', target), { followerCount: increment(1) }));
+    await assertSucceeds(follow(await stored({ isPrivate: 'yes' })));
   });
 
   // ── Refused before and after ──────────────────────────────────────────

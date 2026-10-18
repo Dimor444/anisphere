@@ -181,7 +181,12 @@ async function stored(env, uid, overrides = {}) {
   });
   await run('[compat]', 'a like still lands on a stored video of the wrong shape', async () => {
     const v = await stored(env, ALICE, { createdAt: 'zzz', animeCover: 'https://evil.example/c.jpg' });
-    await assertSucceeds(updateDoc(doc(as(BOB), 'ani_videos', v), { likes: increment(1) }));
+    // likeVideo's batch: the like and the count together.
+    const db = as(BOB);
+    await assertSucceeds(writeBatch(db)
+      .set(doc(db, 'ani_videos', v, 'likes', BOB), { likedAt: serverTimestamp(), uid: BOB })
+      .update(doc(db, 'ani_videos', v), { likes: increment(1) })
+      .commit());
   });
 
   // ── Urls the upload path never produced (the previous change) ─────────
