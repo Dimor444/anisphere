@@ -49,7 +49,7 @@ void main() {
       expect(e.anilistId, 154587);
       expect(e.title, startsWith('Frieren'));
       expect(e.score, closeTo(9.1, 0.001));
-      expect(e.ratings, 453315);
+      expect(e.popularity, 453315);
       expect(e.movement, 0);
     });
 
@@ -61,7 +61,7 @@ void main() {
       expect(e.title, 'Cowboy Bebop');
       expect(e.rank, 42);
       expect(e.score, isNull, reason: 'no averageScore is absent, not a rating of 0');
-      expect(e.ratings, 0);
+      expect(e.popularity, 0);
       expect(e.coverImage, '');
     });
   });

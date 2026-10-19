@@ -565,13 +565,13 @@ class _MatchCard extends StatelessWidget {
 }
 
 // ───────────────────────── Chart
-class _ChartTab extends StatefulWidget {
+class _ChartTab extends ConsumerStatefulWidget {
   const _ChartTab();
   @override
-  State<_ChartTab> createState() => _ChartTabState();
+  ConsumerState<_ChartTab> createState() => _ChartTabState();
 }
 
-class _ChartTabState extends State<_ChartTab> {
+class _ChartTabState extends ConsumerState<_ChartTab> {
   ChartFilter _filter = ChartFilter.allTime;
 
   /// Per-filter results/errors so switching tabs never shows another tab's
@@ -656,80 +656,100 @@ class _ChartTabState extends State<_ChartTab> {
     );
   }
 
+  /// Scored rows, numbered by their place in AniList's list. Unscored rows
+  /// follow under their own heading, unnumbered and without movement: AniList
+  /// puts them after every scored show in id order, which ranks nothing.
   Widget _list(List<AnimeChartEntry> entries) {
-    return ListView.separated(
+    final scored = [for (final e in entries) if (e.score != null) e];
+    final unscored = [for (final e in entries) if (e.score == null) e];
+    return ListView(
       padding: EdgeInsets.fromLTRB(14, 4, 14, AniBottomNav.scrollEndPadding(context)),
-      itemCount: entries.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) {
-        final e = entries[i];
-        return GestureDetector(
-          onTap: () {
-            Haptics.light();
-            // Partial extra paints the header instantly; the detail screen
-            // fetches the full record (synopsis, genres, status) by id.
-            context.push(
-              '/trending/anime/${e.anilistId}',
-              extra: TrendingAnime(
-                id: e.anilistId,
-                title: e.title,
-                coverUrl: e.coverImage,
-                description: '',
-                genres: const [],
-                status: '',
-                // TrendingAnime's own convention: 0 = no score, hidden by its > 0 checks.
-                score: e.score ?? 0,
-              ),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
-            child: Row(
-              children: [
+      children: [
+        for (final e in scored) _row(e, numbered: true),
+        if (unscored.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 10, 2, 10),
+            child: Text(ref.tr('notScoredYet'), style: AppTextStyles.subheading),
+          ),
+          for (final e in unscored) _row(e, numbered: false),
+        ],
+      ],
+    );
+  }
+
+  Widget _row(AnimeChartEntry e, {required bool numbered}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GestureDetector(
+        onTap: () {
+          Haptics.light();
+          // Partial extra paints the header instantly; the detail screen
+          // fetches the full record (synopsis, genres, status) by id.
+          context.push(
+            '/trending/anime/${e.anilistId}',
+            extra: TrendingAnime(
+              id: e.anilistId,
+              title: e.title,
+              coverUrl: e.coverImage,
+              description: '',
+              genres: const [],
+              status: '',
+              // TrendingAnime's own convention: 0 = no score, hidden by its > 0 checks.
+              score: e.score ?? 0,
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
+          child: Row(
+            children: [
+              if (numbered) ...[
                 SizedBox(width: 30, child: Text('${e.rank}', textAlign: TextAlign.center, style: AppTextStyles.numbersLg())),
                 _movement(e.movement),
                 const SizedBox(width: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(
-                    width: 44,
-                    height: 56,
-                    child: e.coverImage.isEmpty
-                        ? Container(color: AppColors.surfaceAlt)
-                        : CachedNetworkImage(
-                            imageUrl: e.coverImage,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(color: AppColors.surfaceAlt),
-                            errorWidget: (_, __, ___) => Container(color: AppColors.surfaceAlt),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(e.title, style: AppTextStyles.label, maxLines: 2, overflow: TextOverflow.ellipsis),
-                      Text('${Fmt.compact(e.ratings)} ratings', style: AppTextStyles.captionMuted),
-                    ],
-                  ),
-                ),
-                // No score yet → no star, the way the rest of the app shows an
-                // absent score; a "★ 0.0" read as the worst rating there is.
-                if (e.score != null)
-                  Row(
-                    children: [
-                      const Icon(Icons.star_rounded, color: AppColors.aniGold, size: 16),
-                      const SizedBox(width: 3),
-                      Text(e.score!.toStringAsFixed(1), style: AppTextStyles.numbers),
-                    ],
-                  ),
               ],
-            ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 44,
+                  height: 56,
+                  child: e.coverImage.isEmpty
+                      ? Container(color: AppColors.surfaceAlt)
+                      : CachedNetworkImage(
+                          imageUrl: e.coverImage,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(color: AppColors.surfaceAlt),
+                          errorWidget: (_, __, ___) => Container(color: AppColors.surfaceAlt),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(e.title, style: AppTextStyles.label, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    // AniList's popularity: how many users have it on a
+                    // list — not ratings, which an unscored show has none of.
+                    Text('${Fmt.compact(e.popularity)} ${ref.tr('onLists')}', style: AppTextStyles.captionMuted),
+                  ],
+                ),
+              ),
+              // No score yet → no star, the way the rest of the app shows an
+              // absent score; a "★ 0.0" read as the worst rating there is.
+              if (e.score != null)
+                Row(
+                  children: [
+                    const Icon(Icons.star_rounded, color: AppColors.aniGold, size: 16),
+                    const SizedBox(width: 3),
+                    Text(e.score!.toStringAsFixed(1), style: AppTextStyles.numbers),
+                  ],
+                ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -811,6 +831,10 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
   bool _searching = false;
   bool _failed = false;
   List<String> _history = const [];
+
+  /// What the empty state shows: AniList's trending list, from the cache the
+  /// Trending tab fills — no request when that tab loaded within the hour.
+  late final Future<List<TrendingAnime>> _trending = TrendingService.instance.fetchTrending();
 
   String get _q => widget.query.value.trim();
 
@@ -917,9 +941,15 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
     );
   }
 
-  /// Empty-query state: recent searches, trending-search chips, sample grid.
+  /// Empty-query state: this player's recent searches, then what is trending
+  /// on AniList — the Trending tab's own list and cache.
+  ///
+  /// "Trending searches" stood here: eight fixed terms, half of them not
+  /// anime ("AMV", "Cosplay", "Theories", "Tier list"). Nothing records what
+  /// players search, so there is no trend to show. "Top results" was nine
+  /// sample anime under a heading that promised results for a search nobody
+  /// had made.
   Widget _defaultView() {
-    final tags = ['Frieren', 'Solo Leveling', 'JJK', 'Dandadan', 'AMV', 'Cosplay', 'Theories', 'Tier list'];
     return ListView(
       padding: EdgeInsets.fromLTRB(14, 12, 14, AniBottomNav.scrollEndPadding(context)),
       children: [
@@ -929,18 +959,37 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
           _chipWrap(_history, LucideIcons.history, AppColors.textSecondary),
           const SizedBox(height: 24),
         ],
-        const Text('Trending searches', style: AppTextStyles.subheading),
-        const SizedBox(height: 12),
-        _chipWrap(tags, LucideIcons.trendingUp, AppColors.accent),
-        const SizedBox(height: 24),
-        const Text('Top results', style: AppTextStyles.subheading),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.68),
-          itemCount: 9,
-          itemBuilder: (_, i) => AnimeCard(anime: SampleData.animeList[i], width: double.infinity, height: double.infinity, showScore: false, showGenre: false),
+        FutureBuilder<List<TrendingAnime>>(
+          future: _trending,
+          builder: (context, snap) {
+            // Nothing stands in while it loads or if AniList cannot be
+            // reached: the section is simply absent.
+            final trending = snap.data;
+            if (trending == null || trending.isEmpty) return const SizedBox.shrink();
+            final shown = trending.take(9).toList();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(ref.tr('trending'), style: AppTextStyles.subheading),
+                const SizedBox(height: 12),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.68),
+                  itemCount: shown.length,
+                  itemBuilder: (context, i) => _ResultCard(
+                    anime: shown[i],
+                    onTap: () {
+                      Haptics.light();
+                      context.push('/trending/anime/${shown[i].id}', extra: shown[i]);
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ],
     );

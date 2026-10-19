@@ -31,8 +31,16 @@ class AnimeChartEntry {
   /// Out of 10, or null while AniList has no score for the show yet — a new
   /// season fills the bottom of the chart with these. Zero is a rating;
   /// absent is not, so absence is never stored as 0.
+  ///
+  /// SCORE_DESC puts every unscored show after the scored ones, in AniList id
+  /// order — the order they were added to AniList, which ranks nothing. So an
+  /// unscored row keeps its [rank] but is shown unnumbered, under its own
+  /// heading, and takes no part in movement.
   final double? score;
-  final int ratings; // AniList popularity (list count)
+
+  /// How many AniList users have the show on a list — AniList's popularity.
+  /// Not a count of ratings: an unscored show can have tens of thousands.
+  final int popularity;
 
   /// Rank change vs the previous (different-day) snapshot: positive = climbed,
   /// negative = dropped, 0 = unchanged or no history yet.
@@ -44,7 +52,7 @@ class AnimeChartEntry {
     required this.title,
     required this.coverImage,
     required this.score,
-    required this.ratings,
+    required this.popularity,
     this.movement = 0,
   });
 
@@ -58,7 +66,7 @@ class AnimeChartEntry {
       title: (title?['english'] ?? title?['romaji']) as String? ?? '?',
       coverImage: cover?['large'] as String? ?? '',
       score: avg is num ? avg / 10.0 : null,
-      ratings: (m['popularity'] as num?)?.toInt() ?? 0,
+      popularity: (m['popularity'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -68,7 +76,7 @@ class AnimeChartEntry {
         title: title,
         coverImage: coverImage,
         score: score,
-        ratings: ratings,
+        popularity: popularity,
         movement: m,
       );
 }
@@ -136,7 +144,12 @@ class ChartService {
       if (fetched < _perPage) break; // AniList ran out (short seasons)
     }
 
-    final ranked = await _applyMovements(filter, entries);
+    // Movement compares scored places only. An unscored show's place is its
+    // AniList id order, not a ranking, so it stays out of the snapshot —
+    // otherwise a show scored tomorrow would "climb" from wherever its id
+    // put it today.
+    final scored = await _applyMovements(filter, [for (final e in entries) if (e.score != null) e]);
+    final ranked = [...scored, for (final e in entries) if (e.score == null) e];
     _cache[filter] = ranked;
     _cachedAt[filter] = DateTime.now();
     return ranked;
@@ -201,8 +214,11 @@ query {
 
   // ── Movement history (SharedPreferences) ───────────────────────────────
 
-  String _snapKey(ChartFilter f) => 'chart_snapshot_${f.name}';
-  String _prevKey(ChartFilter f) => 'chart_snapshot_prev_${f.name}';
+  // v2: snapshots before it held unscored shows' places too, which would make
+  // a newly scored show look like a climber; they are left unread, so every
+  // row shows "–" for a day while the new snapshots build.
+  String _snapKey(ChartFilter f) => 'chart_snapshot_v2_${f.name}';
+  String _prevKey(ChartFilter f) => 'chart_snapshot_v2_prev_${f.name}';
 
   /// Compare against the newest snapshot from a *previous* day, rolling
   /// snapshots forward at most once per day so intra-day refreshes don't
