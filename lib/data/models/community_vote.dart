@@ -55,6 +55,10 @@ class CommunityVote {
 /// as the vote write (rules only admit +1) until Cloud Functions take over.
 class CommunityVoteTally {
   final int anilistId;
+
+  /// As written by voters — any of whom can rewrite them, within the rules'
+  /// format checks — so nothing displays these: the board shows the anime as
+  /// AniList has it, by [anilistId] (VoteAnime).
   final String animeTitle;
   final String animeCover;
   final int voteCount;

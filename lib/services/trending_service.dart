@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show min;
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -256,6 +257,104 @@ query ($search: String) {
     } on TimeoutException catch (e) {
       debugPrint('[TrendingService] fetchById($anilistId) timeout: $e');
       rethrow;
+    }
+  }
+
+  // ── Title and cover by id, batched (the community vote board) ──────────
+  //
+  // The vote board shows each tally's anime as AniList has it, by the tally's
+  // anilist_id — never the title and cover written into the tally, which any
+  // voter can rewrite. Every id asked for within [_briefWindow] goes out
+  // together, in one id_in request per [_briefPageSize], with the isAdult
+  // filter the other id lookups use. What comes back is kept for the session,
+  // and so is the fact that AniList left an id out; a failed request keeps
+  // nothing, so the next ask tries again.
+  //
+  // Kept apart from [_byId]: these carry a title and a cover only, and the
+  // detail page reads [_byId] for the description and genres too. Reading
+  // goes the other way — anything [_byId] already holds is used as is.
+  static const String _briefByIdsQuery = r'''
+query ($ids: [Int]) {
+  Page(perPage: 50) {
+    media(id_in: $ids, type: ANIME, isAdult: false) {
+      id
+      title { english romaji }
+      coverImage { large }
+    }
+  }
+}''';
+  static const int _briefPageSize = 50;
+  static const Duration _briefWindow = Duration(milliseconds: 40);
+
+  final Map<int, TrendingAnime> _brief = {};
+  final Set<int> _notOnAniList = {};
+  final List<int> _briefQueue = [];
+  final Map<int, Completer<TrendingAnime?>> _briefWaiting = {};
+  Timer? _briefTimer;
+
+  /// [anilistId]'s title and cover, from AniList by id. Null when AniList
+  /// answered without it — filtered as adult, or no longer there. Throws when
+  /// AniList could not be reached.
+  Future<TrendingAnime?> briefById(int anilistId) {
+    final known = _byId[anilistId] ?? _brief[anilistId];
+    if (known != null) return Future.value(known);
+    if (_notOnAniList.contains(anilistId)) return Future.value(null);
+    final waiting = _briefWaiting[anilistId];
+    if (waiting != null) return waiting.future;
+    final asked = _briefWaiting[anilistId] = Completer<TrendingAnime?>();
+    _briefQueue.add(anilistId);
+    _briefTimer ??= Timer(_briefWindow, _sendBriefs);
+    return asked.future;
+  }
+
+  Future<void> _sendBriefs() async {
+    _briefTimer = null;
+    final ids = List<int>.of(_briefQueue);
+    _briefQueue.clear();
+    for (var i = 0; i < ids.length; i += _briefPageSize) {
+      final page = ids.sublist(i, min(i + _briefPageSize, ids.length));
+      try {
+        final res = await AniListRateLimiter.instance.send(
+          () => http
+              .post(
+                Uri.parse(_endpoint),
+                headers: const {'Content-Type': 'application/json', 'Accept': 'application/json'},
+                body: jsonEncode(<String, dynamic>{
+                  'query': _briefByIdsQuery,
+                  'variables': <String, dynamic>{'ids': page},
+                }),
+              )
+              .timeout(_timeout),
+          priority: true,
+        );
+        if (res.statusCode != 200) throw HttpException('AniList returned ${res.statusCode}');
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final media = ((body['data'] as Map<String, dynamic>?)?['Page'] as Map<String, dynamic>?)?['media'];
+        // No list means AniList did not answer the question — an error, not
+        // "none of these exist" — so nothing is recorded as missing.
+        if (media is! List<dynamic>) throw const FormatException('Unexpected AniList response shape');
+        final found = <int, TrendingAnime>{};
+        for (final m in media) {
+          final anime = _parseMedia(m as Map<String, dynamic>);
+          if (anime != null) found[anime.id] = anime;
+        }
+        for (final id in page) {
+          final anime = found[id];
+          if (anime != null) {
+            _brief[id] = anime;
+          } else {
+            _notOnAniList.add(id);
+          }
+          _briefWaiting.remove(id)?.complete(anime);
+        }
+        debugPrint('[TrendingService] briefById: ${page.length} id(s) in one request, '
+            '${page.length - found.length} not returned.');
+      } catch (e) {
+        debugPrint('[TrendingService] briefById batch of ${page.length} FAILED: $e');
+        for (final id in page) {
+          _briefWaiting.remove(id)?.completeError(e);
+        }
+      }
     }
   }
 

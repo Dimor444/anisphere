@@ -21,6 +21,7 @@ import '../../shared/widgets/aniplus_paywall.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
 import '../../shared/widgets/glass_modals.dart';
+import 'vote_anime.dart';
 
 /// Routed wrapper (`/community-vote`) around the vote body.
 class CommunityVoteScreen extends ConsumerWidget {
@@ -266,17 +267,20 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.primary.withOpacity(0.35)),
       ),
-      child: Row(
-        children: [
-          _Cover(url: v.animeCover, seed: v.animeTitle, width: 34, height: 44),
-          const SizedBox(width: 10),
-          Expanded(child: Text(v.animeTitle, style: AppTextStyles.label, overflow: TextOverflow.ellipsis)),
-          Icon(
-            Icons.how_to_vote_rounded,
-            size: 17,
-            color: v.voteSlot > CommunityVoteService.freeVotes ? AppColors.aniGold : AppColors.primaryLight,
-          ),
-        ],
+      child: VoteAnime(
+        anilistId: v.anilistId,
+        builder: (context, title, cover) => Row(
+          children: [
+            _Cover(url: cover, seed: '${v.anilistId}', width: 34, height: 44),
+            const SizedBox(width: 10),
+            Expanded(child: Text(title, style: AppTextStyles.label, overflow: TextOverflow.ellipsis)),
+            Icon(
+              Icons.how_to_vote_rounded,
+              size: 17,
+              color: v.voteSlot > CommunityVoteService.freeVotes ? AppColors.aniGold : AppColors.primaryLight,
+            ),
+          ],
+        ),
       ),
     ).animate().fadeIn(duration: 250.ms).slideX(begin: 0.05, end: 0);
   }
@@ -336,42 +340,47 @@ class _LeaderboardRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: votedByMe ? AppColors.primary : AppColors.border),
       ),
-      child: Row(
-        children: [
-          SizedBox(width: 26, child: Text('$rank', textAlign: TextAlign.center, style: AppTextStyles.numbersLg())),
-          const SizedBox(width: 8),
-          _Cover(url: tally.animeCover, seed: tally.animeTitle, width: 40, height: 52),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Flexible(
-                    child: Text(tally.animeTitle,
-                        style: AppTextStyles.label, overflow: TextOverflow.ellipsis),
+      // Title and cover from AniList by the tally's id — not the tally's own
+      // animeTitle and animeCover, which any voter can rewrite.
+      child: VoteAnime(
+        anilistId: tally.anilistId,
+        builder: (context, title, cover) => Row(
+          children: [
+            SizedBox(width: 26, child: Text('$rank', textAlign: TextAlign.center, style: AppTextStyles.numbersLg())),
+            const SizedBox(width: 8),
+            _Cover(url: cover, seed: '${tally.anilistId}', width: 40, height: 52),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Flexible(
+                      child: Text(title,
+                          style: AppTextStyles.label, overflow: TextOverflow.ellipsis),
+                    ),
+                    if (votedByMe) ...[
+                      const SizedBox(width: 5),
+                      const Icon(Icons.how_to_vote_rounded, size: 14, color: AppColors.primaryLight),
+                    ],
+                  ]),
+                  const SizedBox(height: 5),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: share,
+                      minHeight: 5,
+                      backgroundColor: AppColors.background,
+                      valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                    ),
                   ),
-                  if (votedByMe) ...[
-                    const SizedBox(width: 5),
-                    const Icon(Icons.how_to_vote_rounded, size: 14, color: AppColors.primaryLight),
-                  ],
-                ]),
-                const SizedBox(height: 5),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: share,
-                    minHeight: 5,
-                    backgroundColor: AppColors.background,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Text('${tally.voteCount}', style: AppTextStyles.numbers),
-        ],
+            const SizedBox(width: 10),
+            Text('${tally.voteCount}', style: AppTextStyles.numbers),
+          ],
+        ),
       ),
     );
   }

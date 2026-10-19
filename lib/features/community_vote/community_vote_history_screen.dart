@@ -10,6 +10,7 @@ import '../../core/utils/haptics.dart';
 import '../../data/models/community_vote.dart';
 import '../../services/community_vote_service.dart';
 import '../../shared/providers/language_provider.dart';
+import 'vote_anime.dart';
 
 /// Past community-vote days (`/community-vote/history`): one card per day
 /// with that day's winner; tap for the full final leaderboard. Past days are
@@ -82,11 +83,16 @@ class _DayCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(date, style: AppTextStyles.captionMuted),
-                        Text(
-                          winner?.animeTitle ?? '…',
-                          style: AppTextStyles.label,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        // The winner as AniList has it, by id — not the
+                        // title written into the tally.
+                        if (winner == null)
+                          const Text('…', style: AppTextStyles.label)
+                        else
+                          VoteAnime(
+                            anilistId: winner.anilistId,
+                            builder: (context, title, _) =>
+                                Text(title, style: AppTextStyles.label, overflow: TextOverflow.ellipsis),
+                          ),
                       ],
                     ),
                   ),
@@ -143,7 +149,11 @@ class _PastDayScreen extends StatelessWidget {
                               textAlign: TextAlign.center, style: AppTextStyles.numbersLg())),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(t.animeTitle, style: AppTextStyles.label, overflow: TextOverflow.ellipsis),
+                        child: VoteAnime(
+                          anilistId: t.anilistId,
+                          builder: (context, title, _) =>
+                              Text(title, style: AppTextStyles.label, overflow: TextOverflow.ellipsis),
+                        ),
                       ),
                       Text(
                         total == 0 ? '${t.voteCount}' : '${t.voteCount} · ${(t.voteCount * 100 / total).round()}%',

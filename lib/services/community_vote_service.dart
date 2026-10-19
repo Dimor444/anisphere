@@ -159,6 +159,12 @@ class CommunityVoteService {
         dayId: dayId,
         voteSlot: slot,
       );
+      // animeTitle and animeCover are still written, on the vote and the
+      // tally, though nothing shows them now: the board and the history read
+      // both from AniList by anilist_id (VoteAnime). Installed builds write
+      // them, and the rules still accept them from those builds — checked
+      // for shape, not pinned — so new builds keep writing them too until
+      // the installed ones are gone and the rules can stop accepting them.
       final batch = _db.batch()
         ..set(_votes(dayId).doc(vote.docId), vote.toMap())
         ..set(
