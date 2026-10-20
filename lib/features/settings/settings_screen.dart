@@ -6,9 +6,8 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
-import '../../services/auth_service.dart';
 import '../../shared/providers/language_provider.dart';
-import '../../shared/widgets/glass_modals.dart';
+import 'sign_out_flow.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -20,77 +19,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Guards the logout button while the sign-out is in flight.
   bool _loggingOut = false;
 
-  /// Ends the Firebase session, then leaves.
-  ///
-  /// The order is the fix. This used to navigate to /onboarding and nothing
-  /// else, so the session stayed fully authenticated: currentUser intact, the
-  /// credential still in the keychain, every rule still seeing the uid. The
-  /// screen said "Logout" and the backend disagreed.
-  ///
-  /// A failed sign-out must NOT navigate. Leaving the screen on a failure
-  /// would reproduce exactly the old bug — the user believes they are out
-  /// while the session lives on — so the error is surfaced and they stay put.
+  /// Ends the session after the player confirms; see [signOutWithConfirmation].
   Future<void> _logout() async {
     if (_loggingOut) return;
-    Haptics.medium();
-
-    final confirmed = AuthService.instance.isGuest
-        ? await _confirmGuestSignOut()
-        : await showGlassDialog<bool>(
-            context: context,
-            builder: (dCtx) => AlertDialog(
-              title: const Text('Log out?'),
-              content: const Text("You'll need to sign in again to get back to your account."),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.tr('cancel'))),
-                TextButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('Log out')),
-              ],
-            ),
-          );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _loggingOut = true);
-    try {
-      await AuthService.instance.signOut();
-    } catch (e) {
-      debugPrint('[Settings] sign-out failed: $e');
-      if (!mounted) return;
-      setState(() => _loggingOut = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't log out — you are still signed in. Try again.")),
-      );
-      return; // Deliberately no navigation: the session is still live.
-    }
-    if (!mounted) return;
-    context.go('/onboarding');
-  }
-
-  /// A guest cannot sign back in — there is no credential to sign in WITH —
-  /// so signing out abandons the account with everything it posted still
-  /// online and nobody able to remove it. Said plainly, with deletion
-  /// offered in the same breath. True for every account today: guest is the
-  /// only identity there is.
-  ///
-  /// Returns true only for "Sign out anyway". "Delete account" opens the
-  /// delete page instead and reports false, so the sign-out does not run.
-  Future<bool> _confirmGuestSignOut() async {
-    final choice = await showGlassDialog<String>(
-      context: context,
-      builder: (dCtx) => AlertDialog(
-        title: Text(ref.tr('guestSignOutTitle')),
-        content: Text(ref.tr('guestSignOutBody')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(ref.tr('cancel'))),
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx, 'delete'),
-            child: Text(ref.tr('deleteAccount'), style: const TextStyle(color: AppColors.error)),
-          ),
-          TextButton(onPressed: () => Navigator.pop(dCtx, 'signout'), child: Text(ref.tr('signOutAnyway'))),
-        ],
-      ),
-    );
-    if (choice == 'delete' && mounted) context.push('/delete-account');
-    return choice == 'signout';
+    final signedOut = await signOutWithConfirmation(context, ref,
+        onSigningOut: () => setState(() => _loggingOut = true));
+    if (!signedOut && mounted) setState(() => _loggingOut = false);
   }
 
   @override

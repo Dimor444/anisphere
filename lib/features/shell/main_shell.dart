@@ -9,6 +9,7 @@ import '../../shared/widgets/app_drawer.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
 import '../../shared/widgets/glass_surface.dart';
 import '../create/create_screen.dart';
+import 'session_unconfirmed_banner.dart';
 
 /// Root scaffold for the tabbed app: body + bottom nav + drawer.
 class MainShell extends ConsumerStatefulWidget {
@@ -26,6 +27,26 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AuthService.instance.sessionUnconfirmed.addListener(_onSessionConfirmation);
+    _runStartupChain();
+    // The isPlus mirror is gone: isPlus is server-owned now (firestore.rules
+    // forbids the client from writing it), so this listener could only ever
+    // fail. Whatever grants AniPlus in future must write users/{uid}.isPlus
+    // from a trusted context, not from here.
+  }
+
+  bool _wasUnconfirmed = false;
+
+  /// A session the server would not confirm has now been confirmed (Retry,
+  /// or a later check): the startup chain failed while it could reach
+  /// nothing, so it runs again.
+  void _onSessionConfirmation() {
+    final unconfirmed = AuthService.instance.sessionUnconfirmed.value;
+    if (_wasUnconfirmed && !unconfirmed && AuthService.instance.uid != null) _runStartupChain();
+    _wasUnconfirmed = unconfirmed;
+  }
+
+  void _runStartupChain() {
     // Make sure the signed-in user has a public profile doc (`users/{uid}`)
     // so others can follow them and see them in lists/suggestions.
     // Create-only with neutral defaults — never seeds session/sample identity
@@ -40,10 +61,6 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
         .catchError((Object e) {
       debugPrint('[MainShell] startup profile chain failed: $e');
     });
-    // The isPlus mirror is gone: isPlus is server-owned now (firestore.rules
-    // forbids the client from writing it), so this listener could only ever
-    // fail. Whatever grants AniPlus in future must write users/{uid}.isPlus
-    // from a trusted context, not from here.
   }
 
   /// Backfill gate: accounts without a claimed @handle pick one before
@@ -77,6 +94,7 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
 
   @override
   void dispose() {
+    AuthService.instance.sessionUnconfirmed.removeListener(_onSessionConfirmation);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -117,6 +135,19 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
             // recommendations backend reading actual user data. Only the entry
             // point is gone, so restoring it means re-adding a button, not
             // rebuilding a feature. The Stack stays for the same reason.
+            ValueListenableBuilder<bool>(
+              valueListenable: AuthService.instance.sessionUnconfirmed,
+              builder: (context, unconfirmed, _) => unconfirmed
+                  ? Positioned(
+                      left: 12,
+                      right: 12,
+                      // Just above the bottom bar: the body runs behind it, and
+                      // its height is in the body's bottom padding.
+                      bottom: MediaQuery.paddingOf(context).bottom + 10,
+                      child: const SessionUnconfirmedBanner(),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
         bottomNavigationBar: AniBottomNav(

@@ -134,31 +134,51 @@ class AuthService {
   void debugResetSignedOutFlag() => _signedOut = null;
 
   /// Auth codes that mean the cached credential is DEAD: the account is gone,
-  /// disabled, or its refresh token is permanently rejected. Nothing recovers
-  /// these by waiting, so a guest session carrying one is discarded.
+  /// disabled, or the server has permanently rejected its credential. Nothing
+  /// recovers these by waiting, so a guest session carrying one is discarded.
   ///
-  /// `internal-error` is in here because that is what the iOS SDK reports when
-  /// securetoken.googleapis.com answers a refresh with HTTP 400 — the exact
-  /// signature of an account that was deleted out from under a live keychain
-  /// session.
+  /// Exactly the four codes the iOS SDK raises only from a definitive server
+  /// answer — USER_NOT_FOUND, USER_DISABLED, TOKEN_EXPIRED and INVALID_ID_TOKEN
+  /// (FirebaseAuth AuthBackend.clientError) — and the four on which the SDK
+  /// itself signs a user out (User.signOutIfTokenIsInvalid).
   ///
-  /// This is an ALLOWLIST on purpose. Every other failure — most importantly
+  /// `internal-error` was here until 2026-10-20 and must not come back. It is
+  /// the SDK's catch-all for any answer it does not recognise: an unknown
+  /// message, a gateway or captive-portal page, a body it cannot decode. It
+  /// cannot tell a dead account from a bad moment, and for a guest, signing
+  /// out is permanent. The two sightings that put it here, in August and
+  /// October, were both emulator sessions restored in a production build —
+  /// production rightly refused a token it never issued — not deleted
+  /// production accounts, which the documentation says answer USER_NOT_FOUND.
+  ///
+  /// This is an ALLOWLIST on purpose. Every other failure — `internal-error`,
   /// `network-request-failed`, timeouts, and any code added by a future SDK —
-  /// is treated as transient and the session is kept. Dropped wifi must never
-  /// cost a user their account.
+  /// keeps the session. Dropped wifi must never cost a user their account.
   static const Set<String> deadCredentialCodes = {
     'user-not-found',
     'user-disabled',
     'user-token-expired',
     'invalid-user-token',
-    'internal-error',
   };
+
+  /// True while the server has answered this session's token check with
+  /// neither a token nor a definitive [deadCredentialCodes] — most often
+  /// `internal-error`. The session is kept, because the answer may be a bad
+  /// moment; but if the account really is unusable nothing will load, and
+  /// only the player can decide to give it up — for a guest, everything in it.
+  /// The shell shows this with Try again and Log out, and never signs anyone
+  /// out on it.
+  ///
+  /// Not set by `network-request-failed` or a timeout: those are offline,
+  /// which every screen already shows, and there is nothing to decide.
+  final ValueNotifier<bool> sessionUnconfirmed = ValueNotifier(false);
 
   /// Test seam. `FirebaseAuth.instance` is a hard singleton with no injection
   /// point, and the failure this guards against only becomes observable once a
   /// cached token has EXPIRED — which a test cannot wait an hour for. Tests
-  /// substitute the token fetch to reach that moment; production always uses
-  /// the non-forced [User.getIdToken] fast path below.
+  /// substitute the token fetch to reach that moment, in every credential
+  /// check here; production always uses [User.getIdToken] — the non-forced
+  /// fast path at startup, forced in [recheckSession] and [deleteAccount].
   @visibleForTesting
   static Future<String?> Function(User user)? debugTokenFetcher;
 
@@ -219,12 +239,15 @@ class AuthService {
     try {
       final fetch = debugTokenFetcher?.call(existing) ?? existing.getIdToken();
       await fetch.timeout(validationTimeout);
+      sessionUnconfirmed.value = false;
       return existing;
     } on FirebaseAuthException catch (e) {
       if (!deadCredentialCodes.contains(e.code)) {
-        // Transient: keep the session and let the caller's own retry handle it.
-        debugPrint('[AuthService] token check failed transiently '
+        // Not definitive: keep the session. An answer from the server that is
+        // not a network failure is surfaced, so the player can choose.
+        debugPrint('[AuthService] token check failed without a definitive answer '
             '([${e.code}] ${e.message}) — keeping session ${existing.uid}');
+        if (e.code != 'network-request-failed') sessionUnconfirmed.value = true;
         return existing;
       }
       return _recoverFromDeadCredential(existing, e.code);
@@ -249,6 +272,7 @@ class AuthService {
     final wasAnonymous = existing.isAnonymous;
     debugPrint('[AuthService] cached credential is dead ([$code]) for '
         '${existing.uid} (anonymous: $wasAnonymous) — signing out');
+    sessionUnconfirmed.value = false;
     await _auth.signOut();
 
     if (!wasAnonymous) {
@@ -265,6 +289,7 @@ class AuthService {
       final user = (await _auth.signInAnonymously()).user;
       if (user == null) throw StateError('No Firebase user after sign-in');
       debugPrint('[AuthService] guest session: ${user.uid}');
+      sessionUnconfirmed.value = false;
       return user;
     } on FirebaseAuthException catch (e) {
       debugPrint('[AuthService] anonymous sign-in failed: [${e.code}] ${e.message}');
@@ -272,6 +297,40 @@ class AuthService {
     } catch (e) {
       debugPrint('[AuthService] anonymous sign-in failed: $e');
       rethrow;
+    }
+  }
+
+  /// Try again, after [sessionUnconfirmed]: a forced refresh, read the way the
+  /// startup check reads it. Returns true once the session is confirmed. A
+  /// definitive [deadCredentialCodes] answer recovers as the startup check
+  /// does; anything else leaves the session, and the flag, as they are.
+  Future<bool> recheckSession() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      sessionUnconfirmed.value = false;
+      return false;
+    }
+    try {
+      final fetch = debugTokenFetcher?.call(user) ?? user.getIdToken(true);
+      await fetch.timeout(validationTimeout);
+      sessionUnconfirmed.value = false;
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (deadCredentialCodes.contains(e.code)) {
+        final recovering = _recoverFromDeadCredential(user, e.code);
+        _pending = recovering;
+        try {
+          await recovering;
+        } catch (_) {
+          _pending = null; // a real account: signed out, nothing minted
+        }
+        return false;
+      }
+      debugPrint('[AuthService] recheck: still no definitive answer ([${e.code}])');
+      return false;
+    } catch (e) {
+      debugPrint('[AuthService] recheck: $e');
+      return false;
     }
   }
 
@@ -353,6 +412,7 @@ class AuthService {
 
   /// The half of [signOut] after the flag, shared with [deleteAccount].
   Future<void> _endSession() async {
+    sessionUnconfirmed.value = false;
     try {
       final prefs = await SharedPreferences.getInstance();
       for (final key in _userScopedPrefKeys) {
@@ -407,8 +467,10 @@ class AuthService {
   ///
   /// A failed call is not proof the account survived: the response can be
   /// lost after the server committed. So every failure re-checks the
-  /// credential first. Dead means the server got as far as disabling it, and
-  /// that is success. Alive means the flag is cleared and the failure thrown.
+  /// credential first. Definitively dead — [deadCredentialCodes] — means the
+  /// server got as far as disabling it, and that is success. Anything else,
+  /// an ambiguous `internal-error` included, means the flag is cleared and
+  /// the failure thrown: deletion is done only when the server says so.
   ///
   /// Does NOT clear the offline cache — see [clearLocalData] for why that
   /// waits until the signed-in screens are gone.
@@ -466,7 +528,7 @@ class AuthService {
   /// is "could not tell", never "gone".
   Future<_Credential> _credentialState(User user) async {
     try {
-      await user.getIdToken(true).timeout(validationTimeout);
+      await (debugTokenFetcher?.call(user) ?? user.getIdToken(true)).timeout(validationTimeout);
       return _Credential.alive;
     } on FirebaseAuthException catch (e) {
       if (deadCredentialCodes.contains(e.code)) return _Credential.dead;
