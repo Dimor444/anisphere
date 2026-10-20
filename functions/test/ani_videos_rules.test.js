@@ -13,16 +13,19 @@
  *   [unchanged]  what both this ruleset and the one before it decide the same
  *                way: the url and identity refusals, and the edits still open
  *   [new rule]   an attack the previous rules allowed — must be refused now
- *   [transition] a second host added to a list, nothing else changed
+ *   [transition] a host added to a list, nothing else changed
  *
  * Every refusal starts from a payload that passes and changes one thing, and
  * every create but the grant cases has its grant, so a case is refused for
  * the reason its name gives.
  *
  * RULES_FILE points the suite at another ruleset, which is how the negative
- * control runs: against the rules before this change, exactly the [new rule]
- * cases must fail (the attacks go through) and every other case must pass.
- * [transition] needs the current rules and is skipped under RULES_FILE.
+ * control runs: against the rules before a change, exactly the cases that
+ * change introduces must fail — [new rule] cases when it refused an attack
+ * (the attacks go through), the media.4nisphere.com [transition] cases when it
+ * listed that host (they are refused) — and every other case must pass. The
+ * hypothetical-host [transition] cases rewrite the current rules' text, so
+ * they are skipped under RULES_FILE.
  *
  * Run with the firestore emulator up:
  *   node test/ani_videos_rules.test.js
@@ -47,6 +50,9 @@ const [HOST, PORT] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
 const RULES = process.env.RULES_FILE || resolve(__dirname, '../../firestore.rules');
 
 const BASE = 'https://pub-d6e4c414f2c04681bbafc54bd2375308.r2.dev';
+// The bucket's custom domain, which reads move to.
+const MEDIA = 'https://media.4nisphere.com';
+// A host no ruleset lists, for the "one more entry" cases.
 const CUSTOM = 'https://videos.example.com';
 const ANILIST = 'https://s4.anilist.co';
 const ANILIST_NEXT = 'https://s5.anilist.co';
@@ -278,15 +284,36 @@ async function stored(env, uid, overrides = {}) {
       { likedAt: serverTimestamp(), uid: BOB }));
   });
 
+  // ── media.4nisphere.com, the bucket's custom domain ───────────────────
+  const onMedia = (v) => ({
+    videoUrl: `${MEDIA}/ani_videos/${ALICE}/${v}.mp4`,
+    thumbnailUrl: `${MEDIA}/ani_videos/${ALICE}/${v}.jpg`,
+  });
+  await run('[transition]', 'an upload on media.4nisphere.com', () => ok(ALICE, onMedia));
+  await run('[transition]', 'an upload on media.4nisphere.com with no thumbnail', () =>
+    ok(ALICE, (v) => ({ ...onMedia(v), thumbnailUrl: '' })));
+  // Installed builds granted an upload just before the switch still save r2.dev.
+  await run('[compat]', 'r2.dev still accepted beside it', () => ok(ALICE));
+  await run('[unchanged]', "media.4nisphere.com pointing at another author's object, refused", () =>
+    refused(ALICE, (v) => ({ videoUrl: `${MEDIA}/ani_videos/${BOB}/${v}.mp4` })));
+  // The url check runs at create only and no update may touch a url, so what
+  // the rewrite produces stays editable under either ruleset.
+  await run('[unchanged]', 'a video rewritten to media.4nisphere.com: its author can still edit the caption', async () => {
+    const v = id();
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'ani_videos', v),
+      videoPayload(ALICE, v, PROFILES[ALICE], onMedia(v))));
+    await assertSucceeds(updateDoc(doc(as(ALICE), 'ani_videos', v), { caption: 'ZZRules edited after the move' }));
+  });
+
   await env.cleanup();
 
-  // ── A second host is one more list entry ──────────────────────────────
+  // ── A host is one more list entry ─────────────────────────────────────
   if (!process.env.RULES_FILE) {
     const swap = (text, from, to, what) => {
       if (!text.includes(from)) throw new Error(`${what} list not found in the rules`);
       return text.replace(from, to);
     };
-    let variant = swap(rules, `return ['${BASE}'];`, `return ['${BASE}', '${CUSTOM}'];`, 'aniVideoBases()');
+    let variant = swap(rules, `return ['${BASE}', '${MEDIA}'];`, `return ['${BASE}', '${MEDIA}', '${CUSTOM}'];`, 'aniVideoBases()');
     variant = swap(variant, `return ['${ANILIST}'];`, `return ['${ANILIST}', '${ANILIST_NEXT}'];`, 'aniListImageHosts()');
     const env2 = await makeEnv('demo-anivideos-transition', variant);
     const ok2 = (uid, overrides) => assertSucceeds(upload(env2, uid, overrides));
@@ -297,6 +324,7 @@ async function stored(env, uid, overrides = {}) {
         thumbnailUrl: `${CUSTOM}/ani_videos/${ALICE}/${v}.jpg`,
       })));
     await run('[transition]', 'r2.dev still accepted alongside it', () => ok2(ALICE));
+    await run('[transition]', 'media.4nisphere.com still accepted alongside it', () => ok2(ALICE, onMedia));
     await run('[transition]', 'an unlisted video host still refused', () =>
       refused2(ALICE, (v) => ({ videoUrl: `https://evil.example/ani_videos/${ALICE}/${v}.mp4` })));
     await run('[transition]', 'a second AniList image host accepted once listed', () =>

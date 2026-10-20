@@ -137,7 +137,13 @@ exports._sweepStaleRooms = sweepStaleRooms;
 // instead of hardcoding it, and a bucket change is a normal code review.
 const R2_ACCOUNT_ID = 'a33179ee6313a7a924e3e002827983bb';
 const R2_BUCKET = 'anisphere-videos';
-const R2_PUBLIC_BASE = 'https://pub-d6e4c414f2c04681bbafc54bd2375308.r2.dev';
+// Where videos are READ from, and the only thing here that names a read host:
+// handed to the app as publicBase, which composes each video's stored url from
+// it. The bucket's custom domain — r2.dev, the default it replaces, fails TLS
+// on some networks. Uploads and deletion never use it: they go to the account
+// endpoint below with the R2 keys. Videos saved before the switch keep their
+// r2.dev urls until functions/tools/rewrite-video-host.js rewrites them.
+const R2_PUBLIC_BASE = 'https://media.4nisphere.com';
 
 // Secrets live in Cloud Secret Manager and are bound per function via the
 // `secrets` option below. Their `.value()` resolves at RUNTIME only — reading
