@@ -474,13 +474,13 @@ service cloud.firestore {
       }
 
       // Public read hosts of the Ani Videos R2 bucket. A video's urls must
-      // name one of these. media.4nisphere.com is the bucket's custom domain,
-      // where reads move because r2.dev fails TLS on some networks; r2.dev
-      // stays listed while uploads granted before the switch, and videos not
-      // yet rewritten, still carry it. Retiring it is removing that entry,
-      // once an admin count of documents holding it reads zero.
+      // name one of these. media.4nisphere.com is the bucket's custom domain.
+      // r2.dev, which it replaced because it fails TLS on some networks and
+      // is rate-limited, was removed once every stored video had been
+      // rewritten off it and public access through it was turned off. A new
+      // host is one more entry here.
       function aniVideoBases() {
-        return ['https://pub-d6e4c414f2c04681bbafc54bd2375308.r2.dev', 'https://media.4nisphere.com'];
+        return ['https://media.4nisphere.com'];
       }
       // True only for <base>/ani_videos/<uid>/<videoId><ext> on an allowed
       // base: the exact key requestVideoUploadUrl signs for this author and
