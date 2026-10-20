@@ -78,6 +78,8 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
 flutter:
   uses-material-design: true
+  # Generates lib/l10n/app_localizations*.dart from the ARB files; see l10n.yaml.
+  generate: true
   assets:
     - assets/images/
     - assets/lottie/

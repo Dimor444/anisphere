@@ -1,0 +1,1079 @@
+{
+  "@@locale": "en",
+  "onbTitle1": "One World, Every Anime",
+  "@onbTitle1": {
+    "description": "Title of the first onboarding slide, the first screen a new player sees."
+  },
+  "onbBody1": "Follow, post, and react with fellow fans. Your feed, your fandom.",
+  "@onbBody1": {
+    "description": "Text under the first onboarding slide's title."
+  },
+  "onbTitle2": "Prove You're a True Fan",
+  "@onbTitle2": {
+    "description": "Title of the second onboarding slide, about the True Fan quizzes."
+  },
+  "onbBody2": "Play anime quizzes, race the True Fan leaderboard, and earn AniGold with your daily spin.",
+  "@onbBody2": {
+    "description": "Text under the second onboarding slide's title. AniGold is the app's coin; keep the name as is."
+  },
+  "onbTitle3": "Find Your People",
+  "@onbTitle3": {
+    "description": "Title of the third onboarding slide, about finding other fans."
+  },
+  "onbBody3": "Search fans by handle, follow them, and message them directly.",
+  "@onbBody3": {
+    "description": "Text under the third onboarding slide's title. A handle is a player's unique @name."
+  },
+  "observatoryCommunity": "Community",
+  "@observatoryCommunity": {
+    "description": "Section heading on the Observatory screen for AniSphere's own numbers."
+  },
+  "observatoryMembers": "Members",
+  "@observatoryMembers": {
+    "description": "Observatory: label under the number of AniSphere members."
+  },
+  "observatoryPostsToday": "Posts today",
+  "@observatoryPostsToday": {
+    "description": "Observatory: label under the number of posts made today."
+  },
+  "observatoryUtcNote": "Posts counted since 00:00 UTC today.",
+  "@observatoryUtcNote": {
+    "description": "Observatory: note under the posts-today number explaining when the day starts."
+  },
+  "observatoryGlobalTitle": "Global popularity",
+  "@observatoryGlobalTitle": {
+    "description": "Section heading on the Observatory screen for anime popularity worldwide, from AniList."
+  },
+  "observatoryGlobalNote": "Worldwide totals from AniList — no country breakdown.",
+  "@observatoryGlobalNote": {
+    "description": "Observatory: note under the global popularity heading. AniList is the anime database the app uses; keep the name."
+  },
+  "observatoryOnLists": "on AniList lists",
+  "@observatoryOnLists": {
+    "description": "Observatory: follows a number in each popularity row, as in “1.2M · on AniList lists” — how many AniList users have the anime on a list."
+  },
+  "observatoryStatsError": "Couldn't load community numbers.",
+  "@observatoryStatsError": {
+    "description": "Observatory: shown when AniSphere's own numbers fail to load."
+  },
+  "observatoryPopularError": "Couldn't load global popularity.",
+  "@observatoryPopularError": {
+    "description": "Observatory: shown when the global popularity list fails to load."
+  },
+  "observatoryPopularEmpty": "No popularity data right now.",
+  "@observatoryPopularEmpty": {
+    "description": "Observatory: shown when the global popularity list comes back empty."
+  },
+  "vote": "Vote",
+  "@vote": {
+    "description": "Discover screen tab that opens today's Community Vote, and the confirm button in the vote dialog."
+  },
+  "communityVoteTitle": "Today's Community Vote",
+  "@communityVoteTitle": {
+    "description": "Title of the Community Vote screen, where players vote for an anime each day."
+  },
+  "castVote": "Cast a Vote",
+  "@castVote": {
+    "description": "Community Vote: button that opens the anime search to vote."
+  },
+  "votesRemaining": "Votes remaining",
+  "@votesRemaining": {
+    "description": "Community Vote: label before the votes left today, as in “Votes remaining: 1/2”."
+  },
+  "resetsIn": "Resets in",
+  "@resetsIn": {
+    "description": "Community Vote: before a countdown to the daily reset, as in “Resets in 3h 12m”."
+  },
+  "cantBeUndone": "This can't be undone.",
+  "@cantBeUndone": {
+    "description": "Community Vote: text in the confirmation dialog before a vote is cast."
+  },
+  "voteForConfirm": "Vote for",
+  "@voteForConfirm": {
+    "description": "Community Vote: start of the confirmation dialog's title; the app adds the anime title and a question mark, as in “Vote for Frieren?”."
+  },
+  "alreadyVotedToday": "You already voted for this anime today",
+  "@alreadyVotedToday": {
+    "description": "Community Vote: shown when the player picks an anime they already voted for today."
+  },
+  "noVotesLeftToday": "No votes left today",
+  "@noVotesLeftToday": {
+    "description": "Community Vote: shown when the player has used all of today's votes; may be followed by “ · Resets in 3h 12m”."
+  },
+  "yourVotesToday": "Your Votes Today",
+  "@yourVotesToday": {
+    "description": "Community Vote: heading over the anime the player voted for today."
+  },
+  "todaysLeaderboard": "Today's Leaderboard",
+  "@todaysLeaderboard": {
+    "description": "Community Vote: heading over today's ranking of anime by votes."
+  },
+  "viewPastDays": "View Past Days",
+  "@viewPastDays": {
+    "description": "Community Vote: button that opens the results of earlier days."
+  },
+  "pastVotesTitle": "Past Community Votes",
+  "@pastVotesTitle": {
+    "description": "Title of the screen listing earlier days' Community Vote results."
+  },
+  "upgradeForVotes": "AniPlus: 4 votes/day",
+  "@upgradeForVotes": {
+    "description": "Community Vote: note that the AniPlus plan gives 4 votes a day. AniPlus is a plan name; keep it."
+  },
+  "voteCastSuccess": "Vote cast! 🎉",
+  "@voteCastSuccess": {
+    "description": "Community Vote: confirmation after a vote is cast."
+  },
+  "noVotesYetToday": "No votes yet today — be the first!",
+  "@noVotesYetToday": {
+    "description": "Community Vote: shown in today's leaderboard before anyone has voted."
+  },
+  "titleUnavailable": "Title unavailable",
+  "@titleUnavailable": {
+    "description": "Shown in place of an anime's title when AniList does not return one, for example on the vote board."
+  },
+  "onLists": "on lists",
+  "@onLists": {
+    "description": "Discover › Chart: follows a number in each row, as in “18.4K on lists” — how many AniList users have the anime on a list."
+  },
+  "notScoredYet": "Not scored yet",
+  "@notScoredYet": {
+    "description": "Discover › Chart: heading over anime that have no score yet."
+  },
+  "sessionUnconfirmed": "We couldn't confirm your account with the server, so things may not load.",
+  "@sessionUnconfirmed": {
+    "description": "Banner across the top of the app when the server could not confirm the player's account; it has Retry and Logout buttons."
+  },
+  "searchAnimeHint": "Search anime…",
+  "@searchAnimeHint": {
+    "description": "Placeholder text in anime search fields (Discover › Search and the Community Vote search)."
+  },
+  "recentSearches": "Recent searches",
+  "@recentSearches": {
+    "description": "Discover › Search: heading over the player's recent searches."
+  },
+  "noAnimeFound": "No anime found for",
+  "@noAnimeFound": {
+    "description": "Shown when a search finds nothing; the app adds the search in quotes, as in “No anime found for \"frieren\"”."
+  },
+  "tagline": "Your World. Your Anime.",
+  "@tagline": {
+    "description": "Slogan on the splash screen shown at launch."
+  },
+  "feed": "Feed",
+  "@feed": {
+    "description": "Name of the home feed: bottom navigation tab and side menu entry."
+  },
+  "discover": "Discover",
+  "@discover": {
+    "description": "Name of the Discover screen: bottom navigation tab and side menu entry."
+  },
+  "rooms": "Rooms",
+  "@rooms": {
+    "description": "Name of the watch-party Rooms screen: its title and side menu entry."
+  },
+  "profile": "Profile",
+  "@profile": {
+    "description": "Name of the player's profile: bottom navigation tab and the profile screen's title."
+  },
+  "aniVideos": "Ani Videos",
+  "@aniVideos": {
+    "description": "Name of the short-video section: bottom navigation tab, side menu entry, screen title and a profile tab. “Ani Videos” is a feature name."
+  },
+  "challenges": "Challenges",
+  "@challenges": {
+    "description": "Side menu entry for the Challenges screen (quizzes and the True Fan challenge)."
+  },
+  "seasonal": "Seasonal",
+  "@seasonal": {
+    "description": "Side menu entry for the Seasonal screen (what airs this week)."
+  },
+  "achievements": "Achievements",
+  "@achievements": {
+    "description": "Side menu entry for the Achievements screen."
+  },
+  "wallet": "Wallet",
+  "@wallet": {
+    "description": "Side menu entry for the Wallet screen, where the player's AniGold coins are."
+  },
+  "observatory": "Observatory",
+  "@observatory": {
+    "description": "Title of the Observatory screen and its side menu entry; it shows community and worldwide anime numbers."
+  },
+  "fmRadio": "FM Radio",
+  "@fmRadio": {
+    "description": "Side menu entry for the FM Radio screen."
+  },
+  "cardCollection": "Card Collection",
+  "@cardCollection": {
+    "description": "Side menu entry for the Card Collection screen."
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Side menu entry for the Settings screen."
+  },
+  "myList": "My List",
+  "@myList": {
+    "description": "Name of the player's anime list: side menu entry, screen title and error dialog title. Also used in “Frieren → My List ✅” after adding an anime from a video."
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Button that saves changes (My List entry, Edit Profile)."
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Button that closes a dialog without doing anything."
+  },
+  "ok": "OK",
+  "@ok": {
+    "description": "Button that acknowledges a message in a dialog."
+  },
+  "displayName": "Display Name",
+  "@displayName": {
+    "description": "Edit Profile: label of the display name field (the name shown on the profile, separate from the @handle)."
+  },
+  "bio": "Bio",
+  "@bio": {
+    "description": "Edit Profile: label of the short bio field."
+  },
+  "usernameChecking": "Checking…",
+  "@usernameChecking": {
+    "description": "Shown under the @handle field while the app checks whether the handle is free."
+  },
+  "usernameAvailable": "Available ✓",
+  "@usernameAvailable": {
+    "description": "Shown under the @handle field when the handle is free."
+  },
+  "usernameTaken": "Already taken",
+  "@usernameTaken": {
+    "description": "Shown under the @handle field when someone already has the handle."
+  },
+  "usernameTooShort": "At least 3 characters",
+  "@usernameTooShort": {
+    "description": "Shown under the @handle field when it is too short."
+  },
+  "usernameInvalid": "Lowercase letters, numbers and _ only",
+  "@usernameInvalid": {
+    "description": "Shown under the @handle field when it has characters a handle cannot contain."
+  },
+  "usernameReserved": "This name is reserved",
+  "@usernameReserved": {
+    "description": "Shown under the @handle field when the handle is reserved by the app."
+  },
+  "usernameCheckFailed": "Couldn't check — try again",
+  "@usernameCheckFailed": {
+    "description": "Shown under the @handle field when the availability check fails."
+  },
+  "claimUsernameTitle": "Claim your username",
+  "@claimUsernameTitle": {
+    "description": "Title of the sheet every new player sees to choose their @handle."
+  },
+  "claimUsernameBody": "Pick your unique @handle. Your display name stays separate and can be changed anytime.",
+  "@claimUsernameBody": {
+    "description": "Text on the claim sheet explaining the @handle and the separate display name."
+  },
+  "claim": "Claim",
+  "@claim": {
+    "description": "Button on the claim sheet that takes the chosen @handle."
+  },
+  "claimLater": "Not now — you can claim later",
+  "@claimLater": {
+    "description": "Button on the claim sheet that closes it without choosing a handle."
+  },
+  "usernameClaimFailed": "Couldn't claim — check your connection and try again",
+  "@usernameClaimFailed": {
+    "description": "Shown on the claim sheet when taking the handle fails."
+  },
+  "uploadPhotoSoon": "Upload photo (coming soon)",
+  "@uploadPhotoSoon": {
+    "description": "Edit Profile: button under the avatar; photo upload is not available yet."
+  },
+  "profileUpdated": "Profile updated ✅",
+  "@profileUpdated": {
+    "description": "Confirmation after Edit Profile saves."
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Button that tries a failed action again (loading, sending, playing)."
+  },
+  "notes": "Notes",
+  "@notes": {
+    "description": "My List entry: label of the player's own notes about the anime."
+  },
+  "status": "Status",
+  "@status": {
+    "description": "My List entry: label of the watch status (Watching, Completed…)."
+  },
+  "total": "Total",
+  "@total": {
+    "description": "My List: label under the number of anime on the list."
+  },
+  "removeFromList": "Remove from List",
+  "@removeFromList": {
+    "description": "Button that removes an anime from My List."
+  },
+  "emptyListTitle": "Nothing here yet",
+  "@emptyListTitle": {
+    "description": "Title of an empty state: My List with nothing on it, a hashtag with no posts, or a people search with no results."
+  },
+  "emptyListBody": "Add anime to get started",
+  "@emptyListBody": {
+    "description": "Text under an empty My List, inviting the player to add anime."
+  },
+  "episodesWatched": "Episodes watched",
+  "@episodesWatched": {
+    "description": "My List: label of the number of episodes the player has watched."
+  },
+  "yourScore": "Your score",
+  "@yourScore": {
+    "description": "My List: label of the player's own score for the anime."
+  },
+  "lastUpdated": "Last updated",
+  "@lastUpdated": {
+    "description": "My List entry: before the date the entry last changed, as in “Last updated: Oct 20, 2026 · 14:05”."
+  },
+  "listError": "Couldn't update your list. Try again.",
+  "@listError": {
+    "description": "Shown when adding to, changing or removing from My List fails."
+  },
+  "continueAsGuest": "Continue as Guest",
+  "@continueAsGuest": {
+    "description": "Sign-in screen: button that starts the app with a guest profile."
+  },
+  "guestSignedIn": "Signed in as guest",
+  "@guestSignedIn": {
+    "description": "Confirmation after continuing as a guest; the app adds “ · ” and the account's id."
+  },
+  "guestError": "Couldn't sign in. Try again.",
+  "@guestError": {
+    "description": "Sign-in screen: shown when continuing as a guest fails."
+  },
+  "messages": "Messages",
+  "@messages": {
+    "description": "Title of the direct messages screen."
+  },
+  "selectLanguage": "Select Language",
+  "@selectLanguage": {
+    "description": "Title of the language picker sheet."
+  },
+  "createAccount": "Create Account",
+  "@createAccount": {
+    "description": "Button that opens account sign-up (onboarding and sign-in screens)."
+  },
+  "signIn": "Sign In",
+  "@signIn": {
+    "description": "Title of the sign-in screen and its button; also shown on a profile that cannot load because no one is signed in."
+  },
+  "skip": "Skip",
+  "@skip": {
+    "description": "Onboarding: button that skips the remaining slides."
+  },
+  "next": "Next",
+  "@next": {
+    "description": "Onboarding: button that moves to the next slide."
+  },
+  "continueLabel": "Continue",
+  "@continueLabel": {
+    "description": "Sign-up: button that moves to the next step."
+  },
+  "finishSetup": "Finish Setup",
+  "@finishSetup": {
+    "description": "Sign-up: button on the last step."
+  },
+  "email": "Email",
+  "@email": {
+    "description": "Sign-in and sign-up: label of the email field."
+  },
+  "username": "Username",
+  "@username": {
+    "description": "Label of the @handle field (sign-up, Edit Profile and the claim sheet)."
+  },
+  "password": "Password",
+  "@password": {
+    "description": "Sign-in and sign-up: label of the password field."
+  },
+  "dateOfBirth": "Date of Birth",
+  "@dateOfBirth": {
+    "description": "Sign-up: label of the date-of-birth field."
+  },
+  "account": "Account",
+  "@account": {
+    "description": "Sign-up: name of the first step (email, handle, password)."
+  },
+  "pickAnime": "Pick Anime",
+  "@pickAnime": {
+    "description": "Sign-up: name of the step where the player picks anime they like."
+  },
+  "preferences": "Preferences",
+  "@preferences": {
+    "description": "Sign-up: name of the last step."
+  },
+  "firstAnimeEver": "Your first anime ever?",
+  "@firstAnimeEver": {
+    "description": "Sign-up: question about the first anime the player watched."
+  },
+  "whatYouEnjoy": "What do you enjoy?",
+  "@whatYouEnjoy": {
+    "description": "Sign-up: question over a choice of genres."
+  },
+  "ageRestriction": "Age Restriction ⚠️",
+  "@ageRestriction": {
+    "description": "Sign-up: title of the dialog shown to players under the minimum age."
+  },
+  "ageRestrictionBody": "AniSphere requires users to be 14 or older.",
+  "@ageRestrictionBody": {
+    "description": "Sign-up: text of the minimum-age dialog."
+  },
+  "exit": "Exit",
+  "@exit": {
+    "description": "Sign-up: button in the minimum-age dialog that leaves sign-up."
+  },
+  "follow": "Follow",
+  "@follow": {
+    "description": "Button that follows another player."
+  },
+  "following": "Following",
+  "@following": {
+    "description": "Label under the number of players someone follows, the title of that list, and the follow button's state once following."
+  },
+  "followers": "Followers",
+  "@followers": {
+    "description": "Label under the number of followers, and the title of the followers list. Also follows a number in Discover's people results, as in “1.2K Followers”."
+  },
+  "message": "Message",
+  "@message": {
+    "description": "Profile button that opens a direct message with the player."
+  },
+  "editProfile": "Edit Profile",
+  "@editProfile": {
+    "description": "Button on the player's own profile, and the title of the sheet it opens."
+  },
+  "share": "Share",
+  "@share": {
+    "description": "Ani Videos: action beside a video that shares it."
+  },
+  "spoiler": "Spoiler — tap to reveal",
+  "@spoiler": {
+    "description": "Cover over a post, video or message marked as a spoiler."
+  },
+  "stories": "Stories",
+  "@stories": {
+    "description": "Heading for players' stories (short-lived photo posts)."
+  },
+  "addStory": "Add Story",
+  "@addStory": {
+    "description": "First item in the stories row; it starts a new story."
+  },
+  "trending": "Trending",
+  "@trending": {
+    "description": "Title of the Trending screen, its side menu entry, a Discover tab, a feed heading (“🔥 Trending”), and a button on an empty My List."
+  },
+  "news": "News",
+  "@news": {
+    "description": "Title of the anime News screen (“📰 News”) and the name of its general news category."
+  },
+  "search": "Search",
+  "@search": {
+    "description": "Discover screen tab for searching anime."
+  },
+  "searchHint": "Search anime, users, posts…",
+  "@searchHint": {
+    "description": "Placeholder in the anime picker used when tagging an anime on a post or Ani Video."
+  },
+  "addToList": "Add to List",
+  "@addToList": {
+    "description": "Button on an anime's page that adds it to My List."
+  },
+  "watching": "Watching",
+  "@watching": {
+    "description": "Watch status and My List tab: anime the player is watching."
+  },
+  "completed": "Completed",
+  "@completed": {
+    "description": "Watch status and My List tab: anime the player has finished."
+  },
+  "planning": "Planning",
+  "@planning": {
+    "description": "Watch status and My List tab: anime the player plans to watch."
+  },
+  "onHold": "On Hold",
+  "@onHold": {
+    "description": "Watch status: anime the player has paused."
+  },
+  "dropped": "Dropped",
+  "@dropped": {
+    "description": "Watch status and My List count: anime the player stopped watching."
+  },
+  "episodes": "Episodes",
+  "@episodes": {
+    "description": "Follows the number of episodes an anime has, as in “12 Episodes”, on its My List page."
+  },
+  "posts": "Posts",
+  "@posts": {
+    "description": "Label under the number of posts on a profile, and the profile's Posts tab."
+  },
+  "earn": "Earn",
+  "@earn": {
+    "description": "Wallet screen tab: ways to earn AniGold."
+  },
+  "spend": "Spend",
+  "@spend": {
+    "description": "Wallet screen tab: what AniGold can buy."
+  },
+  "recharge": "Recharge",
+  "@recharge": {
+    "description": "Wallet screen tab for buying more currency."
+  },
+  "all": "All",
+  "@all": {
+    "description": "Filter that shows everything: the My List tab and the News category chip."
+  },
+  "logout": "Logout",
+  "@logout": {
+    "description": "Button that signs the player out (on the banner shown when the account could not be confirmed)."
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Sign-up: label of the language choice."
+  },
+  "newPost": "New Post",
+  "@newPost": {
+    "description": "Title of the screen for writing a post."
+  },
+  "verified": "Verified",
+  "@verified": {
+    "description": "Badge text for a verified player."
+  },
+  "post": "Post",
+  "@post": {
+    "description": "Button that publishes a post or an Ani Video."
+  },
+  "posted": "Posted!",
+  "@posted": {
+    "description": "Confirmation after a post is published."
+  },
+  "newPostHint": "Share your anime thoughts…",
+  "@newPostHint": {
+    "description": "Placeholder in the box where a post is written."
+  },
+  "addImage": "Add Image",
+  "@addImage": {
+    "description": "New Post: button that adds images."
+  },
+  "tagAnime": "Tag Anime",
+  "@tagAnime": {
+    "description": "New Post and Ani Video upload: button that tags the anime the post is about."
+  },
+  "markAsSpoiler": "Mark as spoiler",
+  "@markAsSpoiler": {
+    "description": "New Post and Ani Video upload: switch that marks the post as a spoiler."
+  },
+  "noPostsYet": "No posts yet. Follow users to see their posts!",
+  "@noPostsYet": {
+    "description": "Feed: shown when there are no posts from followed players."
+  },
+  "profileNoPosts": "No posts yet.",
+  "@profileNoPosts": {
+    "description": "Profile › Posts tab: shown when the player has no posts."
+  },
+  "profileNoVideos": "No videos yet.",
+  "@profileNoVideos": {
+    "description": "Profile › Ani Videos tab: shown when the player has no videos."
+  },
+  "comments": "Comments",
+  "@comments": {
+    "description": "Title of the comments under a post or Ani Video."
+  },
+  "noCommentsYet": "No comments yet — be the first!",
+  "@noCommentsYet": {
+    "description": "Shown when a post or video has no comments."
+  },
+  "addCommentHint": "Add a comment…",
+  "@addCommentHint": {
+    "description": "Placeholder in the comment box."
+  },
+  "deletePost": "Delete Post",
+  "@deletePost": {
+    "description": "Post menu action, and the title and confirm button of its confirmation dialog."
+  },
+  "reportPost": "Report Post",
+  "@reportPost": {
+    "description": "Post menu action that reports the post."
+  },
+  "postDeleted": "Post deleted",
+  "@postDeleted": {
+    "description": "Confirmation after a post is deleted."
+  },
+  "postReported": "Report received. Thank you!",
+  "@postReported": {
+    "description": "Confirmation after a post, video or message is reported."
+  },
+  "postFailed": "Couldn't publish your post. Try again.",
+  "@postFailed": {
+    "description": "Shown when publishing a post fails."
+  },
+  "maxImagesNote": "You can add up to 3 images.",
+  "@maxImagesNote": {
+    "description": "New Post: shown when the player tries to add more images than allowed."
+  },
+  "imageTooLarge": "Couldn't prepare an image for upload. Try a different image.",
+  "@imageTooLarge": {
+    "description": "New Post: shown when an image cannot be prepared for upload."
+  },
+  "actionFailed": "Something went wrong. Try again.",
+  "@actionFailed": {
+    "description": "General message when an action fails (liking, deleting, reporting…)."
+  },
+  "loadFeedError": "Couldn't load the feed.",
+  "@loadFeedError": {
+    "description": "Shown when the feed or a hashtag's posts fail to load."
+  },
+  "whyReport": "Why are you reporting this post?",
+  "@whyReport": {
+    "description": "Title of the list of reasons when reporting a post."
+  },
+  "whyReportUser": "Why are you reporting this user?",
+  "@whyReportUser": {
+    "description": "Title of the list of reasons when reporting a player from a chat."
+  },
+  "whyReportMessage": "Why are you reporting this message?",
+  "@whyReportMessage": {
+    "description": "Title of the list of reasons when reporting a chat message."
+  },
+  "checkConnection": "Check your connection and try again.",
+  "@checkConnection": {
+    "description": "Second line of an error, asking the player to check their connection."
+  },
+  "animeFanFallback": "Anime fan",
+  "@animeFanFallback": {
+    "description": "Name shown in messages for a player who has no display name."
+  },
+  "sayHi": "Say hi 👋",
+  "@sayHi": {
+    "description": "Shown in an empty chat, and as the preview of a conversation with no messages."
+  },
+  "blockList": "Block List",
+  "@blockList": {
+    "description": "Settings entry and screen title for the conversations the player has blocked."
+  },
+  "unblock": "Unblock",
+  "@unblock": {
+    "description": "Block List button, and chat menu action, that unblocks a conversation."
+  },
+  "block": "Block",
+  "@block": {
+    "description": "Chat menu action that blocks the conversation."
+  },
+  "dmListError": "Messages are unavailable right now.",
+  "@dmListError": {
+    "description": "Messages screen: shown when the conversation list fails to load."
+  },
+  "noMessagesYet": "No messages yet",
+  "@noMessagesYet": {
+    "description": "Messages screen: title when there are no conversations."
+  },
+  "noMessagesYetCaption": "Conversations you start will show up here.",
+  "@noMessagesYetCaption": {
+    "description": "Messages screen: text under “No messages yet”."
+  },
+  "blockListError": "Block list unavailable",
+  "@blockListError": {
+    "description": "Block List: shown when the list fails to load."
+  },
+  "noBlockedConversations": "No blocked conversations",
+  "@noBlockedConversations": {
+    "description": "Block List: title when nothing is blocked."
+  },
+  "noBlockedConversationsCaption": "People you block from a chat will appear here.",
+  "@noBlockedConversationsCaption": {
+    "description": "Block List: text under “No blocked conversations”."
+  },
+  "unblocking": "Unblocking…",
+  "@unblocking": {
+    "description": "Block List: shown on the button while unblocking."
+  },
+  "stillSending": "Still sending — it will go out once you're back online.",
+  "@stillSending": {
+    "description": "Chat: shown when a message is waiting for the connection to come back."
+  },
+  "sendMessageFailed": "Couldn't send that message.",
+  "@sendMessageFailed": {
+    "description": "Chat: shown when a message fails to send."
+  },
+  "sendPhotoFailed": "Couldn't send that photo.",
+  "@sendPhotoFailed": {
+    "description": "Chat: shown when a photo fails to send."
+  },
+  "conversationBlocked": "Conversation blocked",
+  "@conversationBlocked": {
+    "description": "Chat: confirmation after blocking the conversation."
+  },
+  "conversationUnblocked": "Conversation unblocked",
+  "@conversationUnblocked": {
+    "description": "Chat: confirmation after unblocking the conversation."
+  },
+  "reactionsBlocked": "Reactions are unavailable while this conversation is blocked.",
+  "@reactionsBlocked": {
+    "description": "Chat: shown when the player tries to react in a blocked conversation."
+  },
+  "reportMessage": "Report message",
+  "@reportMessage": {
+    "description": "Chat: action on a message that reports it."
+  },
+  "reportUser": "Report user",
+  "@reportUser": {
+    "description": "Chat menu action that reports the other player."
+  },
+  "conversationUnavailable": "This conversation is unavailable.",
+  "@conversationUnavailable": {
+    "description": "Chat: shown when the conversation cannot be opened."
+  },
+  "messageHint": "Message…",
+  "@messageHint": {
+    "description": "Chat: placeholder in the message box."
+  },
+  "conversationIsBlocked": "This conversation is blocked",
+  "@conversationIsBlocked": {
+    "description": "Chat: title of the notice that replaces the message box in a blocked conversation."
+  },
+  "deleteAccount": "Delete account",
+  "@deleteAccount": {
+    "description": "Settings button, and title of the screen, for deleting the account."
+  },
+  "deleteAccountLead": "This permanently deletes your AniSphere account and everything you made here.",
+  "@deleteAccountLead": {
+    "description": "Delete account screen: first paragraph."
+  },
+  "deleteWhatGoes": "What is deleted",
+  "@deleteWhatGoes": {
+    "description": "Delete account screen: heading over what is deleted."
+  },
+  "deleteGoesContent": "Your profile, posts, videos, stories and comments",
+  "@deleteGoesContent": {
+    "description": "Delete account screen: item under “What is deleted”."
+  },
+  "deleteGoesActivity": "Your likes, follows, votes and the messages you sent",
+  "@deleteGoesActivity": {
+    "description": "Delete account screen: item under “What is deleted”."
+  },
+  "deleteGoesWallet": "Your AniGold, items and leaderboard entries",
+  "@deleteGoesWallet": {
+    "description": "Delete account screen: item under “What is deleted”. AniGold is the app's coin."
+  },
+  "deleteWhatStays": "What stays",
+  "@deleteWhatStays": {
+    "description": "Delete account screen: heading over what is kept."
+  },
+  "deleteOthersKeep": "People you messaged keep their side of those conversations.",
+  "@deleteOthersKeep": {
+    "description": "Delete account screen: item under “What stays”."
+  },
+  "deleteHandleRetired": "Your @handle is retired forever. No one can take it — including you.",
+  "@deleteHandleRetired": {
+    "description": "Delete account screen: item under “What stays”, about the @handle."
+  },
+  "deleteWhen": "When",
+  "@deleteWhen": {
+    "description": "Delete account screen: heading over the timing."
+  },
+  "deleteTiming": "You'll be signed out now. Removal finishes within about an hour.",
+  "@deleteTiming": {
+    "description": "Delete account screen: item under “When”."
+  },
+  "deleteIrreversible": "This cannot be undone.",
+  "@deleteIrreversible": {
+    "description": "Delete account screen: warning above the confirmation field."
+  },
+  "deleteTypeToConfirm": "Type DELETE to confirm",
+  "@deleteTypeToConfirm": {
+    "description": "Delete account screen: label of the field where the player types the confirmation word. The app checks for the English word DELETE, so keep “DELETE” in Latin capitals."
+  },
+  "deleteAccountButton": "Delete my account",
+  "@deleteAccountButton": {
+    "description": "Delete account screen: the final button."
+  },
+  "deletingAccount": "Deleting your account…",
+  "@deletingAccount": {
+    "description": "Delete account screen: shown while the deletion is in progress."
+  },
+  "deleteFailedNothingChanged": "Couldn't delete your account. Nothing was changed — try again.",
+  "@deleteFailedNothingChanged": {
+    "description": "Delete account screen: shown when the deletion was refused and nothing changed."
+  },
+  "deleteFailedUnreachable": "Couldn't reach AniSphere. Nothing was changed — check your connection and try again.",
+  "@deleteFailedUnreachable": {
+    "description": "Delete account screen: shown when the server could not be reached."
+  },
+  "deleteFailedUnsure": "Couldn't confirm the deletion. Check your connection and try again — trying again is safe.",
+  "@deleteFailedUnsure": {
+    "description": "Delete account screen: shown when the app could not tell whether the deletion went through."
+  },
+  "accountDeletionStarted": "Your account is being deleted.",
+  "@accountDeletionStarted": {
+    "description": "Shown on the onboarding screen after the player is signed out and the deletion has started."
+  },
+  "guestSignOutTitle": "Sign out of a guest account?",
+  "@guestSignOutTitle": {
+    "description": "Title of the dialog shown when a guest player signs out."
+  },
+  "guestSignOutBody": "Guest accounts can't be signed back into. Your posts and messages would stay online with no way to remove them.",
+  "@guestSignOutBody": {
+    "description": "Text of the guest sign-out dialog."
+  },
+  "signOutAnyway": "Sign out anyway",
+  "@signOutAnyway": {
+    "description": "Button in the guest sign-out dialog that signs out."
+  },
+  "getStarted": "Get Started",
+  "@getStarted": {
+    "description": "Onboarding: button on the last slide."
+  },
+  "guestIntroTitle": "Start as a guest",
+  "@guestIntroTitle": {
+    "description": "Sign-in screen: heading explaining that the app starts with a guest profile."
+  },
+  "guestIntroBody": "AniSphere doesn't have accounts you sign into with an email or password yet. Continuing gives you a guest profile on this device — or picks up the one it already has.",
+  "@guestIntroBody": {
+    "description": "Sign-in screen: text under “Start as a guest”."
+  },
+  "guestIntroWarning": "A guest profile can't be signed back into. If you sign out, you can't return to it, and anything you posted stays online.",
+  "@guestIntroWarning": {
+    "description": "Sign-in screen: warning about signing out of a guest profile."
+  },
+  "deletedAccount": "Deleted account",
+  "@deletedAccount": {
+    "description": "Name shown in messages for a player whose account was deleted."
+  },
+  "accountNoLongerExists": "This account no longer exists.",
+  "@accountNoLongerExists": {
+    "description": "Chat: notice that the other player's account was deleted."
+  },
+  "conversationBlockedCaption": "Messages can't be sent or received right now.",
+  "@conversationBlockedCaption": {
+    "description": "Chat: text under “This conversation is blocked”."
+  },
+  "whyReportVideo": "Why are you reporting this video?",
+  "@whyReportVideo": {
+    "description": "Title of the list of reasons when reporting an Ani Video."
+  },
+  "reportSpam": "Spam",
+  "@reportSpam": {
+    "description": "Report reason: spam."
+  },
+  "reportSpoiler": "Untagged spoiler",
+  "@reportSpoiler": {
+    "description": "Report reason: a spoiler that was not marked as one."
+  },
+  "reportAbuse": "Harassment or abuse",
+  "@reportAbuse": {
+    "description": "Report reason: harassment or abuse."
+  },
+  "reportOther": "Other",
+  "@reportOther": {
+    "description": "Report reason: anything else."
+  },
+  "people": "People",
+  "@people": {
+    "description": "Discover screen tab for finding other players."
+  },
+  "suggestedForYou": "Suggested For You",
+  "@suggestedForYou": {
+    "description": "Discover › People: heading over suggested players."
+  },
+  "noSuggestions": "No more suggestions",
+  "@noSuggestions": {
+    "description": "Discover › People: shown when there are no more suggestions."
+  },
+  "noFollowersYet": "No followers yet",
+  "@noFollowersYet": {
+    "description": "Followers list: shown when the player has no followers."
+  },
+  "notFollowingAnyone": "Not following anyone yet",
+  "@notFollowingAnyone": {
+    "description": "Following list: shown when the player follows no one."
+  },
+  "userNotFound": "User not found",
+  "@userNotFound": {
+    "description": "Shown when a profile cannot be found."
+  },
+  "searchUsers": "Search users…",
+  "@searchUsers": {
+    "description": "Placeholder in fields that search players by handle (Discover › People, story mentions)."
+  },
+  "likes": "Likes",
+  "@likes": {
+    "description": "Label for the number of likes."
+  },
+  "popularThisWeek": "Popular This Week",
+  "@popularThisWeek": {
+    "description": "Feed: heading over the week's popular posts (“🔥 Popular This Week”)."
+  },
+  "emptyFeedFollow": "Follow users to see posts in your Feed!",
+  "@emptyFeedFollow": {
+    "description": "Feed: title of the notice shown when the player follows no one."
+  },
+  "startFollowingHint": "Start following to customize your Feed",
+  "@startFollowingHint": {
+    "description": "Feed: text under “Follow users to see posts in your Feed!”."
+  },
+  "noNewsYet": "No news yet",
+  "@noNewsYet": {
+    "description": "News screen: shown when there are no articles."
+  },
+  "readOnSource": "Read on source",
+  "@readOnSource": {
+    "description": "News article: button that opens the original article."
+  },
+  "relatedAnime": "Related Anime",
+  "@relatedAnime": {
+    "description": "News article: heading over the anime the article is about."
+  },
+  "catAnnouncement": "Announcement",
+  "@catAnnouncement": {
+    "description": "News category: announcements."
+  },
+  "catSeason": "Season",
+  "@catSeason": {
+    "description": "News category: news about a new season."
+  },
+  "catMovie": "Movie",
+  "@catMovie": {
+    "description": "News category: movies."
+  },
+  "catCollab": "Collab",
+  "@catCollab": {
+    "description": "News category: collaborations."
+  },
+  "catEvent": "Event",
+  "@catEvent": {
+    "description": "News category: events."
+  },
+  "uploadVideo": "Upload a video",
+  "@uploadVideo": {
+    "description": "Ani Videos: title of the upload screen and the button that opens it."
+  },
+  "maxVideoDuration": "Max 120 seconds",
+  "@maxVideoDuration": {
+    "description": "Upload screen: the length limit. The number must match the app's limit; the app may add “  ·  37s”, the picked video's length."
+  },
+  "videoTooLong": "Video is too long — max 120 seconds",
+  "@videoTooLong": {
+    "description": "Upload screen: shown when the picked video is longer than the limit. The number must match the app's limit."
+  },
+  "pickFromGallery": "Pick from gallery",
+  "@pickFromGallery": {
+    "description": "Upload screen: button that picks a video from the phone."
+  },
+  "recordVideo": "Record a video",
+  "@recordVideo": {
+    "description": "Upload screen: button that records a video with the camera."
+  },
+  "captionHint": "Write a caption…",
+  "@captionHint": {
+    "description": "Upload screen: placeholder in the caption box."
+  },
+  "uploading": "Uploading…",
+  "@uploading": {
+    "description": "Upload screen: shown during upload; the app adds the progress, as in “Uploading… 45%”."
+  },
+  "videoPosted": "Video posted!",
+  "@videoPosted": {
+    "description": "Confirmation after a video is published."
+  },
+  "videoUploadFailed": "Couldn't upload your video. Try again.",
+  "@videoUploadFailed": {
+    "description": "Shown when a video upload fails."
+  },
+  "noVideosYet": "No videos yet — upload the first!",
+  "@noVideosYet": {
+    "description": "Ani Videos: shown when there are no videos."
+  },
+  "videosLoadError": "Couldn't load videos.",
+  "@videosLoadError": {
+    "description": "Shown when videos fail to load."
+  },
+  "videoPlayFailed": "Couldn't play this video.",
+  "@videoPlayFailed": {
+    "description": "Shown over a video that failed to play; a Retry button follows."
+  },
+  "videoUnplayable": "This video can't be played.",
+  "@videoUnplayable": {
+    "description": "Shown over a video that cannot be played at all."
+  },
+  "deleteVideo": "Delete video",
+  "@deleteVideo": {
+    "description": "Video menu action, and the title and confirm button of its confirmation dialog."
+  },
+  "videoDeleted": "Video deleted",
+  "@videoDeleted": {
+    "description": "Confirmation after a video is deleted."
+  },
+  "reportVideo": "Report video",
+  "@reportVideo": {
+    "description": "Video menu action that reports the video."
+  },
+  "thisWeek": "This Week",
+  "@thisWeek": {
+    "description": "Title of the Seasonal screen, which lists the episodes airing this week."
+  },
+  "today": "Today",
+  "@today": {
+    "description": "Seasonal: added to today's day heading, as in “Tue · Today”."
+  },
+  "epShort": "Ep",
+  "@epShort": {
+    "description": "Seasonal: short for “episode” before its number, as in “Ep 12 · 18:00”. Keep it short."
+  },
+  "noEpisodesThisWeek": "No episodes airing this week.",
+  "@noEpisodesThisWeek": {
+    "description": "Seasonal: shown when nothing airs this week."
+  },
+  "weekScheduleError": "Couldn't load this week's schedule.\nCheck your connection and try again.",
+  "@weekScheduleError": {
+    "description": "Seasonal: shown when the week's schedule fails to load. Two lines."
+  },
+  "dayMon": "Mon",
+  "@dayMon": {
+    "description": "Seasonal: short name for Monday, used as a day heading."
+  },
+  "dayTue": "Tue",
+  "@dayTue": {
+    "description": "Seasonal: short name for Tuesday, used as a day heading."
+  },
+  "dayWed": "Wed",
+  "@dayWed": {
+    "description": "Seasonal: short name for Wednesday, used as a day heading."
+  },
+  "dayThu": "Thu",
+  "@dayThu": {
+    "description": "Seasonal: short name for Thursday, used as a day heading."
+  },
+  "dayFri": "Fri",
+  "@dayFri": {
+    "description": "Seasonal: short name for Friday, used as a day heading."
+  },
+  "daySat": "Sat",
+  "@daySat": {
+    "description": "Seasonal: short name for Saturday, used as a day heading."
+  },
+  "daySun": "Sun",
+  "@daySun": {
+    "description": "Seasonal: short name for Sunday, used as a day heading."
+  },
+  "seasonWinter": "Winter",
+  "@seasonWinter": {
+    "description": "Name of the winter anime season (January–March), as in “❄️ Winter 2026”."
+  },
+  "seasonSpring": "Spring",
+  "@seasonSpring": {
+    "description": "Name of the spring anime season (April–June), as in “🌸 Spring 2026”."
+  },
+  "seasonSummer": "Summer",
+  "@seasonSummer": {
+    "description": "Name of the summer anime season (July–September), as in “☀️ Summer 2026”."
+  },
+  "seasonFall": "Fall",
+  "@seasonFall": {
+    "description": "Name of the fall anime season (October–December), as in “🍂 Fall 2026”."
+  }
+}
