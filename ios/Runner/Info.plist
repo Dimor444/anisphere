@@ -25,15 +25,16 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 
-	<!-- AniSphere permission usage descriptions -->
+	<!-- AniSphere permission usage descriptions. Each says what the permission
+	     is used for today; a hidden feature adds its use here when it returns. -->
 	<key>NSCameraUsageDescription</key>
-	<string>AniSphere uses the camera to capture story photos and for AniScan to identify anime characters.</string>
+	<string>AniSphere uses the camera when you take a photo for your story or record an Ani Video.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>AniSphere needs the microphone for live streaming and AniDub.</string>
+	<string>AniSphere uses the microphone to record sound with the Ani Videos you film in the app.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>AniSphere needs photo access to upload media to your posts, stories, and Ani Videos.</string>
+	<string>AniSphere opens your photo library when you choose a photo for a post, your story or a message, or a video to upload as an Ani Video.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>AniSphere saves shareable cards and Wrapped images to your library.</string>
+	<string>AniSphere saves your AniCard or True Fan card to your photo library when you choose Save Image while sharing it.</string>
 
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

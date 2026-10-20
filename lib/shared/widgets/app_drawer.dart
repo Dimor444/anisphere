@@ -9,6 +9,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
 import '../../features/achievements/achievements_screen.dart';
+import '../../features/fm_radio/fm_radio_screen.dart';
 import '../../features/profile/card_collection_screen.dart';
 import '../providers/identity_provider.dart';
 import 'glass_surface.dart';
@@ -121,7 +122,8 @@ class AppDrawer extends ConsumerWidget {
                         _tile(LucideIcons.award, ref.tr('achievements'), () => go('/achievements')),
                       _tile(LucideIcons.wallet, ref.tr('wallet'), () => go('/wallet')),
                       _tile(LucideIcons.globe, ref.tr('observatory'), () => go('/observatory')),
-                      _tile(LucideIcons.radio, ref.tr('fmRadio'), () => go('/fm-radio')),
+                      if (kFmRadioEnabled)
+                        _tile(LucideIcons.radio, ref.tr('fmRadio'), () => go('/fm-radio')),
                       if (kCardCollectionEnabled)
                         _tile(LucideIcons.layers, ref.tr('cardCollection'), () => go('/cards')),
                       if (kAniScanEnabled)

@@ -46,6 +46,7 @@ import 'widgets/true_fan_section.dart';
 import '../../services/currency_service.dart';
 import '../../shared/widgets/user_name_text.dart';
 import 'card_collection_screen.dart';
+import 'time_capsule_screen.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
 import '../../shared/widgets/glass_app_bar.dart';
 
@@ -544,8 +545,12 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
               onToggleHidden: (anilistId, hidden) =>
                   TrueFanProfileService.instance.setHidden(anilistId: anilistId, hidden: hidden),
             ),
-            const SizedBox(height: 14),
-            _banners(context),
+            // Every banner and button below is hidden with the screen it
+            // opens; with none of them on, neither is the gap.
+            if (kWrappedEnabled || kTimeCapsuleEnabled || kCardCollectionEnabled) ...[
+              const SizedBox(height: 14),
+              _banners(context),
+            ],
           ],
         ),
       ),
@@ -613,15 +618,16 @@ class _OwnSectionsState extends ConsumerState<_OwnSections> {
           ),
           const SizedBox(height: 10),
         ],
-        Row(
-          children: [
-            Expanded(child: _quickBtn(context, '⏰', 'Time Capsule', '/time-capsule')),
-            if (kCardCollectionEnabled) ...[
-              const SizedBox(width: 10),
-              Expanded(child: _quickBtn(context, '🎴', 'Card Collection', '/cards')),
+        // Each button is hidden with the screen it opens; see
+        // kTimeCapsuleEnabled and kCardCollectionEnabled.
+        if (kTimeCapsuleEnabled || kCardCollectionEnabled)
+          Row(
+            children: [
+              if (kTimeCapsuleEnabled) Expanded(child: _quickBtn(context, '⏰', 'Time Capsule', '/time-capsule')),
+              if (kTimeCapsuleEnabled && kCardCollectionEnabled) const SizedBox(width: 10),
+              if (kCardCollectionEnabled) Expanded(child: _quickBtn(context, '🎴', 'Card Collection', '/cards')),
             ],
-          ],
-        ),
+          ),
       ],
     );
   }

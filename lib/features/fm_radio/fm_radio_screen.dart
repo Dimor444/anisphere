@@ -7,6 +7,23 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../shared/widgets/glass_app_bar.dart';
 
+/// Whether FM Radio exists at all: the `/fm-radio` route and the drawer entry
+/// that links to it.
+///
+/// It played nothing. The app has no audio package; the spinning record, the
+/// moving waveform and the play/pause button were animations, and the screen
+/// opened already "playing" in silence. "Now playing" stepped through five
+/// fixed tracks — Frieren's "Journey", Unravel, Gurenge, Idol, Silhouette —
+/// and the five channels (Lo-Fi Anime, Openings, Epic OST, City Pop,
+/// Vocaloid) changed which chip was highlighted and nothing else.
+///
+/// Coming back needs: streams the app has the right to play — every track it
+/// named is a commercial recording, so that means licensing or a licensed
+/// radio partner — an audio player with background playback (and iOS's audio
+/// background mode), and each channel's queue read from its stream instead of
+/// a fixed list. The screen is kept, not deleted.
+const bool kFmRadioEnabled = false;
+
 class FmRadioScreen extends StatefulWidget {
   const FmRadioScreen({super.key});
   @override

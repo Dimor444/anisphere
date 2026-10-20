@@ -93,7 +93,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: AniSphereApp()));
     await tester.pump();
     appRouter.go('/profile');
-    await pumpUntil(tester, find.text('Time Capsule'));
+    await pumpUntil(tester, find.text('🧬 Anime DNA'));
 
     await collapse(tester);
     await pumpUntil(tester, find.byType(PostCard));

@@ -116,13 +116,15 @@ final appRouter = GoRouter(
     _top('/ani-videos/upload', (c, s) => const UploadVideoScreen()),
     _top('/my-list/:id', (c, s) => MyListDetailScreen(anilistId: int.tryParse(s.pathParameters['id'] ?? '') ?? 0)),
     _top('/observatory', (c, s) => const ObservatoryScreen()),
-    _top('/fm-radio', (c, s) => const FmRadioScreen()),
+    // Hidden with its drawer entry; see kFmRadioEnabled.
+    if (kFmRadioEnabled) _top('/fm-radio', (c, s) => const FmRadioScreen()),
     // Hidden with every link to it; see kCardCollectionEnabled.
     if (kCardCollectionEnabled) _top('/cards', (c, s) => const CardCollectionScreen()),
     _top('/aniscan', (c, s) => const AniScanScreen()),
     // Hidden with its profile banner; see kWrappedEnabled.
     if (kWrappedEnabled) _top('/wrapped', (c, s) => const WrappedScreen()),
-    _top('/time-capsule', (c, s) => const TimeCapsuleScreen()),
+    // Hidden with its profile button; see kTimeCapsuleEnabled.
+    if (kTimeCapsuleEnabled) _top('/time-capsule', (c, s) => const TimeCapsuleScreen()),
     _top('/create-post', (c, s) => const CreatePostScreen()),
     // '/feed/hashtag/…' must precede '/feed/:postId' so 'hashtag' never binds
     // as a post id.

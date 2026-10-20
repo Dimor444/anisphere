@@ -9,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:anisphere/app.dart';
 import 'package:anisphere/features/achievements/achievements_screen.dart';
+import 'package:anisphere/features/fm_radio/fm_radio_screen.dart';
 import 'package:anisphere/core/constants/purchases.dart';
 import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/firebase_options.dart';
@@ -31,8 +32,8 @@ List<String?> tabLabels(WidgetTester tester) =>
 /// The wallet sells only what can be bought: Recharge and AniPlus follow
 /// kAniGemsEnabled and kAniPlusForSale, the gem shows only with gems, a link
 /// to a hidden tab lands on the first one, and the drawer offers no upgrade
-/// to a plan that cannot be bought — nor Achievements, which follows
-/// kAchievementsEnabled.
+/// to a plan that cannot be bought — nor Achievements or FM Radio, which
+/// follow kAchievementsEnabled and kFmRadioEnabled.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -81,6 +82,10 @@ void main() {
     expect(inDrawer('Seasonal'), findsOneWidget);
     expect(inDrawer('Wallet'), findsOneWidget);
     expect(inDrawer('Achievements'), kAchievementsEnabled ? findsOneWidget : findsNothing);
+    // FM Radio, between Observatory and Settings, checked the same way.
+    expect(inDrawer('Observatory'), findsOneWidget);
+    expect(inDrawer('Settings'), findsOneWidget);
+    expect(inDrawer('FM Radio'), kFmRadioEnabled ? findsOneWidget : findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

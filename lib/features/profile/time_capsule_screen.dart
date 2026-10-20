@@ -7,6 +7,25 @@ import '../../core/utils/haptics.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/glass_modals.dart';
 
+/// Whether Time Capsule exists at all: the `/time-capsule` route and the
+/// profile quick button that links to it.
+///
+/// Nothing on it was the player's. Every player saw the same three capsules —
+/// "To my future self after Frieren S2", due to open in March 2026 and still
+/// sealed months later; "My One Piece ending prediction"; and "2024 me's
+/// anime hopes", shown as opened in January 2025, its chevron opening nothing
+/// — under a promise to deliver a message "on the date you choose". "Seal
+/// Capsule 🔒" added the new capsule to this screen's state and nowhere else:
+/// nothing stored it, it was gone when the screen closed, and nothing could
+/// have delivered it — firebase_messaging is not a dependency, and nothing
+/// runs on a date.
+///
+/// Coming back needs: capsules stored per player under owner-only rules that
+/// refuse a read before the capsule's date, a scheduled function that opens
+/// each one when it is due, and push notifications to say so. The screen is
+/// kept, not deleted.
+const bool kTimeCapsuleEnabled = false;
+
 class TimeCapsuleScreen extends StatefulWidget {
   const TimeCapsuleScreen({super.key});
   @override

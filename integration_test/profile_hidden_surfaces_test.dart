@@ -13,6 +13,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:anisphere/app.dart';
 import 'package:anisphere/core/router/app_router.dart';
 import 'package:anisphere/features/profile/profile_screen.dart';
+import 'package:anisphere/features/profile/time_capsule_screen.dart';
 import 'package:anisphere/features/profile/wrapped_screen.dart';
 import 'package:anisphere/firebase_options.dart';
 
@@ -57,7 +58,8 @@ Future<void> _seedVideo(String id, String userId, {bool spoiler = false, String 
 
 /// Every profile has one set of tabs, built from what is real — Posts and
 /// Ani Videos — plus Stats on the player's own while kAniStatsEnabled is on;
-/// Wrapped's banner shows only while kWrappedEnabled is on. Tabs are counted
+/// Wrapped's banner shows only while kWrappedEnabled is on, and the Time
+/// Capsule button only while kTimeCapsuleEnabled is. Tabs are counted
 /// off screen too, and any build error fails the test: a tab count that
 /// disagreed with the bar is what broke this profile before.
 void main() {
@@ -97,8 +99,10 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: AniSphereApp()));
     await tester.pump();
     appRouter.go('/profile');
-    await pumpUntil(tester, find.text('Time Capsule'));
+    // The Anime DNA heading is built with the banners, in the same column.
+    await pumpUntil(tester, find.text('🧬 Anime DNA'));
     expect(find.textContaining('Wrapped', skipOffstage: false), kWrappedEnabled ? findsWidgets : findsNothing);
+    expect(find.text('Time Capsule', skipOffstage: false), kTimeCapsuleEnabled ? findsOneWidget : findsNothing);
 
     await openTabs(tester);
     expect(tabLabels(tester), ['Posts', 'Ani Videos', if (kAniStatsEnabled) 'Stats']);
@@ -114,6 +118,9 @@ void main() {
     await tester.pump();
     appRouter.go('/profile/$other');
     await pumpUntil(tester, find.text('Visited Fan'));
+    // The visitor's page fades in over the player's own; until the fade ends
+    // both are mounted, and openTabs needs the one scroll view.
+    await tester.pump(const Duration(milliseconds: 600)); // the push settles
 
     await openTabs(tester);
     expect(tabLabels(tester), ['Posts', 'Ani Videos']);
