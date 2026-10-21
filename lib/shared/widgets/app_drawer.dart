@@ -109,26 +109,26 @@ class AppDrawer extends ConsumerWidget {
                   child: ListView(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     children: [
-                      _tile(LucideIcons.home, ref.tr('feed'), () => go('/feed', push: false)),
-                      _tile(LucideIcons.compass, ref.tr('discover'), () => go('/discover', push: false)),
-                      _tile(LucideIcons.playCircle, ref.tr('aniVideos'), () => go('/ani-videos', push: false)),
+                      _tile(LucideIcons.home, ref.l10n.feed, () => go('/feed', push: false)),
+                      _tile(LucideIcons.compass, ref.l10n.discover, () => go('/discover', push: false)),
+                      _tile(LucideIcons.playCircle, ref.l10n.aniVideos, () => go('/ani-videos', push: false)),
                       // Former bottom-nav tabs — pushed full-screen, screens unchanged.
-                      _tile(LucideIcons.trendingUp, ref.tr('trending'), () => go('/trending')),
-                      _tile(LucideIcons.list, ref.tr('myList'), () => go('/my-list')),
-                      _tile(LucideIcons.users, ref.tr('rooms'), () => go('/community')),
-                      _tile(LucideIcons.gamepad2, ref.tr('challenges'), () => go('/challenges')),
-                      _tile(LucideIcons.calendar, ref.tr('seasonal'), () => go('/seasonal')),
+                      _tile(LucideIcons.trendingUp, ref.l10n.trending, () => go('/trending')),
+                      _tile(LucideIcons.list, ref.l10n.myList, () => go('/my-list')),
+                      _tile(LucideIcons.users, ref.l10n.rooms, () => go('/community')),
+                      _tile(LucideIcons.gamepad2, ref.l10n.challenges, () => go('/challenges')),
+                      _tile(LucideIcons.calendar, ref.l10n.seasonal, () => go('/seasonal')),
                       if (kAchievementsEnabled)
-                        _tile(LucideIcons.award, ref.tr('achievements'), () => go('/achievements')),
-                      _tile(LucideIcons.wallet, ref.tr('wallet'), () => go('/wallet')),
-                      _tile(LucideIcons.globe, ref.tr('observatory'), () => go('/observatory')),
+                        _tile(LucideIcons.award, ref.l10n.achievements, () => go('/achievements')),
+                      _tile(LucideIcons.wallet, ref.l10n.wallet, () => go('/wallet')),
+                      _tile(LucideIcons.globe, ref.l10n.observatory, () => go('/observatory')),
                       if (kFmRadioEnabled)
-                        _tile(LucideIcons.radio, ref.tr('fmRadio'), () => go('/fm-radio')),
+                        _tile(LucideIcons.radio, ref.l10n.fmRadio, () => go('/fm-radio')),
                       if (kCardCollectionEnabled)
-                        _tile(LucideIcons.layers, ref.tr('cardCollection'), () => go('/cards')),
+                        _tile(LucideIcons.layers, ref.l10n.cardCollection, () => go('/cards')),
                       if (kAniScanEnabled)
                         _tile(LucideIcons.scanLine, 'AniScan', () => go('/aniscan')),
-                      _tile(LucideIcons.settings, ref.tr('settings'), () => go('/settings')),
+                      _tile(LucideIcons.settings, ref.l10n.settings, () => go('/settings')),
                     ],
                   ),
                 ),

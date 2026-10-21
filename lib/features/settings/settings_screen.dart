@@ -94,7 +94,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           }),
 
           _section('More'),
-          _tile(LucideIcons.ban, ref.tr('blockList'), () => context.push('/block-list')),
+          _tile(LucideIcons.ban, ref.l10n.blockList, () => context.push('/block-list')),
           // Report a Problem, About and Terms & Privacy were all `() {}`, and
           // Apply for Press Pass showed a snackbar claiming an application had
           // "opened" while submitting nothing — under a hardcoded "Eligible"
@@ -129,7 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       context.push('/delete-account');
                     },
               icon: const Icon(LucideIcons.trash2, size: 16, color: AppColors.error),
-              label: Text(ref.tr('deleteAccount'),
+              label: Text(ref.l10n.deleteAccount,
                   style: AppTextStyles.body.copyWith(color: AppColors.error, fontWeight: FontWeight.w600)),
             ),
           ),

@@ -30,7 +30,7 @@ class CommunityVoteScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: Text(ref.tr('communityVoteTitle'))),
+      appBar: AppBar(title: Text(ref.l10n.communityVoteTitle)),
       body: const DecoratedBox(
         decoration: BoxDecoration(gradient: AppGradients.pageBg),
         child: CommunityVoteBody(),
@@ -61,7 +61,7 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
     Haptics.light();
     final max = CommunityVoteService.getMaxVotesForUser(isPlus: isPlus);
     if (votes.length >= max) {
-      _snack('${ref.tr('noVotesLeftToday')} · ${ref.tr('resetsIn')} ${_fmtReset()}');
+      _snack('${ref.l10n.noVotesLeftToday} · ${ref.l10n.resetsIn} ${_fmtReset()}');
       return;
     }
 
@@ -73,18 +73,18 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
     if (picked == null || !mounted) return;
 
     if (votes.any((v) => v.anilistId == picked.id)) {
-      _snack(ref.tr('alreadyVotedToday'));
+      _snack(ref.l10n.alreadyVotedToday);
       return;
     }
 
     final confirmed = await showGlassDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: Text('${ref.tr('voteForConfirm')} ${picked.title}?', style: AppTextStyles.subheading),
-        content: Text(ref.tr('cantBeUndone'), style: AppTextStyles.bodyMuted),
+        title: Text('${ref.l10n.voteForConfirm} ${picked.title}?', style: AppTextStyles.subheading),
+        content: Text(ref.l10n.cantBeUndone, style: AppTextStyles.bodyMuted),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: Text(ref.tr('cancel'))),
-          TextButton(onPressed: () => Navigator.pop(dialogCtx, true), child: Text(ref.tr('vote'))),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: Text(ref.l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, true), child: Text(ref.l10n.vote)),
         ],
       ),
     );
@@ -99,13 +99,13 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
         isPlus: isPlus,
       );
       Haptics.medium();
-      _snack(ref.tr('voteCastSuccess'));
+      _snack(ref.l10n.voteCastSuccess);
     } on AlreadyVotedTodayException {
-      _snack(ref.tr('alreadyVotedToday'));
+      _snack(ref.l10n.alreadyVotedToday);
     } on VoteLimitReachedException {
-      _snack(ref.tr('noVotesLeftToday'));
+      _snack(ref.l10n.noVotesLeftToday);
     } catch (_) {
-      _snack(ref.tr('listError'));
+      _snack(ref.l10n.listError);
     } finally {
       if (mounted) setState(() => _casting = false);
     }
@@ -135,7 +135,7 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
           children: [
             Row(
               children: [
-                Expanded(child: Text('🗳️ ${ref.tr('communityVoteTitle')}', style: AppTextStyles.heading)),
+                Expanded(child: Text('🗳️ ${ref.l10n.communityVoteTitle}', style: AppTextStyles.heading)),
                 const _CountdownChip(),
               ],
             ),
@@ -143,19 +143,19 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
             _statusCard(votes, max, isPlus),
             const SizedBox(height: 12),
             GradientButton(
-              label: ref.tr('castVote'),
+              label: ref.l10n.castVote,
               icon: LucideIcons.vote,
               onPressed: _casting ? null : () => _startCastFlow(votes, isPlus),
             ),
             if (votes.isNotEmpty) ...[
               const SizedBox(height: 20),
-              Text(ref.tr('yourVotesToday'), style: AppTextStyles.subheading),
+              Text(ref.l10n.yourVotesToday, style: AppTextStyles.subheading),
               const SizedBox(height: 8),
               // Read-only by design: votes are final, so no remove affordance.
               ...votes.map((v) => _myVoteRow(v)),
             ],
             const SizedBox(height: 20),
-            Text('🏆 ${ref.tr('todaysLeaderboard')}', style: AppTextStyles.subheading),
+            Text('🏆 ${ref.l10n.todaysLeaderboard}', style: AppTextStyles.subheading),
             const SizedBox(height: 8),
             StreamBuilder<List<CommunityVoteTally>>(
               stream: _board,
@@ -171,7 +171,7 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
                   return Padding(
                     padding: const EdgeInsets.all(24),
                     child: Center(
-                        child: Text(ref.tr('noVotesYetToday'), style: AppTextStyles.captionMuted)),
+                        child: Text(ref.l10n.noVotesYetToday, style: AppTextStyles.captionMuted)),
                   );
                 }
                 final total = board.fold(0, (n, t) => n + t.voteCount);
@@ -197,7 +197,7 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
                   context.push('/community-vote/history');
                 },
                 icon: const Icon(LucideIcons.history, size: 16, color: AppColors.primaryLight),
-                label: Text(ref.tr('viewPastDays'),
+                label: Text(ref.l10n.viewPastDays,
                     style: AppTextStyles.label.copyWith(color: AppColors.primaryLight)),
               ),
             ),
@@ -235,7 +235,7 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '${ref.tr('votesRemaining')}: ${max - votes.length}/$max',
+              '${ref.l10n.votesRemaining}: ${max - votes.length}/$max',
               style: AppTextStyles.label,
             ),
           ),
@@ -248,7 +248,7 @@ class _CommunityVoteBodyState extends ConsumerState<CommunityVoteBody> {
                 showAniPlusPaywall(context, 'Community Vote');
               },
               child: Text(
-                ref.tr('upgradeForVotes'),
+                ref.l10n.upgradeForVotes,
                 textAlign: TextAlign.end,
                 style: AppTextStyles.caption.copyWith(color: AppColors.aniGold, fontWeight: FontWeight.w700),
               ),
@@ -316,7 +316,7 @@ class _CountdownChipState extends ConsumerState<_CountdownChip> {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         const Icon(LucideIcons.timer, size: 13, color: AppColors.accent),
         const SizedBox(width: 5),
-        Text('${ref.tr('resetsIn')} ${d.inHours}h ${d.inMinutes % 60}m', style: AppTextStyles.caption),
+        Text('${ref.l10n.resetsIn} ${d.inHours}h ${d.inMinutes % 60}m', style: AppTextStyles.caption),
       ]),
     );
   }
@@ -481,7 +481,7 @@ class _VoteSearchSheetState extends ConsumerState<_VoteSearchSheet> {
                 onChanged: _onChanged,
                 style: AppTextStyles.body,
                 decoration: InputDecoration(
-                  hintText: ref.tr('searchAnimeHint'),
+                  hintText: ref.l10n.searchAnimeHint,
                   prefixIcon: const Icon(LucideIcons.search, size: 18),
                   isDense: true,
                 ),
@@ -490,10 +490,10 @@ class _VoteSearchSheetState extends ConsumerState<_VoteSearchSheet> {
             if (_searching) const LinearProgressIndicator(minHeight: 2),
             Expanded(
               child: results == null
-                  ? Center(child: Text(ref.tr('searchAnimeHint'), style: AppTextStyles.captionMuted))
+                  ? Center(child: Text(ref.l10n.searchAnimeHint, style: AppTextStyles.captionMuted))
                   : results.isEmpty
                       ? Center(
-                          child: Text('${ref.tr('noAnimeFound')} "${_ctrl.text.trim()}"',
+                          child: Text('${ref.l10n.noAnimeFound} "${_ctrl.text.trim()}"',
                               style: AppTextStyles.captionMuted))
                       : ListView.builder(
                           padding: const EdgeInsets.fromLTRB(12, 6, 12, 20),

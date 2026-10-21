@@ -60,7 +60,7 @@ class _AddStoryButton extends ConsumerWidget {
             child: const Icon(LucideIcons.plus, color: AppColors.primaryLight),
           ),
           const SizedBox(height: 4),
-          Text(ref.tr('addStory'), style: AppTextStyles.captionMuted),
+          Text(ref.l10n.addStory, style: AppTextStyles.captionMuted),
         ],
       ),
     );

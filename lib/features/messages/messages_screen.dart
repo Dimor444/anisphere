@@ -42,7 +42,7 @@ class MessagesScreen extends ConsumerWidget {
     final convos = ref.watch(_conversationsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Text(ref.tr('messages')),
+        title: Text(ref.l10n.messages),
         // Compose lands with the people picker in a later phase.
         actions: [IconButton(icon: const Icon(LucideIcons.pencil, size: 20), onPressed: () {})],
       ),
@@ -50,15 +50,15 @@ class MessagesScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _Note(
           icon: LucideIcons.wifiOff,
-          title: ref.tr('dmListError'),
-          caption: ref.tr('checkConnection'),
+          title: ref.l10n.dmListError,
+          caption: ref.l10n.checkConnection,
         ),
         data: (list) {
           if (list.isEmpty) {
             return _Note(
               icon: LucideIcons.messageCircle,
-              title: ref.tr('noMessagesYet'),
-              caption: ref.tr('noMessagesYetCaption'),
+              title: ref.l10n.noMessagesYet,
+              caption: ref.l10n.noMessagesYetCaption,
             );
           }
           final me = AuthService.instance.uid ?? '';
@@ -144,9 +144,9 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
                     Flexible(
                       child: Text(
                         deleted
-                            ? ref.tr('deletedAccount')
+                            ? ref.l10n.deletedAccount
                             : name.isEmpty
-                                ? ref.tr('animeFanFallback')
+                                ? ref.l10n.animeFanFallback
                                 : name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -164,7 +164,7 @@ class _ConversationTileState extends ConsumerState<_ConversationTile> {
                   Text(
                     // The preview itself is user-generated — only the
                     // empty-thread placeholder is translated.
-                    convo.lastMessage.isEmpty ? ref.tr('sayHi') : convo.lastMessage,
+                    convo.lastMessage.isEmpty ? ref.l10n.sayHi : convo.lastMessage,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMuted,

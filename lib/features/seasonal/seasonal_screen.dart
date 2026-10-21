@@ -33,10 +33,10 @@ class SeasonalScreen extends ConsumerWidget {
   static String dayLabel(WidgetRef ref, int weekday) => ref.tr(_dayKeys[weekday - 1]);
 
   static String seasonLabel(WidgetRef ref, String season) => switch (season) {
-        'WINTER' => ref.tr('seasonWinter'),
-        'SPRING' => ref.tr('seasonSpring'),
-        'SUMMER' => ref.tr('seasonSummer'),
-        _ => ref.tr('seasonFall'),
+        'WINTER' => ref.l10n.seasonWinter,
+        'SPRING' => ref.l10n.seasonSpring,
+        'SUMMER' => ref.l10n.seasonSummer,
+        _ => ref.l10n.seasonFall,
       };
 
   @override
@@ -46,7 +46,7 @@ class SeasonalScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(ref.tr('thisWeek')),
+        title: Text(ref.l10n.thisWeek),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(30),
           child: Align(
@@ -113,7 +113,7 @@ class _DaySections extends ConsumerWidget {
                   border: Border.all(color: isToday ? AppColors.primary : AppColors.border),
                 ),
                 child: Text(
-                  isToday ? '$label · ${ref.tr('today')}' : label,
+                  isToday ? '$label · ${ref.l10n.today}' : label,
                   style: AppTextStyles.subheading.copyWith(color: isToday ? Colors.white : AppColors.textPrimary),
                 ),
               ),
@@ -205,7 +205,7 @@ class _AiringCard extends ConsumerWidget {
                     const Spacer(),
                     Text(airing.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.label.copyWith(color: Colors.white)),
                     const SizedBox(height: 4),
-                    Text('${ref.tr('epShort')} ${airing.episode} · $time',
+                    Text('${ref.l10n.epShort} ${airing.episode} · $time',
                         style: AppTextStyles.caption.copyWith(color: Colors.white70)),
                   ],
                 ),
@@ -274,12 +274,12 @@ class _SeasonalError extends ConsumerWidget {
             const Icon(LucideIcons.cloudOff, size: 44, color: AppColors.textMuted),
             const SizedBox(height: 14),
             Text(
-              ref.tr('weekScheduleError'),
+              ref.l10n.weekScheduleError,
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMuted,
             ),
             const SizedBox(height: 18),
-            GradientButton(label: ref.tr('retry'), expand: false, onPressed: onRetry),
+            GradientButton(label: ref.l10n.retry, expand: false, onPressed: onRetry),
           ],
         ),
       ),
@@ -300,7 +300,7 @@ class _SeasonalEmpty extends ConsumerWidget {
           children: [
             const Icon(LucideIcons.calendarOff, size: 44, color: AppColors.textMuted),
             const SizedBox(height: 14),
-            Text(ref.tr('noEpisodesThisWeek'), style: AppTextStyles.bodyMuted),
+            Text(ref.l10n.noEpisodesThisWeek, style: AppTextStyles.bodyMuted),
           ],
         ),
       ),

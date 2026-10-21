@@ -63,8 +63,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('actionFailed')),
-        action: SnackBarAction(label: ref.tr('retry'), onPressed: _sendComment),
+        content: Text(ref.l10n.actionFailed),
+        action: SnackBarAction(label: ref.l10n.retry, onPressed: _sendComment),
       ));
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -76,14 +76,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       await FeedService.instance.deleteComment(widget.postId, c.id);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('actionFailed'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.actionFailed)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(ref.tr('comments'))),
+      appBar: AppBar(title: Text(ref.l10n.comments)),
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: AppGradients.pageBg),
         child: StreamBuilder<PostData?>(
@@ -95,7 +95,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               if (postSnap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              return Center(child: Text(ref.tr('postDeleted'), style: AppTextStyles.captionMuted));
+              return Center(child: Text(ref.l10n.postDeleted, style: AppTextStyles.captionMuted));
             }
             return Column(
               children: [
@@ -118,7 +118,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             Padding(
                               padding: const EdgeInsets.all(24),
                               child: Center(
-                                child: Text(ref.tr('noCommentsYet'), style: AppTextStyles.captionMuted),
+                                child: Text(ref.l10n.noCommentsYet, style: AppTextStyles.captionMuted),
                               ),
                             )
                           else ...[
@@ -131,7 +131,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             if (comments.length >= _commentLimit)
                               TextButton(
                                 onPressed: () => setState(() => _commentLimit += _commentsPage),
-                                child: Text(ref.tr('comments'),
+                                child: Text(ref.l10n.comments,
                                     style: const TextStyle(color: AppColors.primaryLight)),
                               ),
                           ],
@@ -184,7 +184,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _sendComment(),
                 decoration: InputDecoration(
-                  hintText: ref.tr('addCommentHint'),
+                  hintText: ref.l10n.addCommentHint,
                   counterText: '',
                   isDense: true,
                   border: InputBorder.none,

@@ -102,7 +102,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
 
   Future<void> _save() async {
     final messenger = ScaffoldMessenger.of(context);
-    final confirmation = ref.tr('profileUpdated');
+    final confirmation = ref.l10n.profileUpdated;
     setState(() {
       _saving = true;
       _error = null;
@@ -127,14 +127,14 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = '@${_userName.text.trim()} — ${ref.tr('usernameTaken').toLowerCase()}';
+        _error = '@${_userName.text.trim()} — ${ref.l10n.usernameTaken.toLowerCase()}';
       });
     } catch (_) {
       // Keep the sheet (and the user's input) — just surface the failure.
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = ref.tr('actionFailed');
+        _error = ref.l10n.actionFailed;
       });
     }
   }
@@ -149,7 +149,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(ref.tr('editProfile'), style: AppTextStyles.subheading),
+                Text(ref.l10n.editProfile, style: AppTextStyles.subheading),
                 const SizedBox(height: 14),
                 Row(children: [
                   UserAvatar(name: _name.text, initials: _initialsOf(_name.text), radius: 30),
@@ -167,14 +167,14 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                         child: Row(children: [
                           const Icon(LucideIcons.camera, size: 16, color: AppColors.textMuted),
                           const SizedBox(width: 8),
-                          Flexible(child: Text(ref.tr('uploadPhotoSoon'), style: AppTextStyles.captionMuted)),
+                          Flexible(child: Text(ref.l10n.uploadPhotoSoon, style: AppTextStyles.captionMuted)),
                         ]),
                       ),
                     ),
                   ),
                 ]),
                 const SizedBox(height: 14),
-                Text(ref.tr('username'), style: AppTextStyles.label),
+                Text(ref.l10n.username, style: AppTextStyles.label),
                 const SizedBox(height: 6),
                 UserNameField(
                   controller: _userName,
@@ -182,25 +182,25 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                   onStatus: (s) => setState(() => _handleStatus = s),
                 ),
                 const SizedBox(height: 10),
-                Text(ref.tr('displayName'), style: AppTextStyles.label),
+                Text(ref.l10n.displayName, style: AppTextStyles.label),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _name,
                   maxLength: maxNameLength,
                   autofocus: true,
                   style: AppTextStyles.body,
-                  decoration: InputDecoration(hintText: ref.tr('displayName'), counterText: ''),
+                  decoration: InputDecoration(hintText: ref.l10n.displayName, counterText: ''),
                   onChanged: (_) => setState(() {}), // re-validate + refresh initials preview
                 ),
                 const SizedBox(height: 10),
-                Text(ref.tr('bio'), style: AppTextStyles.label),
+                Text(ref.l10n.bio, style: AppTextStyles.label),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _bio,
                   maxLength: UserData.maxBioLength,
                   maxLines: 3,
                   style: AppTextStyles.body,
-                  decoration: InputDecoration(hintText: ref.tr('bio')),
+                  decoration: InputDecoration(hintText: ref.l10n.bio),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 6),
@@ -208,7 +208,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                 ],
                 const SizedBox(height: 14),
                 GradientButton(
-                  label: ref.tr('save'),
+                  label: ref.l10n.save,
                   onPressed: _valid && !_saving ? _save : null,
                 ),
               ],

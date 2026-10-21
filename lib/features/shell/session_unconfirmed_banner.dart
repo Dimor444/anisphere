@@ -58,7 +58,7 @@ class _SessionUnconfirmedBannerState extends ConsumerState<SessionUnconfirmedBan
                   child: Icon(LucideIcons.cloudOff, size: 18, color: AppColors.error),
                 ),
                 const SizedBox(width: 10),
-                Expanded(child: Text(ref.tr('sessionUnconfirmed'), style: AppTextStyles.body)),
+                Expanded(child: Text(ref.l10n.sessionUnconfirmed, style: AppTextStyles.body)),
               ],
             ),
             Row(
@@ -66,13 +66,13 @@ class _SessionUnconfirmedBannerState extends ConsumerState<SessionUnconfirmedBan
               children: [
                 TextButton(
                   onPressed: _checking ? null : () => signOutWithConfirmation(context, ref),
-                  child: Text(ref.tr('logout'), style: const TextStyle(color: AppColors.textSecondary)),
+                  child: Text(ref.l10n.logout, style: const TextStyle(color: AppColors.textSecondary)),
                 ),
                 TextButton(
                   onPressed: _checking ? null : _retry,
                   child: _checking
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text(ref.tr('retry')),
+                      : Text(ref.l10n.retry),
                 ),
               ],
             ),

@@ -153,7 +153,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
                       textInputAction: TextInputAction.search,
                       onSubmitted: (_) => _submitTick.value++,
                       decoration: InputDecoration(
-                        hintText: ref.tr('searchAnimeHint'),
+                        hintText: ref.l10n.searchAnimeHint,
                         prefixIcon: const Icon(LucideIcons.search, size: 18),
                         suffixIcon: _search.text.isEmpty
                             ? null
@@ -192,12 +192,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
   /// error here rather than a silent gap.
   Widget _tabLabel(_DiscoverTab t) => switch (t) {
         _DiscoverTab.forYou => const Tab(text: 'For You'),
-        _DiscoverTab.people => Tab(text: ref.tr('people')),
+        _DiscoverTab.people => Tab(text: ref.l10n.people),
         _DiscoverTab.trending => const Tab(text: 'Trending'),
         _DiscoverTab.news => const Tab(text: 'News'),
         _DiscoverTab.aniMatch => const Tab(text: 'AniMatch'),
         _DiscoverTab.chart => const Tab(text: 'Chart'),
-        _DiscoverTab.vote => Tab(child: _VoteTabLabel(label: ref.tr('vote'))),
+        _DiscoverTab.vote => Tab(child: _VoteTabLabel(label: ref.l10n.vote)),
         _DiscoverTab.search => const Tab(text: 'Search'),
       };
 
@@ -669,7 +669,7 @@ class _ChartTabState extends ConsumerState<_ChartTab> {
         if (unscored.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(2, 10, 2, 10),
-            child: Text(ref.tr('notScoredYet'), style: AppTextStyles.subheading),
+            child: Text(ref.l10n.notScoredYet, style: AppTextStyles.subheading),
           ),
           for (final e in unscored) _row(e, numbered: false),
         ],
@@ -732,7 +732,7 @@ class _ChartTabState extends ConsumerState<_ChartTab> {
                     Text(e.title, style: AppTextStyles.label, maxLines: 2, overflow: TextOverflow.ellipsis),
                     // AniList's popularity: how many users have it on a
                     // list — not ratings, which an unscored show has none of.
-                    Text('${Fmt.compact(e.popularity)} ${ref.tr('onLists')}', style: AppTextStyles.captionMuted),
+                    Text('${Fmt.compact(e.popularity)} ${ref.l10n.onLists}', style: AppTextStyles.captionMuted),
                   ],
                 ),
               ),
@@ -777,11 +777,11 @@ class _ChartTabState extends ConsumerState<_ChartTab> {
         children: [
           const Icon(LucideIcons.cloudOff, size: 42, color: AppColors.textMuted),
           const SizedBox(height: 12),
-          Consumer(builder: (context, ref, _) => Text(ref.tr('listError'), style: AppTextStyles.captionMuted)),
+          Consumer(builder: (context, ref, _) => Text(ref.l10n.listError, style: AppTextStyles.captionMuted)),
           const SizedBox(height: 12),
           Consumer(
             builder: (context, ref, _) => GradientButton(
-              label: ref.tr('retry'),
+              label: ref.l10n.retry,
               expand: false,
               onPressed: () => _load(_filter),
             ),
@@ -903,12 +903,12 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
   @override
   Widget build(BuildContext context) {
     if (_q.length < _minChars) return _defaultView();
-    if (_failed) return _message(ref.tr('listError'));
+    if (_failed) return _message(ref.l10n.listError);
     final results = _results;
     if (results == null || (_searching && results.isEmpty)) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (results.isEmpty) return _message('${ref.tr('noAnimeFound')} "$_q"');
+    if (results.isEmpty) return _message('${ref.l10n.noAnimeFound} "$_q"');
     return _resultsGrid(results);
   }
 
@@ -954,7 +954,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
       padding: EdgeInsets.fromLTRB(14, 12, 14, AniBottomNav.scrollEndPadding(context)),
       children: [
         if (_history.isNotEmpty) ...[
-          Text(ref.tr('recentSearches'), style: AppTextStyles.subheading),
+          Text(ref.l10n.recentSearches, style: AppTextStyles.subheading),
           const SizedBox(height: 12),
           _chipWrap(_history, LucideIcons.history, AppColors.textSecondary),
           const SizedBox(height: 24),
@@ -970,7 +970,7 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(ref.tr('trending'), style: AppTextStyles.subheading),
+                Text(ref.l10n.trending, style: AppTextStyles.subheading),
                 const SizedBox(height: 12),
                 GridView.builder(
                   shrinkWrap: true,
@@ -1121,7 +1121,7 @@ class _PeopleTabState extends ConsumerState<_PeopleTab> {
             onChanged: _onChanged,
             style: AppTextStyles.body,
             decoration: InputDecoration(
-              hintText: ref.tr('searchUsers'),
+              hintText: ref.l10n.searchUsers,
               prefixIcon: const Icon(LucideIcons.search, size: 18),
               isDense: true,
             ),
@@ -1138,19 +1138,19 @@ class _PeopleTabState extends ConsumerState<_PeopleTab> {
       stream: FollowService.instance.getFollowSuggestions(),
       builder: (context, snap) {
         if (snap.hasError) {
-          return Center(child: Text(ref.tr('actionFailed'), style: AppTextStyles.captionMuted));
+          return Center(child: Text(ref.l10n.actionFailed, style: AppTextStyles.captionMuted));
         }
         final users = snap.data;
         if (users == null) return const Center(child: CircularProgressIndicator());
-        if (users.isEmpty) return _empty(ref.tr('noSuggestions'));
+        if (users.isEmpty) return _empty(ref.l10n.noSuggestions);
         return ListView(
           padding: EdgeInsets.only(top: 4, bottom: AniBottomNav.scrollEndPadding(context)),
           children: [
-            SectionHeader(title: ref.tr('suggestedForYou')),
+            SectionHeader(title: ref.l10n.suggestedForYou),
             ...users.map((u) => UserTile(
                   key: ValueKey(u.id),
                   user: u,
-                  subtitle: '${Fmt.compact(u.followerCount)} ${ref.tr('followers')}',
+                  subtitle: '${Fmt.compact(u.followerCount)} ${ref.l10n.followers}',
                 )),
           ],
         );
@@ -1159,13 +1159,13 @@ class _PeopleTabState extends ConsumerState<_PeopleTab> {
   }
 
   Widget _searchResults(List<UserData> users) {
-    if (users.isEmpty) return _empty(ref.tr('emptyListTitle'));
+    if (users.isEmpty) return _empty(ref.l10n.emptyListTitle);
     return ListView(
       padding: EdgeInsets.only(top: 8, bottom: AniBottomNav.scrollEndPadding(context)),
       children: users.map((u) => UserTile(
             key: ValueKey(u.id),
             user: u,
-            subtitle: '${Fmt.compact(u.followerCount)} ${ref.tr('followers')}',
+            subtitle: '${Fmt.compact(u.followerCount)} ${ref.l10n.followers}',
           )).toList(),
     );
   }

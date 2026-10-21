@@ -64,7 +64,7 @@ class _ClaimSheetState extends ConsumerState<_ClaimSheet> {
       if (!mounted) return;
       setState(() {
         _claiming = false;
-        _error = '@${_handle.text.trim()} — ${ref.tr('usernameTaken').toLowerCase()}';
+        _error = '@${_handle.text.trim()} — ${ref.l10n.usernameTaken.toLowerCase()}';
       });
     } catch (_) {
       // Transient failure (network, rules) — inline error, button stays
@@ -72,7 +72,7 @@ class _ClaimSheetState extends ConsumerState<_ClaimSheet> {
       if (!mounted) return;
       setState(() {
         _claiming = false;
-        _error = ref.tr('usernameClaimFailed');
+        _error = ref.l10n.usernameClaimFailed;
       });
     }
   }
@@ -85,9 +85,9 @@ class _ClaimSheetState extends ConsumerState<_ClaimSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(ref.tr('claimUsernameTitle'), style: AppTextStyles.subheading),
+          Text(ref.l10n.claimUsernameTitle, style: AppTextStyles.subheading),
           const SizedBox(height: 6),
-          Text(ref.tr('claimUsernameBody'), style: AppTextStyles.captionMuted),
+          Text(ref.l10n.claimUsernameBody, style: AppTextStyles.captionMuted),
           const SizedBox(height: 14),
           UserNameField(
             controller: _handle,
@@ -99,7 +99,7 @@ class _ClaimSheetState extends ConsumerState<_ClaimSheet> {
           ],
           const SizedBox(height: 14),
           GradientButton(
-            label: ref.tr('claim'),
+            label: ref.l10n.claim,
             onPressed: _status == HandleStatus.available && !_claiming ? _claim : null,
           ),
           // Availability can't be verified (offline / backend unreachable):
@@ -114,7 +114,7 @@ class _ClaimSheetState extends ConsumerState<_ClaimSheet> {
                   Haptics.light();
                   Navigator.pop(context);
                 },
-                child: Text(ref.tr('claimLater')),
+                child: Text(ref.l10n.claimLater),
               ),
             ),
           ],

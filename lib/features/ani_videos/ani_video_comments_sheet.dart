@@ -63,8 +63,8 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('actionFailed')),
-        action: SnackBarAction(label: ref.tr('retry'), onPressed: _send),
+        content: Text(ref.l10n.actionFailed),
+        action: SnackBarAction(label: ref.l10n.retry, onPressed: _send),
       ));
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -76,7 +76,7 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
       await AniVideoService.instance.deleteComment(widget.video.id, c.id);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('actionFailed'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.actionFailed)));
     }
   }
 
@@ -108,7 +108,7 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
               decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 12),
-            Text(ref.tr('comments'), style: AppTextStyles.subheading),
+            Text(ref.l10n.comments, style: AppTextStyles.subheading),
             const SizedBox(height: 4),
             Expanded(
               child: StreamBuilder<List<CommentData>>(
@@ -119,7 +119,7 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
                     return const Center(child: CircularProgressIndicator(strokeWidth: 2));
                   }
                   if (comments.isEmpty) {
-                    return Center(child: Text(ref.tr('noCommentsYet'), style: AppTextStyles.captionMuted));
+                    return Center(child: Text(ref.l10n.noCommentsYet, style: AppTextStyles.captionMuted));
                   }
                   return ListView(
                     padding: const EdgeInsets.only(top: 6, bottom: 12),
@@ -133,7 +133,7 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
                       if (comments.length >= _limit)
                         TextButton(
                           onPressed: () => setState(() => _limit += _page),
-                          child: Text(ref.tr('comments'),
+                          child: Text(ref.l10n.comments,
                               style: const TextStyle(color: AppColors.primaryLight)),
                         ),
                     ],
@@ -161,7 +161,7 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _send(),
                         decoration: InputDecoration(
-                          hintText: ref.tr('addCommentHint'),
+                          hintText: ref.l10n.addCommentHint,
                           counterText: '',
                           isDense: true,
                           border: InputBorder.none,

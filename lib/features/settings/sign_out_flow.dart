@@ -35,7 +35,7 @@ Future<bool> signOutWithConfirmation(BuildContext context, WidgetRef ref,
             title: const Text('Log out?'),
             content: const Text("You'll need to sign in again to get back to your account."),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.tr('cancel'))),
+              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.l10n.cancel)),
               TextButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('Log out')),
             ],
           ),
@@ -70,15 +70,15 @@ Future<bool> _confirmGuestSignOut(BuildContext context, WidgetRef ref) async {
   final choice = await showGlassDialog<String>(
     context: context,
     builder: (dCtx) => AlertDialog(
-      title: Text(ref.tr('guestSignOutTitle')),
-      content: Text(ref.tr('guestSignOutBody')),
+      title: Text(ref.l10n.guestSignOutTitle),
+      content: Text(ref.l10n.guestSignOutBody),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(ref.tr('cancel'))),
+        TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(ref.l10n.cancel)),
         TextButton(
           onPressed: () => Navigator.pop(dCtx, 'delete'),
-          child: Text(ref.tr('deleteAccount'), style: const TextStyle(color: AppColors.error)),
+          child: Text(ref.l10n.deleteAccount, style: const TextStyle(color: AppColors.error)),
         ),
-        TextButton(onPressed: () => Navigator.pop(dCtx, 'signout'), child: Text(ref.tr('signOutAnyway'))),
+        TextButton(onPressed: () => Navigator.pop(dCtx, 'signout'), child: Text(ref.l10n.signOutAnyway)),
       ],
     ),
   );

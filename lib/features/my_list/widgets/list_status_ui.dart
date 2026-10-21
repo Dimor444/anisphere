@@ -67,7 +67,7 @@ Future<ListStatus?> showStatusPicker(BuildContext context, {ListStatus? selected
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
-              child: Text(ref.tr('status'), style: AppTextStyles.heading),
+              child: Text(ref.l10n.status, style: AppTextStyles.heading),
             ),
             for (final s in ListStatus.values)
               ListTile(
@@ -94,13 +94,13 @@ Future<void> showMyListError(BuildContext context, WidgetRef ref, {VoidCallback?
       title: Row(children: [
         const Icon(LucideIcons.circleAlert, color: AppColors.error, size: 20),
         const SizedBox(width: 8),
-        Expanded(child: Text(ref.tr('myList'), style: AppTextStyles.subheading)),
+        Expanded(child: Text(ref.l10n.myList, style: AppTextStyles.subheading)),
       ]),
-      content: Text(ref.tr('listError'), style: AppTextStyles.bodyMuted),
+      content: Text(ref.l10n.listError, style: AppTextStyles.bodyMuted),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: Text(ref.tr('cancel'), style: const TextStyle(color: AppColors.textSecondary)),
+          child: Text(ref.l10n.cancel, style: const TextStyle(color: AppColors.textSecondary)),
         ),
         if (onRetry != null)
           TextButton(
@@ -108,7 +108,7 @@ Future<void> showMyListError(BuildContext context, WidgetRef ref, {VoidCallback?
               Navigator.pop(ctx);
               onRetry();
             },
-            child: Text(ref.tr('retry'), style: const TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.w700)),
+            child: Text(ref.l10n.retry, style: const TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.w700)),
           ),
       ],
     ),

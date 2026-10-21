@@ -68,8 +68,8 @@ class _FollowButtonState extends ConsumerState<FollowButton> {
       if (!mounted) return;
       setState(() => _optimistic = currentlyFollowing);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('actionFailed')),
-        action: SnackBarAction(label: ref.tr('retry'), onPressed: () => _toggle(currentlyFollowing)),
+        content: Text(ref.l10n.actionFailed),
+        action: SnackBarAction(label: ref.l10n.retry, onPressed: () => _toggle(currentlyFollowing)),
       ));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -88,7 +88,7 @@ class _FollowButtonState extends ConsumerState<FollowButton> {
           return GestureDetector(
             onTap: () => setState(
                 () => _stream = FollowService.instance.watchIsFollowing(widget.userId)),
-            child: _shell(following: false, child: _spinnerOrLabel(ref.tr('retry'), spinner: false)),
+            child: _shell(following: false, child: _spinnerOrLabel(ref.l10n.retry, spinner: false)),
           );
         }
         // Before the first snapshot the button reads "Follow" and stays
@@ -103,7 +103,7 @@ class _FollowButtonState extends ConsumerState<FollowButton> {
           child: _shell(
             following: following,
             child: _spinnerOrLabel(
-              following ? ref.tr('following') : ref.tr('follow'),
+              following ? ref.l10n.following : ref.l10n.follow,
               spinner: _busy,
               onGradient: following,
             ),

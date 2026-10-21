@@ -61,7 +61,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                       child: const Icon(LucideIcons.list, size: 24, color: Colors.white),
                     ),
                     const SizedBox(width: 8),
-                    Text(ref.tr('myList'), style: AppTextStyles.display.copyWith(fontSize: 24)),
+                    Text(ref.l10n.myList, style: AppTextStyles.display.copyWith(fontSize: 24)),
                   ]),
                 ),
                 Expanded(
@@ -84,10 +84,10 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                             labelStyle: AppTextStyles.label,
                             dividerColor: Colors.transparent,
                             tabs: [
-                              Tab(text: ref.tr('all')),
-                              Tab(text: ref.tr('watching')),
-                              Tab(text: ref.tr('completed')),
-                              Tab(text: ref.tr('planning')),
+                              Tab(text: ref.l10n.all),
+                              Tab(text: ref.l10n.watching),
+                              Tab(text: ref.l10n.completed),
+                              Tab(text: ref.l10n.planning),
                             ],
                           ),
                           Expanded(
@@ -130,10 +130,10 @@ class _StatsCard extends ConsumerWidget {
           border: Border.all(color: AppColors.border),
         ),
         child: Row(children: [
-          _stat('${all.length}', ref.tr('total')),
-          _stat('${count(ListStatus.current)}', ref.tr('watching')),
-          _stat('${count(ListStatus.completed)}', ref.tr('completed')),
-          _stat('${count(ListStatus.dropped)}', ref.tr('dropped')),
+          _stat('${all.length}', ref.l10n.total),
+          _stat('${count(ListStatus.current)}', ref.l10n.watching),
+          _stat('${count(ListStatus.completed)}', ref.l10n.completed),
+          _stat('${count(ListStatus.dropped)}', ref.l10n.dropped),
         ]),
       ),
     );
@@ -245,7 +245,7 @@ class _EntryTile extends ConsumerWidget {
           ),
           ListTile(
             leading: Icon(entry.status.icon, size: 20, color: entry.status.color),
-            title: Text(ref.tr('status'), style: AppTextStyles.body),
+            title: Text(ref.l10n.status, style: AppTextStyles.body),
             trailing: StatusBadge(status: entry.status, compact: true),
             onTap: () async {
               Navigator.pop(ctx);
@@ -257,7 +257,7 @@ class _EntryTile extends ConsumerWidget {
           ),
           ListTile(
             leading: const Icon(LucideIcons.tv, size: 20, color: AppColors.textSecondary),
-            title: Text(ref.tr('episodesWatched'), style: AppTextStyles.body),
+            title: Text(ref.l10n.episodesWatched, style: AppTextStyles.body),
             trailing: Text('${entry.episodesWatched}', style: AppTextStyles.numbers),
             onTap: () async {
               Navigator.pop(ctx);
@@ -269,7 +269,7 @@ class _EntryTile extends ConsumerWidget {
           ),
           ListTile(
             leading: const Icon(Icons.star_rounded, size: 20, color: AppColors.aniGold),
-            title: Text(ref.tr('yourScore'), style: AppTextStyles.body),
+            title: Text(ref.l10n.yourScore, style: AppTextStyles.body),
             trailing: Text(entry.score == null ? '—' : _fmtScore(entry.score!), style: AppTextStyles.numbers),
             onTap: () async {
               Navigator.pop(ctx);
@@ -281,7 +281,7 @@ class _EntryTile extends ConsumerWidget {
           ),
           ListTile(
             leading: const Icon(LucideIcons.trash2, size: 20, color: AppColors.error),
-            title: Text(ref.tr('removeFromList'), style: AppTextStyles.body.copyWith(color: AppColors.error)),
+            title: Text(ref.l10n.removeFromList, style: AppTextStyles.body.copyWith(color: AppColors.error)),
             onTap: () {
               Navigator.pop(ctx);
               _run(context, ref, () => MyListService.instance.removeFromMyList(id));
@@ -298,7 +298,7 @@ class _EntryTile extends ConsumerWidget {
     return showGlassDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(ref.tr('episodesWatched'), style: AppTextStyles.subheading),
+        title: Text(ref.l10n.episodesWatched, style: AppTextStyles.subheading),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -308,11 +308,11 @@ class _EntryTile extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(ref.tr('cancel'), style: const TextStyle(color: AppColors.textSecondary)),
+            child: Text(ref.l10n.cancel, style: const TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, int.tryParse(ctrl.text.trim())),
-            child: Text(ref.tr('save'), style: const TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.w700)),
+            child: Text(ref.l10n.save, style: const TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -330,7 +330,7 @@ Future<double?> showScorePicker(BuildContext context, {double? initial}) {
         builder: (_, ref, __) => Padding(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(ref.tr('yourScore'), style: AppTextStyles.heading),
+            Text(ref.l10n.yourScore, style: AppTextStyles.heading),
             const SizedBox(height: 14),
             _StarRow(
               initial: initial ?? 0,
@@ -385,9 +385,9 @@ class _EmptyState extends ConsumerWidget {
           child: Icon(LucideIcons.listPlus, color: AppGradients.onFill(AppGradients.brand.colors.first), size: 30),
         ),
         const SizedBox(height: 16),
-        Text(ref.tr('emptyListTitle'), style: AppTextStyles.subheading),
+        Text(ref.l10n.emptyListTitle, style: AppTextStyles.subheading),
         const SizedBox(height: 4),
-        Text(ref.tr('emptyListBody'), style: AppTextStyles.captionMuted),
+        Text(ref.l10n.emptyListBody, style: AppTextStyles.captionMuted),
         const SizedBox(height: 18),
         Pressable(
           onTap: () => context.push('/trending'),
@@ -397,7 +397,7 @@ class _EmptyState extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.primary),
             ),
-            child: Text(ref.tr('trending'), style: AppTextStyles.label.copyWith(color: AppColors.primaryLight)),
+            child: Text(ref.l10n.trending, style: AppTextStyles.label.copyWith(color: AppColors.primaryLight)),
           ),
         ),
       ]),
@@ -416,14 +416,14 @@ class _ErrorState extends ConsumerWidget {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(LucideIcons.cloudOff, size: 44, color: AppColors.textMuted),
           const SizedBox(height: 14),
-          Text(ref.tr('listError'), textAlign: TextAlign.center, style: AppTextStyles.bodyMuted),
+          Text(ref.l10n.listError, textAlign: TextAlign.center, style: AppTextStyles.bodyMuted),
           const SizedBox(height: 18),
           Pressable(
             onTap: onRetry,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(gradient: AppGradients.brand, borderRadius: BorderRadius.circular(14)),
-              child: Text(ref.tr('retry'), style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontWeight: FontWeight.w700)),
+              child: Text(ref.l10n.retry, style: TextStyle(color: AppGradients.onFill(AppGradients.brand.colors.first), fontWeight: FontWeight.w700)),
             ),
           ),
         ]),

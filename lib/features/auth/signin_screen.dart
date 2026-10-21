@@ -56,14 +56,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       final user = await AuthService.instance.signInAsGuest();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${ref.tr('guestSignedIn')} · ${user.uid}'),
+        content: Text('${ref.l10n.guestSignedIn} · ${user.uid}'),
         behavior: SnackBarBehavior.floating,
       ));
       context.go('/feed');
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('guestError')),
+        content: Text(ref.l10n.guestError),
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.error,
       ));
@@ -89,7 +89,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               const SizedBox(height: 26),
               TextField(
                 decoration: InputDecoration(
-                  labelText: ref.tr('email'),
+                  labelText: ref.l10n.email,
                   prefixIcon: const Icon(LucideIcons.mail, size: 18),
                 ),
               ),
@@ -97,7 +97,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               TextField(
                 obscureText: _obscure,
                 decoration: InputDecoration(
-                  labelText: ref.tr('password'),
+                  labelText: ref.l10n.password,
                   prefixIcon: const Icon(LucideIcons.lock, size: 18),
                   suffixIcon: IconButton(
                     icon: Icon(_obscure ? LucideIcons.eye : LucideIcons.eyeOff, size: 18),
@@ -114,7 +114,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               ),
               const SizedBox(height: 6),
               GradientButton(
-                label: ref.tr('signIn'),
+                label: ref.l10n.signIn,
                 onPressed: () {
                   Haptics.medium();
                   context.go('/feed');
@@ -130,9 +130,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               const SocialButtons(),
               const SizedBox(height: 14),
             ] else ...[
-              Text(ref.tr('guestIntroTitle'), style: AppTextStyles.display),
+              Text(ref.l10n.guestIntroTitle, style: AppTextStyles.display),
               const SizedBox(height: 8),
-              Text(ref.tr('guestIntroBody'), style: AppTextStyles.bodyMuted),
+              Text(ref.l10n.guestIntroBody, style: AppTextStyles.bodyMuted),
               const SizedBox(height: 18),
               // Said BEFORE the tap, not only at sign-out: this is the choice
               // that cannot be undone.
@@ -146,7 +146,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Icon(LucideIcons.alertTriangle, size: 18, color: AppColors.warning),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(ref.tr('guestIntroWarning'), style: AppTextStyles.body)),
+                  Expanded(child: Text(ref.l10n.guestIntroWarning, style: AppTextStyles.body)),
                 ]),
               ),
               const SizedBox(height: 22),
@@ -159,7 +159,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryLight))
                   : const Icon(LucideIcons.ghost, size: 18, color: AppColors.primaryLight),
-              label: Text(ref.tr('continueAsGuest'),
+              label: Text(ref.l10n.continueAsGuest,
                   style: AppTextStyles.label.copyWith(color: AppColors.primaryLight)),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -175,7 +175,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   child: RichText(
                     text: TextSpan(style: AppTextStyles.body, children: [
                       const TextSpan(text: "New here?  ", style: TextStyle(color: AppColors.textSecondary)),
-                      TextSpan(text: ref.tr('createAccount'), style: const TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.w700)),
+                      TextSpan(text: ref.l10n.createAccount, style: const TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.w700)),
                     ]),
                   ),
                 ),

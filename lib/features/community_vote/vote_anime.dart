@@ -31,7 +31,7 @@ class VoteAnime extends ConsumerWidget {
     final anime = ref.watch(voteAnimeProvider(anilistId));
     final title = switch (anime) {
       AsyncData(value: final a?) => a.title,
-      AsyncData() => ref.tr('titleUnavailable'),
+      AsyncData() => ref.l10n.titleUnavailable,
       _ => '…',
     };
     return builder(context, title, anime.valueOrNull?.coverUrl ?? '');

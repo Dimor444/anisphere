@@ -21,7 +21,7 @@ class NewsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: Text('📰 ${ref.tr('news')}')),
+      appBar: AppBar(title: Text('📰 ${ref.l10n.news}')),
       body: const DecoratedBox(
         decoration: BoxDecoration(gradient: AppGradients.pageBg),
         child: NewsFeed(),
@@ -87,7 +87,7 @@ class _NewsFeedState extends ConsumerState<NewsFeed> {
   @override
   Widget build(BuildContext context) {
     final chips = <(NewsCategory?, String)>[
-      (null, ref.tr('all')),
+      (null, ref.l10n.all),
       for (final c in NewsService.instance.getNewsCategories()) (c, ref.tr(c.trKey)),
     ];
 
@@ -131,7 +131,7 @@ class _NewsFeedState extends ConsumerState<NewsFeed> {
                   return ListView(children: [
                     Padding(
                       padding: const EdgeInsets.all(48),
-                      child: Center(child: Text(ref.tr('actionFailed'), style: AppTextStyles.captionMuted)),
+                      child: Center(child: Text(ref.l10n.actionFailed, style: AppTextStyles.captionMuted)),
                     ),
                   ]);
                 }
@@ -145,7 +145,7 @@ class _NewsFeedState extends ConsumerState<NewsFeed> {
                       child: Column(children: [
                         const Icon(LucideIcons.newspaper, size: 42, color: AppColors.textMuted),
                         const SizedBox(height: 12),
-                        Text(ref.tr('noNewsYet'), style: AppTextStyles.captionMuted),
+                        Text(ref.l10n.noNewsYet, style: AppTextStyles.captionMuted),
                       ]),
                     ),
                   ]);

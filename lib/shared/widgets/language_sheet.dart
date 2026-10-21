@@ -38,7 +38,7 @@ class _LanguageSheet extends ConsumerWidget {
             const SizedBox(height: 12),
             Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 14),
-            Text(ref.tr('selectLanguage'), style: AppTextStyles.heading),
+            Text(ref.l10n.selectLanguage, style: AppTextStyles.heading),
             const SizedBox(height: 8),
             // Flexible + shrinkWrap: the list takes only the height it needs
             // when it fits, so the sheet still hugs its content, and scrolls

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/constants/app_strings.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'l10n/app_localizations.dart';
 import 'shared/providers/language_provider.dart';
 
 class AniSphereApp extends ConsumerWidget {
@@ -20,12 +19,10 @@ class AniSphereApp extends ConsumerWidget {
       themeMode: ThemeMode.dark, // dark only — always
       routerConfig: appRouter,
       locale: Locale(lang.code),
-      supportedLocales: AppStrings.languages.map((l) => Locale(l.code)).toList(),
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      // The generated delegate plus Flutter's Material, Cupertino and
+      // Widgets ones.
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       // Force app-wide text direction from the language provider (RTL for Arabic).
       builder: (context, child) => Directionality(
         textDirection: lang.direction,

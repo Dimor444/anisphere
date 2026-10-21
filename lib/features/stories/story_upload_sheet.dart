@@ -19,8 +19,8 @@ import '../../shared/widgets/glass_modals.dart';
 Future<void> startStoryUpload(BuildContext context, WidgetRef ref) async {
   Haptics.light();
   final messenger = ScaffoldMessenger.of(context);
-  final failedLabel = ref.tr('actionFailed');
-  final cancelLabel = ref.tr('cancel');
+  final failedLabel = ref.l10n.actionFailed;
+  final cancelLabel = ref.l10n.cancel;
 
   final source = await showGlassSheet<ImageSource>(
     context: context,

@@ -35,7 +35,7 @@ class ObservatoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: Text(ref.tr('observatory'))),
+      appBar: AppBar(title: Text(ref.l10n.observatory)),
       body: RefreshIndicator(
         color: AppColors.primaryLight,
         backgroundColor: AppColors.surfaceAlt,
@@ -76,12 +76,12 @@ class _CommunitySection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(ref.tr('observatoryCommunity'), style: AppTextStyles.subheading),
+        Text(ref.l10n.observatoryCommunity, style: AppTextStyles.subheading),
         const SizedBox(height: 12),
         stats.when(
           loading: () => const _StatRowSkeleton(),
           error: (_, __) => _SectionError(
-            message: ref.tr('observatoryStatsError'),
+            message: ref.l10n.observatoryStatsError,
             onRetry: () => ref.invalidate(observatoryStatsProvider),
           ),
           data: (s) => Column(
@@ -95,7 +95,7 @@ class _CommunitySection extends ConsumerWidget {
                       // per-country counts — two docs carry no countryCode
                       // and equality filters skip them.
                       value: s.totalMembers,
-                      label: ref.tr('observatoryMembers'),
+                      label: ref.l10n.observatoryMembers,
                       icon: LucideIcons.users,
                       color: AppColors.primaryLight,
                     ),
@@ -105,7 +105,7 @@ class _CommunitySection extends ConsumerWidget {
                     child: _StatTile(
                       // count() over `posts` where createdAt >= 00:00 UTC.
                       value: s.postsToday,
-                      label: ref.tr('observatoryPostsToday'),
+                      label: ref.l10n.observatoryPostsToday,
                       icon: LucideIcons.messageSquare,
                       color: AppColors.accent,
                     ),
@@ -113,7 +113,7 @@ class _CommunitySection extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              Text(ref.tr('observatoryUtcNote'), style: AppTextStyles.captionMuted),
+              Text(ref.l10n.observatoryUtcNote, style: AppTextStyles.captionMuted),
             ],
           ),
         ),
@@ -177,14 +177,14 @@ class _GlobalPopularSection extends ConsumerWidget {
         // exactly how a global number ends up implying a local one.
         const Divider(color: AppColors.border, height: 1),
         const SizedBox(height: 18),
-        Text(ref.tr('observatoryGlobalTitle'), style: AppTextStyles.subheading),
+        Text(ref.l10n.observatoryGlobalTitle, style: AppTextStyles.subheading),
         const SizedBox(height: 4),
         Row(
           children: [
             const Icon(LucideIcons.globe, size: 13, color: AppColors.textMuted),
             const SizedBox(width: 6),
             Expanded(
-              child: Text(ref.tr('observatoryGlobalNote'), style: AppTextStyles.captionMuted),
+              child: Text(ref.l10n.observatoryGlobalNote, style: AppTextStyles.captionMuted),
             ),
           ],
         ),
@@ -192,11 +192,11 @@ class _GlobalPopularSection extends ConsumerWidget {
         popular.when(
           loading: () => const _ListSkeleton(),
           error: (_, __) => _SectionError(
-            message: ref.tr('observatoryPopularError'),
+            message: ref.l10n.observatoryPopularError,
             onRetry: () => ref.invalidate(globalPopularProvider),
           ),
           data: (list) => list.isEmpty
-              ? Text(ref.tr('observatoryPopularEmpty'), style: AppTextStyles.bodyMuted)
+              ? Text(ref.l10n.observatoryPopularEmpty, style: AppTextStyles.bodyMuted)
               : Column(
                   children: [
                     for (final anime in list) _PopularRow(rank: anime.rank, anime: anime),
@@ -260,7 +260,7 @@ class _PopularRow extends ConsumerWidget {
                 const SizedBox(height: 2),
                 // AniList Media.popularity — worldwide, no country dimension.
                 Text(
-                  '${Fmt.compact(anime.popularity)} · ${ref.tr('observatoryOnLists')}',
+                  '${Fmt.compact(anime.popularity)} · ${ref.l10n.observatoryOnLists}',
                   style: AppTextStyles.captionMuted,
                 ),
               ],
@@ -296,7 +296,7 @@ class _SectionError extends ConsumerWidget {
           const SizedBox(height: 12),
           Text(message, textAlign: TextAlign.center, style: AppTextStyles.bodyMuted),
           const SizedBox(height: 16),
-          GradientButton(label: ref.tr('retry'), expand: false, onPressed: onRetry),
+          GradientButton(label: ref.l10n.retry, expand: false, onPressed: onRetry),
         ],
       ),
     );

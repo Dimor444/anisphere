@@ -28,7 +28,7 @@ class CommunityVoteHistoryScreen extends ConsumerWidget {
       (i) => CommunityVoteService.dayIdFor(today.subtract(Duration(days: i + 1))),
     );
     return Scaffold(
-      appBar: AppBar(title: Text(ref.tr('pastVotesTitle'))),
+      appBar: AppBar(title: Text(ref.l10n.pastVotesTitle)),
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: AppGradients.pageBg),
         child: ListView.builder(

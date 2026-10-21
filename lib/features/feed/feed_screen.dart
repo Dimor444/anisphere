@@ -269,7 +269,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   List<Widget> _postSlivers(AsyncSnapshot<List<PostData>> snap) {
     if (snap.hasError) {
-      return [SliverToBoxAdapter(child: _FeedMessage(icon: LucideIcons.cloudOff, text: ref.tr('loadFeedError'), retry: _refresh))];
+      return [SliverToBoxAdapter(child: _FeedMessage(icon: LucideIcons.cloudOff, text: ref.l10n.loadFeedError, retry: _refresh))];
     }
     final posts = snap.data;
     if (posts == null) {
@@ -281,7 +281,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     }
     final all = _popularMode ? posts : [...posts, ..._older];
     if (all.isEmpty) {
-      return [SliverToBoxAdapter(child: _FeedMessage(icon: LucideIcons.usersRound, text: ref.tr('noPostsYet')))];
+      return [SliverToBoxAdapter(child: _FeedMessage(icon: LucideIcons.usersRound, text: ref.l10n.noPostsYet))];
     }
 
     // Interleave the trending rail into the feed.
@@ -337,16 +337,16 @@ class _PopularHeader extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(ref.tr('emptyFeedFollow'), style: AppTextStyles.subheading),
+                    Text(ref.l10n.emptyFeedFollow, style: AppTextStyles.subheading),
                     const SizedBox(height: 2),
-                    Text(ref.tr('startFollowingHint'), style: AppTextStyles.captionMuted),
+                    Text(ref.l10n.startFollowingHint, style: AppTextStyles.captionMuted),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        SectionHeader(title: '🔥 ${ref.tr('popularThisWeek')}'),
+        SectionHeader(title: '🔥 ${ref.l10n.popularThisWeek}'),
       ],
     );
   }
@@ -370,7 +370,7 @@ class _FeedMessage extends StatelessWidget {
           if (retry != null) ...[
             const SizedBox(height: 12),
             Consumer(
-              builder: (context, ref, _) => TextButton(onPressed: retry, child: Text(ref.tr('retry'))),
+              builder: (context, ref, _) => TextButton(onPressed: retry, child: Text(ref.l10n.retry)),
             ),
           ],
         ],
@@ -432,7 +432,7 @@ class _TrendingRailState extends State<_TrendingRail> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // AniList's trending list, not this season's: long runners trend too.
-            Consumer(builder: (context, ref, _) => SectionHeader(title: '🔥 ${ref.tr('trending')}')),
+            Consumer(builder: (context, ref, _) => SectionHeader(title: '🔥 ${ref.l10n.trending}')),
             SizedBox(
               height: 180,
               child: ListView.separated(

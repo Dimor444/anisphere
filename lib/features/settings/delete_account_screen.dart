@@ -78,7 +78,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       if (!mounted) return;
       setState(() {
         _deleting = false;
-        _error = ref.tr('deleteFailedUnsure');
+        _error = ref.l10n.deleteFailedUnsure;
       });
       return;
     }
@@ -87,7 +87,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     // The root messenger, captured before the route goes: it outlives this
     // page, so the notice lands on onboarding.
     final messenger = ScaffoldMessenger.of(context);
-    final notice = ref.tr('accountDeletionStarted');
+    final notice = ref.l10n.accountDeletionStarted;
     context.go('/onboarding');
     messenger.showSnackBar(SnackBar(content: Text(notice)));
     // After the frame that tears the signed-in screens down, so none of them
@@ -104,7 +104,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       canPop: !_deleting,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(ref.tr('deleteAccount')),
+          title: Text(ref.l10n.deleteAccount),
           automaticallyImplyLeading: !_deleting,
         ),
         body: SafeArea(
@@ -112,16 +112,16 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
-              Text(ref.tr('deleteAccountLead'), style: AppTextStyles.body),
-              _heading(ref.tr('deleteWhatGoes')),
-              _point(LucideIcons.fileX, ref.tr('deleteGoesContent')),
-              _point(LucideIcons.heartOff, ref.tr('deleteGoesActivity')),
-              _point(LucideIcons.coins, ref.tr('deleteGoesWallet')),
-              _heading(ref.tr('deleteWhatStays')),
-              _point(LucideIcons.messagesSquare, ref.tr('deleteOthersKeep')),
-              _point(LucideIcons.atSign, ref.tr('deleteHandleRetired')),
-              _heading(ref.tr('deleteWhen')),
-              _point(LucideIcons.clock, ref.tr('deleteTiming')),
+              Text(ref.l10n.deleteAccountLead, style: AppTextStyles.body),
+              _heading(ref.l10n.deleteWhatGoes),
+              _point(LucideIcons.fileX, ref.l10n.deleteGoesContent),
+              _point(LucideIcons.heartOff, ref.l10n.deleteGoesActivity),
+              _point(LucideIcons.coins, ref.l10n.deleteGoesWallet),
+              _heading(ref.l10n.deleteWhatStays),
+              _point(LucideIcons.messagesSquare, ref.l10n.deleteOthersKeep),
+              _point(LucideIcons.atSign, ref.l10n.deleteHandleRetired),
+              _heading(ref.l10n.deleteWhen),
+              _point(LucideIcons.clock, ref.l10n.deleteTiming),
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(14),
@@ -134,14 +134,14 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   const Icon(LucideIcons.triangleAlert, size: 18, color: AppColors.error),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(ref.tr('deleteIrreversible'),
+                    child: Text(ref.l10n.deleteIrreversible,
                         style: AppTextStyles.body
                             .copyWith(color: AppColors.error, fontWeight: FontWeight.w700)),
                   ),
                 ]),
               ),
               const SizedBox(height: 24),
-              Text(ref.tr('deleteTypeToConfirm'), style: AppTextStyles.caption),
+              Text(ref.l10n.deleteTypeToConfirm, style: AppTextStyles.caption),
               const SizedBox(height: 8),
               TextField(
                 controller: _confirm,
@@ -212,10 +212,10 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   ),
                   const SizedBox(width: 10),
-                  Text(ref.tr('deletingAccount'),
+                  Text(ref.l10n.deletingAccount,
                       style: AppTextStyles.subheading.copyWith(color: Colors.white)),
                 ])
-              : Text(ref.tr('deleteAccountButton'),
+              : Text(ref.l10n.deleteAccountButton,
                   style: AppTextStyles.subheading.copyWith(color: Colors.white)),
         ),
       ),

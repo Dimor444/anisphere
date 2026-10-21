@@ -120,7 +120,7 @@ class _SignedOutTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: Text(ref.tr('profile'))),
+      appBar: AppBar(title: Text(ref.l10n.profile)),
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: AppGradients.pageBg),
         child: Center(
@@ -129,7 +129,7 @@ class _SignedOutTab extends ConsumerWidget {
             children: [
               const Icon(LucideIcons.userX, size: 42, color: AppColors.textMuted),
               const SizedBox(height: 12),
-              Text(ref.tr('signIn'), style: AppTextStyles.captionMuted),
+              Text(ref.l10n.signIn, style: AppTextStyles.captionMuted),
             ],
           ),
         ),
@@ -157,7 +157,7 @@ class _ProfileBody extends ConsumerWidget {
     // the own tab renders placeholders while ensureProfile is in flight.
     if (identityAsync is AsyncData<UserData?> && identityAsync.value == null && identity == null && !fromTab) {
       return Scaffold(
-        appBar: AppBar(title: Text(ref.tr('profile'))),
+        appBar: AppBar(title: Text(ref.l10n.profile)),
         body: DecoratedBox(
           decoration: const BoxDecoration(gradient: AppGradients.pageBg),
           child: Center(
@@ -166,7 +166,7 @@ class _ProfileBody extends ConsumerWidget {
               children: [
                 const Icon(LucideIcons.userX, size: 42, color: AppColors.textMuted),
                 const SizedBox(height: 12),
-                Text(ref.tr('userNotFound'), style: AppTextStyles.captionMuted),
+                Text(ref.l10n.userNotFound, style: AppTextStyles.captionMuted),
               ],
             ),
           ),
@@ -184,8 +184,8 @@ class _ProfileBody extends ConsumerWidget {
     // only by its owner, and likes from builds that predate their uid field
     // cannot be found by user.
     final tabs = <(String, Widget)>[
-      (ref.tr('posts'), _PostsTab(userId: uid)),
-      (ref.tr('aniVideos'), _VideosTab(userId: uid)),
+      (ref.l10n.posts, _PostsTab(userId: uid)),
+      (ref.l10n.aniVideos, _VideosTab(userId: uid)),
       if (isOwn && kAniStatsEnabled) ('Stats', const _StatsTab()),
     ];
     final page = DecoratedBox(
@@ -317,7 +317,7 @@ class _ProfileHeader extends ConsumerWidget {
                       children: isOwn
                           ? [
                               GradientButton(
-                                label: ref.tr('editProfile'),
+                                label: ref.l10n.editProfile,
                                 expand: false,
                                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
                                 onPressed: () => showEditProfileSheet(context),
@@ -421,10 +421,10 @@ class _StatsRow extends ConsumerWidget {
     final posts = ref.watch(postCountProvider(uid)).asData?.value;
     String live(int? v) => v == null ? '—' : Fmt.compact(v);
     final items = <(String, String, VoidCallback?)>[
-      (live(posts), ref.tr('posts'), null),
-      (live(counts?.followers), ref.tr('followers'),
+      (live(posts), ref.l10n.posts, null),
+      (live(counts?.followers), ref.l10n.followers,
           () => context.push('/profile/$uid/followers')),
-      (live(counts?.following), ref.tr('following'),
+      (live(counts?.following), ref.l10n.following,
           () => context.push('/profile/$uid/following')),
     ];
     return Container(
@@ -697,7 +697,7 @@ class _MessageButton extends ConsumerWidget {
         child: Row(children: [
           const Icon(LucideIcons.send, size: 13, color: AppColors.textSecondary),
           const SizedBox(width: 6),
-          Text(ref.tr('message'),
+          Text(ref.l10n.message,
               style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12.5)),
         ]),
       ),
@@ -794,7 +794,7 @@ class _PostsTab extends ConsumerWidget {
         if (posts == null) return const _LoadingTab();
         // The profile's own empty state — noPostsYet is the feed's, and tells
         // the reader to follow people.
-        if (posts.isEmpty) return _EmptyTab(text: ref.tr('profileNoPosts'));
+        if (posts.isEmpty) return _EmptyTab(text: ref.l10n.profileNoPosts);
         return _TabScrollView(slivers: [
           SliverPadding(
             padding: EdgeInsets.only(top: 8, bottom: AniBottomNav.scrollEndPadding(context)),
@@ -870,10 +870,10 @@ class _VideosTab extends ConsumerWidget {
     return StreamBuilder<List<AniVideoData>>(
       stream: AniVideoService.instance.watchUserVideos(userId),
       builder: (context, snap) {
-        if (snap.hasError) return _EmptyTab(text: ref.tr('videosLoadError'));
+        if (snap.hasError) return _EmptyTab(text: ref.l10n.videosLoadError);
         final videos = snap.data;
         if (videos == null) return const _LoadingTab();
-        if (videos.isEmpty) return _EmptyTab(text: ref.tr('profileNoVideos'));
+        if (videos.isEmpty) return _EmptyTab(text: ref.l10n.profileNoVideos);
         return _TabScrollView(slivers: [
           SliverPadding(
             padding: EdgeInsets.fromLTRB(12, 10, 12, AniBottomNav.scrollEndPadding(context)),

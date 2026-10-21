@@ -78,8 +78,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: Text(ref.tr('ageRestriction')),
-        content: Text(ref.tr('ageRestrictionBody')),
+        title: Text(ref.l10n.ageRestriction),
+        content: Text(ref.l10n.ageRestrictionBody),
         actions: [
           TextButton(
             onPressed: () {
@@ -87,7 +87,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               _resetForm();
               context.go('/onboarding');
             },
-            child: Text(ref.tr('exit'), style: const TextStyle(color: AppColors.error)),
+            child: Text(ref.l10n.exit, style: const TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -147,7 +147,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         }),
         title: Row(
           children: [
-            Text([ref.tr('account'), ref.tr('pickAnime'), ref.tr('preferences')][_step]),
+            Text([ref.l10n.account, ref.l10n.pickAnime, ref.l10n.preferences][_step]),
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -183,7 +183,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: GradientButton(
-                label: _step == 2 ? ref.tr('finishSetup') : ref.tr('continueLabel'),
+                label: _step == 2 ? ref.l10n.finishSetup : ref.l10n.continueLabel,
                 onPressed: _next,
               ),
             ),
@@ -198,15 +198,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        TextField(controller: _email, decoration: InputDecoration(labelText: ref.tr('email'), prefixIcon: const Icon(LucideIcons.mail, size: 18))),
+        TextField(controller: _email, decoration: InputDecoration(labelText: ref.l10n.email, prefixIcon: const Icon(LucideIcons.mail, size: 18))),
         const SizedBox(height: 14),
-        TextField(controller: _username, decoration: InputDecoration(labelText: ref.tr('username'), prefixIcon: const Icon(LucideIcons.atSign, size: 18))),
+        TextField(controller: _username, decoration: InputDecoration(labelText: ref.l10n.username, prefixIcon: const Icon(LucideIcons.atSign, size: 18))),
         const SizedBox(height: 14),
         TextField(
           controller: _password,
           obscureText: _obscure,
           decoration: InputDecoration(
-            labelText: ref.tr('password'),
+            labelText: ref.l10n.password,
             prefixIcon: const Icon(LucideIcons.lock, size: 18),
             suffixIcon: IconButton(
               icon: Icon(_obscure ? LucideIcons.eye : LucideIcons.eyeOff, size: 18),
@@ -219,7 +219,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           onTap: _pickDob,
           borderRadius: BorderRadius.circular(14),
           child: InputDecorator(
-            decoration: InputDecoration(labelText: ref.tr('dateOfBirth'), prefixIcon: const Icon(LucideIcons.calendar, size: 18)),
+            decoration: InputDecoration(labelText: ref.l10n.dateOfBirth, prefixIcon: const Icon(LucideIcons.calendar, size: 18)),
             child: Text(
               _dob == null ? 'Select date' : '${_dob!.year}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}',
               style: AppTextStyles.body.copyWith(color: _dob == null ? AppColors.textMuted : AppColors.textPrimary),
@@ -279,7 +279,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
           child: TextField(
             controller: _firstAnime,
-            decoration: InputDecoration(labelText: ref.tr('firstAnimeEver'), prefixIcon: const Icon(LucideIcons.sparkles, size: 18)),
+            decoration: InputDecoration(labelText: ref.l10n.firstAnimeEver, prefixIcon: const Icon(LucideIcons.sparkles, size: 18)),
           ),
         ),
       ],
@@ -291,7 +291,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Text(ref.tr('whatYouEnjoy'), style: AppTextStyles.heading),
+        Text(ref.l10n.whatYouEnjoy, style: AppTextStyles.heading),
         const SizedBox(height: 14),
         Wrap(
           spacing: 9,
@@ -314,7 +314,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           }).toList(),
         ),
         const SizedBox(height: 28),
-        Text(ref.tr('language'), style: AppTextStyles.heading),
+        Text(ref.l10n.language, style: AppTextStyles.heading),
         const SizedBox(height: 12),
         InkWell(
           onTap: () => showLanguageSheet(context),

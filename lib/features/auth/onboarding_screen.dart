@@ -71,7 +71,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       child: TextButton(
                         onPressed: () => _pc.animateToPage(_pages.length - 1,
                             duration: const Duration(milliseconds: 350), curve: Curves.easeOut),
-                        child: Text(ref.tr('skip'),
+                        child: Text(ref.l10n.skip,
                             style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
                       ),
                     ),
@@ -103,7 +103,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   const SizedBox(height: 24),
                   if (last && kAccountAuthEnabled) ...[
                     GradientButton(
-                      label: ref.tr('createAccount'),
+                      label: ref.l10n.createAccount,
                       onPressed: () => context.go('/signup'),
                     ),
                     const SizedBox(height: 12),
@@ -117,7 +117,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: Text(ref.tr('signIn'),
+                        child: Text(ref.l10n.signIn,
                             style: AppTextStyles.subheading.copyWith(color: AppColors.textSecondary)),
                       ),
                     ),
@@ -126,12 +126,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     // what that means before the choice is made. Pushed, so
                     // its back button returns here.
                     GradientButton(
-                      label: ref.tr('getStarted'),
+                      label: ref.l10n.getStarted,
                       onPressed: () => context.push('/signin'),
                     )
                   else
                     GradientButton(
-                      label: ref.tr('next'),
+                      label: ref.l10n.next,
                       onPressed: () => _pc.nextPage(
                           duration: const Duration(milliseconds: 350), curve: Curves.easeOut),
                     ),

@@ -109,8 +109,8 @@ class _PostCardState extends ConsumerState<PostCard> {
 
   void _errorSnack({required VoidCallback onRetry}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ref.tr('actionFailed')),
-      action: SnackBarAction(label: ref.tr('retry'), onPressed: onRetry),
+      content: Text(ref.l10n.actionFailed),
+      action: SnackBarAction(label: ref.l10n.retry, onPressed: onRetry),
     ));
   }
 
@@ -137,7 +137,7 @@ class _PostCardState extends ConsumerState<PostCard> {
             if (_isOwn)
               ListTile(
                 leading: const Icon(LucideIcons.trash2, color: AppColors.secondary, size: 20),
-                title: Text(ref.tr('deletePost'), style: AppTextStyles.body.copyWith(color: AppColors.secondary)),
+                title: Text(ref.l10n.deletePost, style: AppTextStyles.body.copyWith(color: AppColors.secondary)),
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   _confirmDelete();
@@ -146,7 +146,7 @@ class _PostCardState extends ConsumerState<PostCard> {
             else
               ListTile(
                 leading: const Icon(LucideIcons.flag, size: 20, color: AppColors.textSecondary),
-                title: Text(ref.tr('reportPost'), style: AppTextStyles.body),
+                title: Text(ref.l10n.reportPost, style: AppTextStyles.body),
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   showReportSheet(context, ref, widget.post.id);
@@ -163,12 +163,12 @@ class _PostCardState extends ConsumerState<PostCard> {
     final confirmed = await showGlassDialog<bool>(
       context: context,
       builder: (dCtx) => AlertDialog(
-        title: Text(ref.tr('deletePost')),
+        title: Text(ref.l10n.deletePost),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.tr('cancel'))),
+          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(dCtx, true),
-            child: Text(ref.tr('deletePost'), style: const TextStyle(color: AppColors.secondary)),
+            child: Text(ref.l10n.deletePost, style: const TextStyle(color: AppColors.secondary)),
           ),
         ],
       ),
@@ -177,7 +177,7 @@ class _PostCardState extends ConsumerState<PostCard> {
     try {
       await FeedService.instance.deletePost(widget.post.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('postDeleted'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.postDeleted)));
     } catch (_) {
       if (!mounted) return;
       _errorSnack(onRetry: _confirmDelete);
@@ -340,14 +340,14 @@ class _PostCardState extends ConsumerState<PostCard> {
 /// Report-reason picker; writes to `reports/` on selection.
 void showReportSheet(BuildContext context, WidgetRef ref, String postId) {
   final reasons = [
-    ('spam', ref.tr('reportSpam')),
-    ('spoiler', ref.tr('reportSpoiler')),
-    ('abuse', ref.tr('reportAbuse')),
-    ('other', ref.tr('reportOther')),
+    ('spam', ref.l10n.reportSpam),
+    ('spoiler', ref.l10n.reportSpoiler),
+    ('abuse', ref.l10n.reportAbuse),
+    ('other', ref.l10n.reportOther),
   ];
   final messenger = ScaffoldMessenger.of(context);
-  final thanks = ref.tr('postReported');
-  final failed = ref.tr('actionFailed');
+  final thanks = ref.l10n.postReported;
+  final failed = ref.l10n.actionFailed;
   showGlassSheet(
     context: context,
     builder: (sheetCtx) => SafeArea(
@@ -355,7 +355,7 @@ void showReportSheet(BuildContext context, WidgetRef ref, String postId) {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 16),
-          Text(ref.tr('whyReport'), style: AppTextStyles.subheading),
+          Text(ref.l10n.whyReport, style: AppTextStyles.subheading),
           const SizedBox(height: 6),
           for (final (code, label) in reasons)
             ListTile(
@@ -463,7 +463,7 @@ class _SpoilerText extends ConsumerWidget {
                     children: [
                       const Icon(LucideIcons.eyeOff, size: 15, color: AppColors.secondary),
                       const SizedBox(width: 6),
-                      Text(ref.tr('spoiler'),
+                      Text(ref.l10n.spoiler,
                           style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
                     ],
                   ),
@@ -501,10 +501,10 @@ class _AnimeChipState extends ConsumerState<_AnimeChip> {
       if (!mounted) return;
       setState(() => _added = true);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('${p.animeTitle} → ${ref.tr('myList')} ✅')));
+          .showSnackBar(SnackBar(content: Text('${p.animeTitle} → ${ref.l10n.myList} ✅')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('listError'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.listError)));
     } finally {
       if (mounted) setState(() => _adding = false);
     }

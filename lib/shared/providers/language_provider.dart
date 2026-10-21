@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_strings.dart';
+import '../../l10n/app_localizations.dart';
 
 class LanguageState {
   final String code;
@@ -41,6 +42,12 @@ class LanguageController extends StateNotifier<LanguageState> {
 final languageProvider =
     StateNotifierProvider<LanguageController, LanguageState>(
         (ref) => LanguageController());
+
+/// The chosen language's generated strings: `ref.l10n.feed`. Watches the
+/// language, as [TrRef.tr] does, so switching it rebuilds the caller.
+extension L10nRef on WidgetRef {
+  AppLocalizations get l10n => lookupAppLocalizations(Locale(watch(languageProvider).code));
+}
 
 /// Ergonomic translation helper: `ref.tr('feed')`.
 extension TrRef on WidgetRef {

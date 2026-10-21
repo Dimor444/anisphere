@@ -97,12 +97,12 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
         _videoId = null; // new clip → new grant
       });
       if (_tooLong) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('videoTooLong'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.videoTooLong)));
       }
     } catch (e) {
       debugPrint('[UploadVideo] pick failed: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('actionFailed'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.actionFailed)));
     }
   }
 
@@ -120,7 +120,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       _uploading = true;
       _progress = 0;
     });
-    final postedLabel = ref.tr('videoPosted');
+    final postedLabel = ref.l10n.videoPosted;
     // Allocated on the first attempt only; every retry below re-enters this
     // method and finds the id already set, so it reuses the same grant.
     final videoId = _videoId ??= AniVideoService.instance.newVideoId();
@@ -153,7 +153,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
       showGlassDialog<void>(
         context: context,
         builder: (dCtx) => AlertDialog(
-          title: Text(ref.tr('videoUploadFailed')),
+          title: Text(ref.l10n.videoUploadFailed),
           content: capped == null ? null : Text(capped.message, style: AppTextStyles.body),
           actions: [
             TextButton(
@@ -168,7 +168,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                   Navigator.pop(dCtx);
                   _submit();
                 },
-                child: Text(ref.tr('retry')),
+                child: Text(ref.l10n.retry),
               ),
           ],
         ),
@@ -184,7 +184,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
           icon: const Icon(LucideIcons.x),
           onPressed: _uploading ? null : () => Navigator.pop(context),
         ),
-        title: Text(ref.tr('uploadVideo')),
+        title: Text(ref.l10n.uploadVideo),
       ),
       body: SafeArea(
         child: Column(
@@ -200,7 +200,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                   const SizedBox(height: 6),
                   Center(
                     child: Text(
-                      '${ref.tr('maxVideoDuration')}${_durationSeconds > 0 ? '  ·  ${_durationSeconds}s' : ''}',
+                      '${ref.l10n.maxVideoDuration}${_durationSeconds > 0 ? '  ·  ${_durationSeconds}s' : ''}',
                       style: AppTextStyles.captionMuted.copyWith(
                         color: _tooLong ? AppColors.secondary : null,
                         fontWeight: _tooLong ? FontWeight.w700 : null,
@@ -211,7 +211,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(ref.tr('videoTooLong'),
+                        child: Text(ref.l10n.videoTooLong,
                             style: AppTextStyles.caption.copyWith(color: AppColors.secondary)),
                       ),
                     ),
@@ -230,7 +230,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                         color: currentLength >= (maxLength ?? 0) ? AppColors.secondary : null,
                       ),
                     ),
-                    decoration: InputDecoration(hintText: ref.tr('captionHint')),
+                    decoration: InputDecoration(hintText: ref.l10n.captionHint),
                   ),
                   const SizedBox(height: 12),
 
@@ -282,7 +282,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
 
                   Row(
                     children: [
-                      _ToolChip(icon: LucideIcons.clapperboard, label: ref.tr('tagAnime'), onTap: _pickAnime),
+                      _ToolChip(icon: LucideIcons.clapperboard, label: ref.l10n.tagAnime, onTap: _pickAnime),
                     ],
                   ),
                   SwitchListTile(
@@ -295,7 +295,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                           },
                     contentPadding: EdgeInsets.zero,
                     activeColor: AppColors.secondary,
-                    title: Text(ref.tr('markAsSpoiler'), style: AppTextStyles.body),
+                    title: Text(ref.l10n.markAsSpoiler, style: AppTextStyles.body),
                     secondary: const Icon(LucideIcons.eyeOff, size: 19, color: AppColors.textSecondary),
                   ),
                 ],
@@ -317,12 +317,12 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text('${ref.tr('uploading')} ${(_progress * 100).round()}%',
+                        Text('${ref.l10n.uploading} ${(_progress * 100).round()}%',
                             style: AppTextStyles.captionMuted),
                       ],
                     )
                   : GradientButton(
-                      label: ref.tr('post'),
+                      label: ref.l10n.post,
                       icon: LucideIcons.send,
                       onPressed: _canPost ? _submit : null,
                     ),
@@ -336,9 +336,9 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
   Widget _sourcePickers() {
     return Row(
       children: [
-        Expanded(child: _SourceCard(icon: LucideIcons.image, label: ref.tr('pickFromGallery'), onTap: () => _pick(ImageSource.gallery))),
+        Expanded(child: _SourceCard(icon: LucideIcons.image, label: ref.l10n.pickFromGallery, onTap: () => _pick(ImageSource.gallery))),
         const SizedBox(width: 12),
-        Expanded(child: _SourceCard(icon: LucideIcons.video, label: ref.tr('recordVideo'), onTap: () => _pick(ImageSource.camera))),
+        Expanded(child: _SourceCard(icon: LucideIcons.video, label: ref.l10n.recordVideo, onTap: () => _pick(ImageSource.camera))),
       ],
     );
   }

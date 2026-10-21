@@ -96,13 +96,13 @@ class _UserNameFieldState extends ConsumerState<UserNameField> {
 
   (String, Color) get _statusLine => switch (_status) {
         HandleStatus.unchanged => ('', AppColors.textMuted),
-        HandleStatus.tooShort => (ref.tr('usernameTooShort'), AppColors.textMuted),
-        HandleStatus.invalid => (ref.tr('usernameInvalid'), AppColors.error),
-        HandleStatus.reserved => (ref.tr('usernameReserved'), AppColors.error),
-        HandleStatus.checking => (ref.tr('usernameChecking'), AppColors.textMuted),
-        HandleStatus.available => (ref.tr('usernameAvailable'), AppColors.success),
-        HandleStatus.taken => (ref.tr('usernameTaken'), AppColors.error),
-        HandleStatus.error => (ref.tr('usernameCheckFailed'), AppColors.error),
+        HandleStatus.tooShort => (ref.l10n.usernameTooShort, AppColors.textMuted),
+        HandleStatus.invalid => (ref.l10n.usernameInvalid, AppColors.error),
+        HandleStatus.reserved => (ref.l10n.usernameReserved, AppColors.error),
+        HandleStatus.checking => (ref.l10n.usernameChecking, AppColors.textMuted),
+        HandleStatus.available => (ref.l10n.usernameAvailable, AppColors.success),
+        HandleStatus.taken => (ref.l10n.usernameTaken, AppColors.error),
+        HandleStatus.error => (ref.l10n.usernameCheckFailed, AppColors.error),
       };
 
   @override
@@ -120,7 +120,7 @@ class _UserNameFieldState extends ConsumerState<UserNameField> {
             FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9_]')),
           ],
           decoration: InputDecoration(
-            hintText: ref.tr('username').toLowerCase(),
+            hintText: ref.l10n.username.toLowerCase(),
             prefixText: '@',
             counterText: '',
           ),

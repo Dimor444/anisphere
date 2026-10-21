@@ -139,8 +139,8 @@ class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsB
     if (_error != null && (videos == null || videos.isEmpty)) {
       body = _Message(
         icon: LucideIcons.wifiOff,
-        text: ref.tr('videosLoadError'),
-        actionLabel: ref.tr('retry'),
+        text: ref.l10n.videosLoadError,
+        actionLabel: ref.l10n.retry,
         onAction: _refresh,
       );
     } else if (videos == null) {
@@ -148,8 +148,8 @@ class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsB
     } else if (videos.isEmpty) {
       body = _Message(
         icon: LucideIcons.clapperboard,
-        text: ref.tr('noVideosYet'),
-        actionLabel: ref.tr('uploadVideo'),
+        text: ref.l10n.noVideosYet,
+        actionLabel: ref.l10n.uploadVideo,
         onAction: () => context.push('/ani-videos/upload'),
       );
     } else {
@@ -198,7 +198,7 @@ class _AniVideosScreenState extends ConsumerState<AniVideosScreen> with WidgetsB
                       children: [
                         Padding(
                           padding: const EdgeInsets.only(left: 6),
-                          child: Text(ref.tr('aniVideos'),
+                          child: Text(ref.l10n.aniVideos,
                               style: AppTextStyles.subheading.copyWith(color: Colors.white)),
                         ),
                         const Spacer(),
@@ -442,8 +442,8 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
 
   void _errorSnack({required VoidCallback onRetry}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ref.tr('actionFailed')),
-      action: SnackBarAction(label: ref.tr('retry'), onPressed: onRetry),
+      content: Text(ref.l10n.actionFailed),
+      action: SnackBarAction(label: ref.l10n.retry, onPressed: onRetry),
     ));
   }
 
@@ -466,7 +466,7 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
             if (_isOwn)
               ListTile(
                 leading: const Icon(LucideIcons.trash2, color: AppColors.secondary, size: 20),
-                title: Text(ref.tr('deleteVideo'), style: AppTextStyles.body.copyWith(color: AppColors.secondary)),
+                title: Text(ref.l10n.deleteVideo, style: AppTextStyles.body.copyWith(color: AppColors.secondary)),
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   _confirmDelete();
@@ -475,7 +475,7 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
             else
               ListTile(
                 leading: const Icon(LucideIcons.flag, size: 20, color: AppColors.textSecondary),
-                title: Text(ref.tr('reportVideo'), style: AppTextStyles.body),
+                title: Text(ref.l10n.reportVideo, style: AppTextStyles.body),
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   _showReportSheet();
@@ -494,12 +494,12 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
       // A video keeps playing behind it: no blur over a moving frame.
       blurBackdrop: false,
       builder: (dCtx) => AlertDialog(
-        title: Text(ref.tr('deleteVideo')),
+        title: Text(ref.l10n.deleteVideo),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.tr('cancel'))),
+          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: Text(ref.l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(dCtx, true),
-            child: Text(ref.tr('deleteVideo'), style: const TextStyle(color: AppColors.secondary)),
+            child: Text(ref.l10n.deleteVideo, style: const TextStyle(color: AppColors.secondary)),
           ),
         ],
       ),
@@ -508,7 +508,7 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
     try {
       await AniVideoService.instance.deleteVideo(widget.video.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('videoDeleted'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.videoDeleted)));
     } catch (_) {
       if (!mounted) return;
       _errorSnack(onRetry: _confirmDelete);
@@ -517,14 +517,14 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
 
   void _showReportSheet() {
     final reasons = [
-      ('spam', ref.tr('reportSpam')),
-      ('spoiler', ref.tr('reportSpoiler')),
-      ('abuse', ref.tr('reportAbuse')),
-      ('other', ref.tr('reportOther')),
+      ('spam', ref.l10n.reportSpam),
+      ('spoiler', ref.l10n.reportSpoiler),
+      ('abuse', ref.l10n.reportAbuse),
+      ('other', ref.l10n.reportOther),
     ];
     final messenger = ScaffoldMessenger.of(context);
-    final thanks = ref.tr('postReported');
-    final failed = ref.tr('actionFailed');
+    final thanks = ref.l10n.postReported;
+    final failed = ref.l10n.actionFailed;
     showGlassSheet(
       context: context,
       blur: false,
@@ -533,7 +533,7 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 16),
-            Text(ref.tr('whyReportVideo'), style: AppTextStyles.subheading),
+            Text(ref.l10n.whyReportVideo, style: AppTextStyles.subheading),
             const SizedBox(height: 6),
             for (final (code, label) in reasons)
               ListTile(
@@ -610,12 +610,12 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
           if (_failure == _PlaybackFailure.unreachable)
             _Message(
               icon: LucideIcons.wifiOff,
-              text: ref.tr('videoPlayFailed'),
-              actionLabel: ref.tr('retry'),
+              text: ref.l10n.videoPlayFailed,
+              actionLabel: ref.l10n.retry,
               onAction: _retry,
             ),
           if (_failure == _PlaybackFailure.badAddress)
-            _Message(icon: LucideIcons.videoOff, text: ref.tr('videoUnplayable')),
+            _Message(icon: LucideIcons.videoOff, text: ref.l10n.videoUnplayable),
           if (paused)
             const Center(child: Icon(Icons.play_arrow_rounded, color: Colors.white70, size: 80)),
 
@@ -663,7 +663,7 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
                     showAniVideoCommentsSheet(context, v);
                   },
                 ),
-                _RailAction(icon: LucideIcons.share2, label: ref.tr('share'), onTap: _share),
+                _RailAction(icon: LucideIcons.share2, label: ref.l10n.share, onTap: _share),
                 _RailAction(
                   icon: widget.muted ? LucideIcons.volumeX : LucideIcons.volume2,
                   onTap: () {
@@ -768,7 +768,7 @@ class _VideoPageState extends ConsumerState<_VideoPage> {
                       children: [
                         const Icon(LucideIcons.eyeOff, color: Colors.white70, size: 36),
                         const SizedBox(height: 10),
-                        Text(ref.tr('spoiler'),
+                        Text(ref.l10n.spoiler,
                             style: AppTextStyles.body.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
                       ],
                     ),
@@ -835,10 +835,10 @@ class _AnimeChipState extends ConsumerState<_AnimeChip> {
       if (!mounted) return;
       setState(() => _added = true);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('${v.animeTitle} → ${ref.tr('myList')} ✅')));
+          .showSnackBar(SnackBar(content: Text('${v.animeTitle} → ${ref.l10n.myList} ✅')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('listError'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.listError)));
     } finally {
       if (mounted) setState(() => _adding = false);
     }

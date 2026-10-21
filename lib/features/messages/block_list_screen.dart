@@ -40,20 +40,20 @@ class BlockListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final blocked = ref.watch(_blockedProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(ref.tr('blockList'))),
+      appBar: AppBar(title: Text(ref.l10n.blockList)),
       body: blocked.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => _Empty(
           icon: LucideIcons.wifiOff,
-          title: ref.tr('blockListError'),
-          caption: ref.tr('checkConnection'),
+          title: ref.l10n.blockListError,
+          caption: ref.l10n.checkConnection,
         ),
         data: (list) {
           if (list.isEmpty) {
             return _Empty(
               icon: LucideIcons.ban,
-              title: ref.tr('noBlockedConversations'),
-              caption: ref.tr('noBlockedConversationsCaption'),
+              title: ref.l10n.noBlockedConversations,
+              caption: ref.l10n.noBlockedConversationsCaption,
             );
           }
           final me = AuthService.instance.uid ?? '';
@@ -93,7 +93,7 @@ class _BlockedTileState extends ConsumerState<_BlockedTile> {
       if (!mounted) return;
       setState(() => _busy = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('actionFailed')),
+        content: Text(ref.l10n.actionFailed),
         duration: const Duration(seconds: 2),
       ));
     }
@@ -117,11 +117,11 @@ class _BlockedTileState extends ConsumerState<_BlockedTile> {
               radius: 22,
             ),
       title: deleted
-          ? Text(ref.tr('deletedAccount'),
+          ? Text(ref.l10n.deletedAccount,
               style: AppTextStyles.subheading.copyWith(color: AppColors.textMuted))
           : UserNameText(
               user: other,
-              fallback: name.isEmpty ? ref.tr('animeFanFallback') : name,
+              fallback: name.isEmpty ? ref.l10n.animeFanFallback : name,
               style: AppTextStyles.subheading),
       subtitle: other == null
           ? null
@@ -129,7 +129,7 @@ class _BlockedTileState extends ConsumerState<_BlockedTile> {
       trailing: TextButton(
         onPressed: _busy ? null : _unblock,
         child: Text(
-          _busy ? ref.tr('unblocking') : ref.tr('unblock'),
+          _busy ? ref.l10n.unblocking : ref.l10n.unblock,
           style: AppTextStyles.body.copyWith(
             color: _busy ? AppColors.textMuted : AppColors.primaryLight,
             fontWeight: FontWeight.w700,

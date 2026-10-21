@@ -18,8 +18,8 @@ class FollowersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return UserListScaffold(
-      title: ref.tr('followers'),
-      emptyText: ref.tr('noFollowersYet'),
+      title: ref.l10n.followers,
+      emptyText: ref.l10n.noFollowersYet,
       streamOf: (limit) => FollowService.instance.getUserFollowers(userId, limit: limit),
     );
   }
@@ -58,7 +58,7 @@ class _UserListScaffoldState extends ConsumerState<UserListScaffold> {
           stream: _stream,
           builder: (context, snap) {
             if (snap.hasError) {
-              return Center(child: Text(ref.tr('actionFailed'), style: AppTextStyles.captionMuted));
+              return Center(child: Text(ref.l10n.actionFailed, style: AppTextStyles.captionMuted));
             }
             final users = snap.data;
             if (users == null) return const Center(child: CircularProgressIndicator());

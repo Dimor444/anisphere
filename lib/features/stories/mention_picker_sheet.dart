@@ -85,7 +85,7 @@ class _MentionPickerSheetState extends ConsumerState<_MentionPickerSheet> {
                 onChanged: _onChanged,
                 style: AppTextStyles.body,
                 decoration: InputDecoration(
-                  hintText: ref.tr('searchUsers'),
+                  hintText: ref.l10n.searchUsers,
                   prefixIcon: const Icon(LucideIcons.atSign, size: 18),
                   isDense: true,
                 ),

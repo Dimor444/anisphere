@@ -195,13 +195,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       // The queued write may still land later — the bubble stays pending.
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('stillSending')),
+        content: Text(ref.l10n.stillSending),
         duration: const Duration(seconds: 3),
       ));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('sendMessageFailed')),
+        content: Text(ref.l10n.sendMessageFailed),
         duration: const Duration(seconds: 2),
       ));
     }
@@ -222,13 +222,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } on TimeoutException {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('stillSending')),
+        content: Text(ref.l10n.stillSending),
         duration: const Duration(seconds: 3),
       ));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('sendPhotoFailed')),
+        content: Text(ref.l10n.sendPhotoFailed),
         duration: const Duration(seconds: 2),
       ));
     } finally {
@@ -255,7 +255,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr('actionFailed')),
+        content: Text(ref.l10n.actionFailed),
         duration: const Duration(seconds: 2),
       ));
     }
@@ -267,10 +267,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// options themselves are shared with post reports.
   void _showReasonSheet(String titleKey, void Function(String code) onPick) {
     final reasons = [
-      ('spam', ref.tr('reportSpam')),
-      ('spoiler', ref.tr('reportSpoiler')),
-      ('abuse', ref.tr('reportAbuse')),
-      ('other', ref.tr('reportOther')),
+      ('spam', ref.l10n.reportSpam),
+      ('spoiler', ref.l10n.reportSpoiler),
+      ('abuse', ref.l10n.reportAbuse),
+      ('other', ref.l10n.reportOther),
     ];
     showGlassSheet(
       context: context,
@@ -300,8 +300,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// can never read back what they (or anyone) filed.
   Future<void> _submitReport(Future<void> Function() send) async {
     final messenger = ScaffoldMessenger.of(context);
-    final thanks = ref.tr('postReported');
-    final failed = ref.tr('actionFailed');
+    final thanks = ref.l10n.postReported;
+    final failed = ref.l10n.actionFailed;
     try {
       await send();
       messenger.showSnackBar(SnackBar(content: Text(thanks)));
@@ -336,7 +336,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (blocked)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                child: Text(ref.tr('reactionsBlocked'),
+                child: Text(ref.l10n.reactionsBlocked,
                     textAlign: TextAlign.center, style: AppTextStyles.captionMuted),
               )
             else
@@ -357,7 +357,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             .catchError((Object _) {
                           if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(ref.tr('actionFailed')),
+                            content: Text(ref.l10n.actionFailed),
                             duration: const Duration(seconds: 2),
                           ));
                         });
@@ -369,7 +369,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               const Divider(height: 22),
               ListTile(
                 leading: const Icon(LucideIcons.flag, size: 18, color: AppColors.error),
-                title: Text(ref.tr('reportMessage'),
+                title: Text(ref.l10n.reportMessage,
                     style: AppTextStyles.body.copyWith(color: AppColors.error)),
                 onTap: () {
                   Navigator.pop(sheetCtx);
@@ -418,12 +418,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: deleted
-                ? Text(ref.tr('deletedAccount'),
+                ? Text(ref.l10n.deletedAccount,
                     style: AppTextStyles.subheading.copyWith(color: AppColors.textMuted))
                 : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     UserNameText(
                       user: other,
-                      fallback: name.isEmpty ? ref.tr('animeFanFallback') : name,
+                      fallback: name.isEmpty ? ref.l10n.animeFanFallback : name,
                       style: AppTextStyles.subheading,
                     ),
                     UserHandleText(user: other, style: AppTextStyles.captionMuted),
@@ -455,7 +455,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   child: Row(children: [
                     const Icon(LucideIcons.flag, size: 17, color: AppColors.error),
                     const SizedBox(width: 10),
-                    Text(ref.tr('reportUser'),
+                    Text(ref.l10n.reportUser,
                         style: AppTextStyles.body.copyWith(color: AppColors.error)),
                   ]),
                 ),
@@ -475,7 +475,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(ref.tr('conversationUnavailable'),
+          child: Text(ref.l10n.conversationUnavailable,
               textAlign: TextAlign.center, style: AppTextStyles.bodyMuted),
         ),
       );
@@ -490,7 +490,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Column(children: [
       Expanded(
         child: messages.isEmpty
-            ? Center(child: Text(ref.tr('sayHi'), style: AppTextStyles.bodyMuted))
+            ? Center(child: Text(ref.l10n.sayHi, style: AppTextStyles.bodyMuted))
             : ListView.builder(
                 controller: _scroll,
                 reverse: true,
@@ -556,7 +556,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               textCapitalization: TextCapitalization.sentences,
               onSubmitted: (_) => _send(),
               decoration:
-                  InputDecoration(hintText: ref.tr('messageHint'), isDense: true, counterText: ''),
+                  InputDecoration(hintText: ref.l10n.messageHint, isDense: true, counterText: ''),
             ),
           ),
           const SizedBox(width: 8),
@@ -832,7 +832,7 @@ class _DeletedAccountBanner extends ConsumerWidget {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.person_off_outlined, size: 18, color: AppColors.textMuted),
           const SizedBox(height: 6),
-          Text(ref.tr('accountNoLongerExists'),
+          Text(ref.l10n.accountNoLongerExists,
               textAlign: TextAlign.center,
               style: AppTextStyles.body
                   .copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
@@ -858,12 +858,12 @@ class _BlockedBanner extends ConsumerWidget {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(LucideIcons.ban, size: 18, color: AppColors.textMuted),
           const SizedBox(height: 6),
-          Text(ref.tr('conversationIsBlocked'),
+          Text(ref.l10n.conversationIsBlocked,
               textAlign: TextAlign.center,
               style: AppTextStyles.body
                   .copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
           const SizedBox(height: 2),
-          Text(ref.tr('conversationBlockedCaption'),
+          Text(ref.l10n.conversationBlockedCaption,
               textAlign: TextAlign.center, style: AppTextStyles.captionMuted),
         ]),
       ),

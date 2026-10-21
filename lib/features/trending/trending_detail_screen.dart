@@ -273,7 +273,7 @@ class _MyListButton extends ConsumerWidget {
 
         if (entry == null) {
           return GradientButton(
-            label: ref.tr('addToList'),
+            label: ref.l10n.addToList,
             icon: LucideIcons.listPlus,
             onPressed: () async {
               final status = await showStatusPicker(context);
@@ -295,7 +295,7 @@ class _MyListButton extends ConsumerWidget {
                   border: Border.all(color: AppColors.error.withOpacity(0.6)),
                 ),
                 alignment: Alignment.center,
-                child: Text(ref.tr('removeFromList'),
+                child: Text(ref.l10n.removeFromList,
                     style: AppTextStyles.label.copyWith(color: AppColors.error)),
               ),
             ),
@@ -322,7 +322,7 @@ class _NotFoundScaffold extends ConsumerWidget {
           children: [
             const Text("Couldn't load this anime.", style: AppTextStyles.bodyMuted),
             const SizedBox(height: 14),
-            GradientButton(label: ref.tr('retry'), expand: false, onPressed: onRetry),
+            GradientButton(label: ref.l10n.retry, expand: false, onPressed: onRetry),
           ],
         ),
       ),

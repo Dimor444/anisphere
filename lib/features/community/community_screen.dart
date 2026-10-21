@@ -75,7 +75,7 @@ class CommunityScreen extends ConsumerWidget {
         Expanded(
           // With Clubs gone this screen IS Rooms, so it takes the drawer's
           // name for it (already translated) rather than "Community".
-          child: Text(kClubsEnabled ? 'Community' : ref.tr('rooms'), style: AppTextStyles.heading),
+          child: Text(kClubsEnabled ? 'Community' : ref.l10n.rooms, style: AppTextStyles.heading),
         ),
       ]),
     );

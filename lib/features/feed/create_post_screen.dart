@@ -58,11 +58,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       setState(() => _images.addAll(picked.take(room)));
       if (picked.length > room) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(ref.tr('maxImagesNote'))));
+            .showSnackBar(SnackBar(content: Text(ref.l10n.maxImagesNote)));
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('actionFailed'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.actionFailed)));
     }
   }
 
@@ -79,7 +79,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     setState(() => _posting = true);
     // Captured up front — this route is popped before the snackbar shows.
     final messenger = ScaffoldMessenger.of(context);
-    final postedLabel = ref.tr('posted');
+    final postedLabel = ref.l10n.posted;
     try {
       // Compress everything first (each result is hard-asserted < 1 MB, the
       // Storage rule limit) so a rejected image aborts before any upload.
@@ -121,22 +121,22 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       // user to swap it out instead of offering the retry dialog.
       if (!mounted) return;
       setState(() => _posting = false);
-      messenger.showSnackBar(SnackBar(content: Text(ref.tr('imageTooLarge'))));
+      messenger.showSnackBar(SnackBar(content: Text(ref.l10n.imageTooLarge)));
     } catch (_) {
       if (!mounted) return;
       setState(() => _posting = false);
       showGlassDialog<void>(
         context: context,
         builder: (dCtx) => AlertDialog(
-          title: Text(ref.tr('postFailed')),
+          title: Text(ref.l10n.postFailed),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(ref.tr('cancel'))),
+            TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(ref.l10n.cancel)),
             TextButton(
               onPressed: () {
                 Navigator.pop(dCtx);
                 _submit();
               },
-              child: Text(ref.tr('retry')),
+              child: Text(ref.l10n.retry),
             ),
           ],
         ),
@@ -152,7 +152,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(icon: const Icon(LucideIcons.x), onPressed: () => Navigator.pop(context)),
-        title: Text(ref.tr('newPost')),
+        title: Text(ref.l10n.newPost),
       ),
       body: SafeArea(
         child: Column(
@@ -188,7 +188,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         color: currentLength >= (maxLength ?? 0) ? AppColors.secondary : null,
                       ),
                     ),
-                    decoration: InputDecoration(hintText: ref.tr('newPostHint')),
+                    decoration: InputDecoration(hintText: ref.l10n.newPostHint),
                   ),
                   const SizedBox(height: 12),
 
@@ -271,9 +271,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
                   Row(
                     children: [
-                      _ToolChip(icon: LucideIcons.image, label: ref.tr('addImage'), onTap: _pickImages),
+                      _ToolChip(icon: LucideIcons.image, label: ref.l10n.addImage, onTap: _pickImages),
                       const SizedBox(width: 8),
-                      _ToolChip(icon: LucideIcons.clapperboard, label: ref.tr('tagAnime'), onTap: _pickAnime),
+                      _ToolChip(icon: LucideIcons.clapperboard, label: ref.l10n.tagAnime, onTap: _pickAnime),
                     ],
                   ),
                   SwitchListTile(
@@ -284,7 +284,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                     },
                     contentPadding: EdgeInsets.zero,
                     activeColor: AppColors.secondary,
-                    title: Text(ref.tr('markAsSpoiler'), style: AppTextStyles.body),
+                    title: Text(ref.l10n.markAsSpoiler, style: AppTextStyles.body),
                     secondary: const Icon(LucideIcons.eyeOff, size: 19, color: AppColors.textSecondary),
                   ),
                 ],
@@ -297,7 +297,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       child: Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator()),
                     )
                   : GradientButton(
-                      label: ref.tr('post'),
+                      label: ref.l10n.post,
                       icon: LucideIcons.send,
                       // Text or images — either alone makes a valid post.
                       onPressed: length > 0 || _images.isNotEmpty ? _submit : null,
@@ -406,7 +406,7 @@ class _AnimePickerSheetState extends ConsumerState<_AnimePickerSheet> {
                 onChanged: _onChanged,
                 style: AppTextStyles.body,
                 decoration: InputDecoration(
-                  hintText: ref.tr('searchHint'),
+                  hintText: ref.l10n.searchHint,
                   prefixIcon: const Icon(LucideIcons.search, size: 18),
                   isDense: true,
                 ),

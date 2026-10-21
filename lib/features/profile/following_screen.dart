@@ -14,8 +14,8 @@ class FollowingScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return UserListScaffold(
-      title: ref.tr('following'),
-      emptyText: ref.tr('notFollowingAnyone'),
+      title: ref.l10n.following,
+      emptyText: ref.l10n.notFollowingAnyone,
       streamOf: (limit) => FollowService.instance.getUserFollowing(userId, limit: limit),
     );
   }

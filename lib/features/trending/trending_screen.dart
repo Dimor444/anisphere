@@ -91,7 +91,7 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
                       child: const Icon(LucideIcons.trendingUp, size: 24, color: Colors.white),
                     ),
                     const SizedBox(width: 8),
-                    Text(ref.tr('trending'), style: AppTextStyles.display.copyWith(fontSize: 24)),
+                    Text(ref.l10n.trending, style: AppTextStyles.display.copyWith(fontSize: 24)),
                     const Spacer(),
                     if (_loading && items != null)
                       const SizedBox(

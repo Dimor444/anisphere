@@ -96,7 +96,7 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(ref.tr('myList'), style: AppTextStyles.subheading),
+        title: Text(ref.l10n.myList, style: AppTextStyles.subheading),
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppGradients.pageBg),
@@ -145,7 +145,7 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
               const SizedBox(height: 8),
               if (meta != null) ...[
                 if (meta.episodes > 0)
-                  _fact(LucideIcons.playCircle, '${meta.episodes} ${ref.tr('episodes')}'),
+                  _fact(LucideIcons.playCircle, '${meta.episodes} ${ref.l10n.episodes}'),
                 if (meta.seasonYear != null) _fact(LucideIcons.calendar, '${meta.seasonYear}'),
                 if (meta.genres.isNotEmpty) _fact(LucideIcons.tag, meta.genres.take(2).join(' · ')),
                 if (meta.score > 0) _fact(Icons.star_rounded, '${meta.score.toStringAsFixed(1)} AniList'),
@@ -157,7 +157,7 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
         const SizedBox(height: 22),
 
         // ── Status
-        Text(ref.tr('status'), style: AppTextStyles.label),
+        Text(ref.l10n.status, style: AppTextStyles.label),
         const SizedBox(height: 8),
         Pressable(
           onTap: () async {
@@ -181,7 +181,7 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
         const SizedBox(height: 18),
 
         // ── Episodes watched (0..total)
-        Text(ref.tr('episodesWatched'), style: AppTextStyles.label),
+        Text(ref.l10n.episodesWatched, style: AppTextStyles.label),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -217,7 +217,7 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
         const SizedBox(height: 18),
 
         // ── Score (star row, tap active star to clear)
-        Text(ref.tr('yourScore'), style: AppTextStyles.label),
+        Text(ref.l10n.yourScore, style: AppTextStyles.label),
         const SizedBox(height: 8),
         Pressable(
           onTap: () async {
@@ -250,7 +250,7 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
         const SizedBox(height: 18),
 
         // ── Notes
-        Text(ref.tr('notes'), style: AppTextStyles.label),
+        Text(ref.l10n.notes, style: AppTextStyles.label),
         const SizedBox(height: 8),
         TextField(
           controller: _notesCtrl,
@@ -278,13 +278,13 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
         const SizedBox(height: 8),
         if (entry.updatedAt != null)
           Text(
-            '${ref.tr('lastUpdated')}: ${DateFormat('MMM d, y · HH:mm').format(entry.updatedAt!.toLocal())}',
+            '${ref.l10n.lastUpdated}: ${DateFormat('MMM d, y · HH:mm').format(entry.updatedAt!.toLocal())}',
             style: AppTextStyles.captionMuted,
           ),
         const SizedBox(height: 20),
 
         GradientButton(
-          label: ref.tr('save'),
+          label: ref.l10n.save,
           icon: LucideIcons.check,
           onPressed: _saving ? null : _save,
         ),
@@ -299,7 +299,7 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
               border: Border.all(color: AppColors.error.withOpacity(0.6)),
             ),
             alignment: Alignment.center,
-            child: Text(ref.tr('removeFromList'),
+            child: Text(ref.l10n.removeFromList,
                 style: AppTextStyles.label.copyWith(color: AppColors.error)),
           ),
         ),
@@ -337,7 +337,7 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(LucideIcons.listX, size: 44, color: AppColors.textMuted),
           const SizedBox(height: 14),
-          Text(ref.tr('emptyListBody'), style: AppTextStyles.bodyMuted),
+          Text(ref.l10n.emptyListBody, style: AppTextStyles.bodyMuted),
         ]),
       ),
     );
@@ -347,7 +347,7 @@ class _MyListDetailScreenState extends ConsumerState<MyListDetailScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
-        child: Text(ref.tr('listError'), textAlign: TextAlign.center, style: AppTextStyles.bodyMuted),
+        child: Text(ref.l10n.listError, textAlign: TextAlign.center, style: AppTextStyles.bodyMuted),
       ),
     );
   }

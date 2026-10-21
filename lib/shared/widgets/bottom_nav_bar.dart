@@ -45,11 +45,11 @@ class AniBottomNav extends ConsumerWidget {
           height: 62,
           child: Row(
             children: [
-              _item(0, LucideIcons.home, ref.tr('feed')),
-              _item(1, LucideIcons.compass, ref.tr('discover')),
+              _item(0, LucideIcons.home, ref.l10n.feed),
+              _item(1, LucideIcons.compass, ref.l10n.discover),
               _createFab(),
-              _item(2, LucideIcons.playCircle, ref.tr('aniVideos')),
-              _item(3, LucideIcons.user, ref.tr('profile')),
+              _item(2, LucideIcons.playCircle, ref.l10n.aniVideos),
+              _item(3, LucideIcons.user, ref.l10n.profile),
             ],
           ),
         ),

@@ -63,7 +63,7 @@ class _NewsDetailScreenState extends ConsumerState<NewsDetailScreen> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('actionFailed'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.actionFailed)));
       }
     } finally {
       _saveBusy = false;
@@ -75,7 +75,7 @@ class _NewsDetailScreenState extends ConsumerState<NewsDetailScreen> {
     final uri = Uri.tryParse(url);
     if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.tr('actionFailed'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.l10n.actionFailed)));
     }
   }
 
@@ -84,7 +84,7 @@ class _NewsDetailScreenState extends ConsumerState<NewsDetailScreen> {
     final a = _article;
     return Scaffold(
       appBar: AppBar(
-        title: Text('📰 ${ref.tr('news')}'),
+        title: Text('📰 ${ref.l10n.news}'),
         actions: [
           if (a != null) ...[
             StreamBuilder<bool>(
@@ -117,7 +117,7 @@ class _NewsDetailScreenState extends ConsumerState<NewsDetailScreen> {
 
   Widget _missing() {
     if (widget.initial == null && _article == null) {
-      return Center(child: Text(ref.tr('noNewsYet'), style: AppTextStyles.captionMuted));
+      return Center(child: Text(ref.l10n.noNewsYet, style: AppTextStyles.captionMuted));
     }
     return const Center(child: CircularProgressIndicator());
   }
@@ -171,7 +171,7 @@ class _NewsDetailScreenState extends ConsumerState<NewsDetailScreen> {
               Text(a.description, style: AppTextStyles.body.copyWith(height: 1.5)),
               if (a.animeIds.isNotEmpty) ...[
                 const SizedBox(height: 18),
-                Text(ref.tr('relatedAnime'), style: AppTextStyles.subheading),
+                Text(ref.l10n.relatedAnime, style: AppTextStyles.subheading),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
@@ -185,7 +185,7 @@ class _NewsDetailScreenState extends ConsumerState<NewsDetailScreen> {
               if (a.sourceUrl != null && a.sourceUrl!.isNotEmpty) ...[
                 const SizedBox(height: 22),
                 GradientButton(
-                  label: ref.tr('readOnSource'),
+                  label: ref.l10n.readOnSource,
                   icon: LucideIcons.externalLink,
                   onPressed: () => _openSource(a.sourceUrl!),
                 ),

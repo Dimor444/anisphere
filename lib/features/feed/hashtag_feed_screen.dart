@@ -30,7 +30,7 @@ class HashtagFeedScreen extends ConsumerWidget {
           stream: FeedService.instance.getHashtagPosts(tag),
           builder: (context, snap) {
             if (snap.hasError) {
-              return Center(child: Text(ref.tr('loadFeedError'), style: AppTextStyles.captionMuted));
+              return Center(child: Text(ref.l10n.loadFeedError, style: AppTextStyles.captionMuted));
             }
             final posts = snap.data;
             if (posts == null) return const Center(child: CircularProgressIndicator());
@@ -41,7 +41,7 @@ class HashtagFeedScreen extends ConsumerWidget {
                   children: [
                     const Icon(LucideIcons.hash, size: 42, color: AppColors.textMuted),
                     const SizedBox(height: 12),
-                    Text(ref.tr('emptyListTitle'), style: AppTextStyles.captionMuted),
+                    Text(ref.l10n.emptyListTitle, style: AppTextStyles.captionMuted),
                   ],
                 ),
               );

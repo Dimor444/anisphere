@@ -105,7 +105,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 ).animate().fadeIn(delay: 450.ms, duration: 600.ms).slideY(begin: 0.2, end: 0),
                 const SizedBox(height: 12),
                 Text(
-                  ref.tr('tagline'),
+                  ref.l10n.tagline,
                   style: AppTextStyles.bodyMuted.copyWith(letterSpacing: 3.0),
                 )
                     .animate()
