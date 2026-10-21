@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/constants/app_strings.dart';
+import '../../core/constants/app_languages.dart';
 import '../../l10n/app_localizations.dart';
 
 class LanguageState {
@@ -27,9 +27,9 @@ class LanguageController extends StateNotifier<LanguageState> {
   }
 
   Future<void> setLanguage(String code, {bool persist = true}) async {
-    final meta = AppStrings.languages.firstWhere(
+    final meta = AppLanguages.all.firstWhere(
       (l) => l.code == code,
-      orElse: () => AppStrings.languages[1],
+      orElse: () => AppLanguages.all[1],
     );
     state = LanguageState(meta.code, meta.isRTL);
     if (persist) {
@@ -44,16 +44,7 @@ final languageProvider =
         (ref) => LanguageController());
 
 /// The chosen language's generated strings: `ref.l10n.feed`. Watches the
-/// language, as [TrRef.tr] does, so switching it rebuilds the caller.
+/// language, so switching it rebuilds the caller.
 extension L10nRef on WidgetRef {
   AppLocalizations get l10n => lookupAppLocalizations(Locale(watch(languageProvider).code));
-}
-
-/// Ergonomic translation helper: `ref.tr('feed')`.
-extension TrRef on WidgetRef {
-  String tr(String key) => AppStrings.t(watch(languageProvider).code, key);
-}
-
-extension TrRead on Ref {
-  String tr(String key) => AppStrings.t(read(languageProvider).code, key);
 }

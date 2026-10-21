@@ -794,12 +794,6 @@ abstract class AppLocalizations {
   /// **'Spoiler — tap to reveal'**
   String get spoiler;
 
-  /// Heading for players' stories (short-lived photo posts).
-  ///
-  /// In en, this message translates to:
-  /// **'Stories'**
-  String get stories;
-
   /// First item in the stories row; it starts a new story.
   ///
   /// In en, this message translates to:
@@ -1459,12 +1453,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search users…'**
   String get searchUsers;
-
-  /// Label for the number of likes.
-  ///
-  /// In en, this message translates to:
-  /// **'Likes'**
-  String get likes;
 
   /// Feed: heading over the week's popular posts (“🔥 Popular This Week”).
   ///

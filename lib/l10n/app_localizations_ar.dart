@@ -359,9 +359,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get spoiler => 'حرق — اضغط للكشف';
 
   @override
-  String get stories => 'القصص';
-
-  @override
   String get addStory => 'أضف قصة';
 
   @override
@@ -704,9 +701,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get searchUsers => 'ابحث عن مستخدمين…';
-
-  @override
-  String get likes => 'الإعجابات';
 
   @override
   String get popularThisWeek => 'الرائج هذا الأسبوع';

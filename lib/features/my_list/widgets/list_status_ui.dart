@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../services/my_list_service.dart';
 import '../../../shared/providers/language_provider.dart';
 import '../../../shared/widgets/glass_modals.dart';
@@ -26,6 +27,16 @@ extension ListStatusUi on ListStatus {
         ListStatus.dropped => LucideIcons.x,
         ListStatus.paused => LucideIcons.pause,
       };
+
+  /// The status's name. A stored value the app does not know never gets
+  /// here: [ListStatus.fromValue] reads it as Planning.
+  String label(AppLocalizations l) => switch (this) {
+        ListStatus.current => l.watching,
+        ListStatus.planning => l.planning,
+        ListStatus.completed => l.completed,
+        ListStatus.dropped => l.dropped,
+        ListStatus.paused => l.onHold,
+      };
 }
 
 /// Small colored status pill: icon + localized label.
@@ -47,7 +58,7 @@ class StatusBadge extends ConsumerWidget {
         Icon(status.icon, size: compact ? 10 : 12, color: status.color),
         const SizedBox(width: 4),
         Text(
-          ref.tr(status.trKey),
+          status.label(ref.l10n),
           style: TextStyle(color: status.color, fontSize: compact ? 10 : 11, fontWeight: FontWeight.w700),
         ),
       ]),
@@ -72,7 +83,7 @@ Future<ListStatus?> showStatusPicker(BuildContext context, {ListStatus? selected
             for (final s in ListStatus.values)
               ListTile(
                 leading: Icon(s.icon, size: 20, color: s.color),
-                title: Text(ref.tr(s.trKey),
+                title: Text(s.label(ref.l10n),
                     style: AppTextStyles.body.copyWith(
                         fontWeight: s == selected ? FontWeight.w700 : FontWeight.w400)),
                 trailing: s == selected ? const Icon(LucideIcons.check, size: 18, color: AppColors.primaryLight) : null,

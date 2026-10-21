@@ -10,6 +10,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/models/news.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/news_service.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
@@ -88,7 +89,7 @@ class _NewsFeedState extends ConsumerState<NewsFeed> {
   Widget build(BuildContext context) {
     final chips = <(NewsCategory?, String)>[
       (null, ref.l10n.all),
-      for (final c in NewsService.instance.getNewsCategories()) (c, ref.tr(c.trKey)),
+      for (final c in NewsService.instance.getNewsCategories()) (c, c.label(ref.l10n)),
     ];
 
     return Column(
@@ -299,7 +300,7 @@ class CategoryBadge extends ConsumerWidget {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: category.color.withOpacity(0.5)),
       ),
-      child: Text(ref.tr(category.trKey),
+      child: Text(category.label(ref.l10n),
           style: AppTextStyles.caption.copyWith(color: category.color, fontWeight: FontWeight.w700)),
     );
   }
@@ -336,4 +337,17 @@ class RelatedAnimeChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A category's name. A stored value the app does not know never gets here:
+/// [NewsCategory.fromValue] reads it as News.
+extension NewsCategoryLabel on NewsCategory {
+  String label(AppLocalizations l) => switch (this) {
+        NewsCategory.announcement => l.catAnnouncement,
+        NewsCategory.season => l.catSeason,
+        NewsCategory.movie => l.catMovie,
+        NewsCategory.collab => l.catCollab,
+        NewsCategory.event => l.catEvent,
+        NewsCategory.news => l.news,
+      };
 }

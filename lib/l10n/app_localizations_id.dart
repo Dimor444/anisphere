@@ -362,9 +362,6 @@ class AppLocalizationsId extends AppLocalizations {
   String get spoiler => 'Spoiler — ketuk untuk lihat';
 
   @override
-  String get stories => 'Cerita';
-
-  @override
   String get addStory => 'Tambah cerita';
 
   @override
@@ -713,9 +710,6 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get searchUsers => 'Cari pengguna…';
-
-  @override
-  String get likes => 'Suka';
 
   @override
   String get popularThisWeek => 'Populer minggu ini';

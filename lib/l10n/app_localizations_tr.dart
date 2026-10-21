@@ -360,9 +360,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get spoiler => 'Spoiler — görmek için dokun';
 
   @override
-  String get stories => 'Hikayeler';
-
-  @override
   String get addStory => 'Hikaye ekle';
 
   @override
@@ -709,9 +706,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get searchUsers => 'Kullanıcı ara…';
-
-  @override
-  String get likes => 'Beğeniler';
 
   @override
   String get popularThisWeek => 'Bu hafta popüler';

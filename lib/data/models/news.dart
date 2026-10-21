@@ -2,19 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 /// News category — stored in Firestore as the [value] string. Each carries
-/// its badge color and app_strings key.
+/// its badge color; its label is [NewsCategoryLabel.label].
 enum NewsCategory {
-  announcement('Announcement', 'catAnnouncement', Color(0xFF3B82F6)), // blue
-  season('Season', 'catSeason', Color(0xFF8B5CF6)), // purple
-  movie('Movie', 'catMovie', Color(0xFFF97316)), // orange
-  collab('Collab', 'catCollab', Color(0xFF22C55E)), // green
-  event('Event', 'catEvent', Color(0xFFEF4444)), // red
-  news('News', 'news', Color(0xFF64748B)); // slate (default)
+  announcement('Announcement', Color(0xFF3B82F6)), // blue
+  season('Season', Color(0xFF8B5CF6)), // purple
+  movie('Movie', Color(0xFFF97316)), // orange
+  collab('Collab', Color(0xFF22C55E)), // green
+  event('Event', Color(0xFFEF4444)), // red
+  news('News', Color(0xFF64748B)); // slate (default)
 
   final String value; // Firestore value
-  final String trKey; // app_strings key for the label
   final Color color;
-  const NewsCategory(this.value, this.trKey, this.color);
+  const NewsCategory(this.value, this.color);
 
   static NewsCategory fromValue(String? v) =>
       NewsCategory.values.firstWhere((c) => c.value == v, orElse: () => NewsCategory.news);

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
+import '../../core/constants/app_languages.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../shared/providers/language_provider.dart';
@@ -79,7 +79,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // nothing existed to record it against.
 
           _section('Language'),
-          ...AppStrings.languages.map((l) {
+          ...AppLanguages.all.map((l) {
             final sel = l.code == lang;
             return ListTile(
               leading: Text(l.flag, style: const TextStyle(fontSize: 22)),

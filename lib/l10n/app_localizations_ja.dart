@@ -354,9 +354,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get spoiler => 'ネタバレ — タップで表示';
 
   @override
-  String get stories => 'ストーリー';
-
-  @override
   String get addStory => 'ストーリー追加';
 
   @override
@@ -691,9 +688,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get searchUsers => 'ユーザーを検索…';
-
-  @override
-  String get likes => 'いいね';
 
   @override
   String get popularThisWeek => '今週の人気';

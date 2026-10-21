@@ -456,10 +456,6 @@
   "@spoiler": {
     "description": "Cover over a post, video or message marked as a spoiler."
   },
-  "stories": "Stories",
-  "@stories": {
-    "description": "Heading for players' stories (short-lived photo posts)."
-  },
   "addStory": "Add Story",
   "@addStory": {
     "description": "First item in the stories row; it starts a new story."
@@ -899,10 +895,6 @@
   "searchUsers": "Search users…",
   "@searchUsers": {
     "description": "Placeholder in fields that search players by handle (Discover › People, story mentions)."
-  },
-  "likes": "Likes",
-  "@likes": {
-    "description": "Label for the number of likes."
   },
   "popularThisWeek": "Popular This Week",
   "@popularThisWeek": {

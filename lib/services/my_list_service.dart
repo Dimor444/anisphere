@@ -11,15 +11,14 @@ import 'auth_service.dart';
 /// Watch status of a My List entry. Stored in Firestore as the uppercase
 /// [value] (CURRENT / PLANNING / COMPLETED / DROPPED / PAUSED).
 enum ListStatus {
-  current('CURRENT', 'watching'),
-  planning('PLANNING', 'planning'),
-  completed('COMPLETED', 'completed'),
-  dropped('DROPPED', 'dropped'),
-  paused('PAUSED', 'onHold');
+  current('CURRENT'),
+  planning('PLANNING'),
+  completed('COMPLETED'),
+  dropped('DROPPED'),
+  paused('PAUSED');
 
   final String value; // Firestore value
-  final String trKey; // app_strings key for the label
-  const ListStatus(this.value, this.trKey);
+  const ListStatus(this.value);
 
   static ListStatus fromValue(String? v) =>
       ListStatus.values.firstWhere((s) => s.value == v, orElse: () => ListStatus.planning);

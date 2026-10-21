@@ -27,10 +27,18 @@ import 'seasonal_provider.dart';
 class SeasonalScreen extends ConsumerWidget {
   const SeasonalScreen({super.key});
 
-  /// Weekday (DateTime.monday=1 … sunday=7) → translation key.
-  static const _dayKeys = ['dayMon', 'dayTue', 'dayWed', 'dayThu', 'dayFri', 'daySat', 'daySun'];
-
-  static String dayLabel(WidgetRef ref, int weekday) => ref.tr(_dayKeys[weekday - 1]);
+  /// Weekday (DateTime.monday=1 … sunday=7) → its short name. Anything else
+  /// throws, as the list lookup this replaced did.
+  static String dayLabel(WidgetRef ref, int weekday) => switch (weekday) {
+        DateTime.monday => ref.l10n.dayMon,
+        DateTime.tuesday => ref.l10n.dayTue,
+        DateTime.wednesday => ref.l10n.dayWed,
+        DateTime.thursday => ref.l10n.dayThu,
+        DateTime.friday => ref.l10n.dayFri,
+        DateTime.saturday => ref.l10n.daySat,
+        DateTime.sunday => ref.l10n.daySun,
+        _ => throw RangeError.range(weekday, DateTime.monday, DateTime.sunday, 'weekday'),
+      };
 
   static String seasonLabel(WidgetRef ref, String season) => switch (season) {
         'WINTER' => ref.l10n.seasonWinter,

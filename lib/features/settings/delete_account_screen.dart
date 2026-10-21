@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../shared/providers/language_provider.dart';
 
@@ -63,11 +64,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       if (!mounted) return;
       setState(() {
         _deleting = false;
-        _error = ref.tr(switch (e.failure) {
-          AccountDeletionFailure.unreachable => 'deleteFailedUnreachable',
-          AccountDeletionFailure.refused => 'deleteFailedNothingChanged',
-          AccountDeletionFailure.unconfirmed => 'deleteFailedUnsure',
-        });
+        _error = deletionFailureMessage(ref.l10n, e.failure);
       });
       return;
     } catch (e) {
@@ -238,3 +235,10 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
         ]),
       );
 }
+
+/// What the screen says when deletion fails, by how it failed.
+String deletionFailureMessage(AppLocalizations l, AccountDeletionFailure failure) => switch (failure) {
+      AccountDeletionFailure.unreachable => l.deleteFailedUnreachable,
+      AccountDeletionFailure.refused => l.deleteFailedNothingChanged,
+      AccountDeletionFailure.unconfirmed => l.deleteFailedUnsure,
+    };

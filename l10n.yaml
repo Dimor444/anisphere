@@ -2,8 +2,8 @@
 # `flutter gen-l10n`, or by `flutter pub get` since pubspec sets
 # generate: true. `flutter test` does not regenerate: after editing an ARB
 # file, run one of those first. app_en.arb is the template: every message,
-# and the description a translator reads. Nothing reads AppLocalizations
-# yet; the app still uses AppStrings.
+# and the description a translator reads. Widgets read them through
+# ref.l10n (lib/shared/providers/language_provider.dart).
 arb-dir: lib/l10n
 template-arb-file: app_en.arb
 output-localization-file: app_localizations.dart

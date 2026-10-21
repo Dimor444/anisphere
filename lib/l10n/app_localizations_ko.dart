@@ -354,9 +354,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get spoiler => '스포일러 — 탭하여 보기';
 
   @override
-  String get stories => '스토리';
-
-  @override
   String get addStory => '스토리 추가';
 
   @override
@@ -691,9 +688,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get searchUsers => '사용자 검색…';
-
-  @override
-  String get likes => '좋아요';
 
   @override
   String get popularThisWeek => '이번 주 인기';

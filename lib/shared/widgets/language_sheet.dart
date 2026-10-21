@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
+import '../../core/constants/app_languages.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../core/widgets/anisphere_logo.dart';
@@ -48,7 +48,7 @@ class _LanguageSheet extends ConsumerWidget {
               child: ListView(
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
-                children: AppStrings.languages.map((l) {
+                children: AppLanguages.all.map((l) {
                   final selected = l.code == current;
                   return ListTile(
                     leading: Text(l.flag, style: const TextStyle(fontSize: 24)),
@@ -75,8 +75,8 @@ class _LanguageSheet extends ConsumerWidget {
 }
 
 /// Human-readable language name for a code (used in splash + sign-up).
-String languageName(String code) => AppStrings.languages
-    .firstWhere((l) => l.code == code, orElse: () => AppStrings.languages[1])
+String languageName(String code) => AppLanguages.all
+    .firstWhere((l) => l.code == code, orElse: () => AppLanguages.all[1])
     .name;
 
 /// The AniSphere logo mark: the ∞-merged-with-A gradient glyph.

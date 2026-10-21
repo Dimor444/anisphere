@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:anisphere/core/constants/app_strings.dart';
+import 'package:anisphere/core/constants/app_languages.dart';
 import 'package:anisphere/shared/widgets/language_sheet.dart';
 
 /// The Column the RenderFlex error named — reached via the tiles so we measure
@@ -94,7 +94,7 @@ void main() {
     expect(sheetHeight, lessThanOrEqualTo(_iPhoneSE.height * 0.85 + 0.5));
 
     // The last language must be scrollable into view rather than clipped away.
-    final last = AppStrings.languages.last.name;
+    final last = AppLanguages.all.last.name;
     await tester.scrollUntilVisible(find.text(last), 120,
         scrollable: find.byType(Scrollable).last);
     expect(find.text(last), findsOneWidget);
@@ -119,9 +119,9 @@ void main() {
       await openSheet(tester, size: _iPhone17ProMax, direction: TextDirection.rtl);
       final tile = find.byType(ListTile).first;
       final flag = tester.getCenter(
-          find.descendant(of: tile, matching: find.text(AppStrings.languages.first.flag)));
+          find.descendant(of: tile, matching: find.text(AppLanguages.all.first.flag)));
       final label = tester.getCenter(
-          find.descendant(of: tile, matching: find.text(AppStrings.languages.first.name)));
+          find.descendant(of: tile, matching: find.text(AppLanguages.all.first.name)));
       expect(flag.dx, greaterThan(label.dx),
           reason: 'in RTL the leading flag must be on the right');
       expect(tester.takeException(), isNull);
@@ -131,9 +131,9 @@ void main() {
       await openSheet(tester, size: _iPhone17ProMax);
       final tile = find.byType(ListTile).first;
       final flag = tester.getCenter(
-          find.descendant(of: tile, matching: find.text(AppStrings.languages.first.flag)));
+          find.descendant(of: tile, matching: find.text(AppLanguages.all.first.flag)));
       final label = tester.getCenter(
-          find.descendant(of: tile, matching: find.text(AppStrings.languages.first.name)));
+          find.descendant(of: tile, matching: find.text(AppLanguages.all.first.name)));
       expect(flag.dx, lessThan(label.dx));
     });
   });

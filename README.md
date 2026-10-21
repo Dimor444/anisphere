@@ -108,10 +108,11 @@ Defined in `core/constants/`:
 
 ## 🌍 Localization & RTL
 
-`languageProvider` holds the active code; `AppStrings` maps keys per language —
-**all 8 languages are fully translated (128 keys each: EN, AR, JA, KO, ES, FR, TR, ID)**,
-with English as the safety fallback. Use `ref.tr('key')` in widgets. Selecting **Arabic**
-flips the entire app to RTL via a `Directionality` wrapper in `app.dart`.
+`languageProvider` holds the active code. Strings live in `lib/l10n/app_<code>.arb`
+(EN, AR, JA, KO, ES, FR, TR, ID; `app_en.arb` is the template, with a description per
+message) and gen-l10n generates `AppLocalizations` from them — see `l10n.yaml`. Widgets
+read a string as `ref.l10n.key`. A message a language lacks shows in English. Selecting
+**Arabic** sets right-to-left text direction through a `Directionality` wrapper in `app.dart`.
 
 ## 💎 AniPlus & AI gating
 

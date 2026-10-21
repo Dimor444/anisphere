@@ -21,7 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:anisphere/core/constants/app_strings.dart';
+import 'package:anisphere/core/constants/app_languages.dart';
 import 'package:anisphere/core/theme/app_theme.dart';
 import 'package:anisphere/features/observatory/observatory_screen.dart';
 import 'package:anisphere/firebase_options.dart';
@@ -56,7 +56,7 @@ Widget _app(String langCode) {
           theme: AppTheme.dark,
           themeMode: ThemeMode.dark,
           locale: Locale(lang.code),
-          supportedLocales: AppStrings.languages.map((l) => Locale(l.code)).toList(),
+          supportedLocales: AppLanguages.all.map((l) => Locale(l.code)).toList(),
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,

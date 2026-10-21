@@ -12,6 +12,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/models/ani_video.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/anime_search_service.dart';
 import '../../services/ani_video_service.dart';
 import '../../shared/providers/language_provider.dart';
@@ -160,7 +161,7 @@ class _UploadVideoScreenState extends ConsumerState<UploadVideoScreen> {
               onPressed: () => Navigator.pop(dCtx),
               // A cap is acknowledged, not cancelled — "Cancel" alongside no
               // other action reads as if dismissing undoes something.
-              child: Text(ref.tr(capped == null ? 'cancel' : 'ok')),
+              child: Text(uploadFailureDismissLabel(ref.l10n, capped: capped != null)),
             ),
             if (capped == null)
               TextButton(
@@ -457,3 +458,8 @@ class _ToolChip extends StatelessWidget {
     );
   }
 }
+
+/// The upload-failure dialog's dismiss button: a cap, with nothing to retry,
+/// is acknowledged ("OK"); any other failure is cancelled, beside Retry.
+String uploadFailureDismissLabel(AppLocalizations l, {required bool capped}) =>
+    capped ? l.ok : l.cancel;

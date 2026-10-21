@@ -8,6 +8,7 @@ import '../../core/constants/app_gradients.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/theme/brand.dart';
 import '../../core/utils/haptics.dart';
+import '../../l10n/app_localizations.dart';
 import '../../shared/providers/language_provider.dart';
 import '../../shared/widgets/gradient_button.dart';
 import 'signin_screen.dart';
@@ -30,10 +31,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // leaderboard and the daily spin (the one way a quiz player earns AniGold —
   // quizzes pay none); user search, follows and direct messages. Not the
   // League or AniMatch, which are hidden, and not "millions of fans".
-  static const _pages = [
-    _OnbData('onbTitle1', 'onbBody1', AppColors.primaryDark, _OrbitArt()),
-    _OnbData('onbTitle2', 'onbBody2', AniSphereBrand.blue, _ClimbArt()),
-    _OnbData('onbTitle3', 'onbBody3', AniSphereBrand.indigo, _MatchArt()),
+  static final _pages = [
+    _OnbData((l) => l.onbTitle1, (l) => l.onbBody1, AppColors.primaryDark, const _OrbitArt()),
+    _OnbData((l) => l.onbTitle2, (l) => l.onbBody2, AniSphereBrand.blue, const _ClimbArt()),
+    _OnbData((l) => l.onbTitle3, (l) => l.onbBody3, AniSphereBrand.indigo, const _MatchArt()),
   ];
 
   @override
@@ -146,11 +147,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 }
 
 class _OnbData {
-  final String titleKey; // AppStrings keys: the slides are translated
-  final String subKey;
+  final String Function(AppLocalizations) title; // the slides are translated
+  final String Function(AppLocalizations) body;
   final Color background;
   final CustomPainter art;
-  const _OnbData(this.titleKey, this.subKey, this.background, this.art);
+  const _OnbData(this.title, this.body, this.background, this.art);
 }
 
 class _OnbPage extends ConsumerWidget {
@@ -174,9 +175,9 @@ class _OnbPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 30),
-          Text(ref.tr(data.titleKey), style: AppTextStyles.display, textAlign: TextAlign.center),
+          Text(data.title(ref.l10n), style: AppTextStyles.display, textAlign: TextAlign.center),
           const SizedBox(height: 12),
-          Text(ref.tr(data.subKey), style: AppTextStyles.bodyMuted, textAlign: TextAlign.center),
+          Text(data.body(ref.l10n), style: AppTextStyles.bodyMuted, textAlign: TextAlign.center),
         ],
       ),
     );

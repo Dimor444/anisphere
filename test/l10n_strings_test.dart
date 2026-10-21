@@ -1,5 +1,10 @@
-import 'package:anisphere/core/constants/app_strings.dart';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:anisphere/core/constants/app_languages.dart';
 import 'package:anisphere/data/models/ani_video.dart';
+import 'package:anisphere/l10n/app_localizations.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -11,11 +16,11 @@ void main() {
     // Arabic writes the number in Arabic-Indic digits.
     final arabicIndic = western.split('').map((d) => '٠١٢٣٤٥٦٧٨٩'[int.parse(d)]).join();
     final stale = <String>[];
-    for (final MapEntry(key: lang, value: strings) in AppStrings.values.entries) {
-      for (final key in const ['maxVideoDuration', 'videoTooLong']) {
-        final text = strings[key];
-        if (text == null || !(text.contains(western) || text.contains(arabicIndic))) {
-          stale.add('$lang.$key: $text');
+    for (final lang in AppLanguages.all) {
+      final l = lookupAppLocalizations(Locale(lang.code));
+      for (final (key, text) in [('maxVideoDuration', l.maxVideoDuration), ('videoTooLong', l.videoTooLong)]) {
+        if (!(text.contains(western) || text.contains(arabicIndic))) {
+          stale.add('${lang.code}.$key: $text');
         }
       }
     }
@@ -24,13 +29,19 @@ void main() {
 
   // The onboarding slides are the first thing anyone sees, and they once
   // promised a League and AniMatch the app does not show. Every language
-  // carries every slide.
+  // carries every slide. Read from the ARB files: the generated class shows
+  // English for a message a language lacks, so it cannot tell one missing.
   test('every language has all six onboarding slide strings', () {
     const keys = ['onbTitle1', 'onbBody1', 'onbTitle2', 'onbBody2', 'onbTitle3', 'onbBody3'];
     final missing = <String>[
-      for (final MapEntry(key: lang, value: strings) in AppStrings.values.entries)
+      for (final lang in AppLanguages.all)
         for (final k in keys)
-          if ((strings[k] ?? '').trim().isEmpty) '$lang.$k',
+          if (((jsonDecode(File('lib/l10n/app_${lang.code}.arb').readAsStringSync())
+                          as Map<String, dynamic>)[k] as String? ??
+                      '')
+                  .trim()
+                  .isEmpty)
+            '${lang.code}.$k',
     ];
     expect(missing, isEmpty);
   });

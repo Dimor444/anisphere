@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:anisphere/data/sample_data.dart';
 import 'package:anisphere/data/models/user_model.dart';
-import 'package:anisphere/core/constants/app_strings.dart';
+import 'package:anisphere/core/constants/app_languages.dart';
+import 'package:anisphere/l10n/app_localizations.dart';
+import 'package:anisphere/shared/providers/language_provider.dart';
 import 'package:anisphere/core/utils/formatters.dart';
 import 'package:anisphere/shared/widgets/verified_badge.dart';
 import 'package:anisphere/shared/widgets/ani_gold_icon.dart';
@@ -70,8 +73,8 @@ void main() {
     });
 
     test('8 languages incl. RTL Arabic', () {
-      expect(AppStrings.languages.length, 8);
-      expect(AppStrings.languages.firstWhere((l) => l.code == 'ar').isRTL, isTrue);
+      expect(AppLanguages.all.length, 8);
+      expect(AppLanguages.all.firstWhere((l) => l.code == 'ar').isRTL, isTrue);
     });
   });
 
@@ -86,9 +89,16 @@ void main() {
       expect(Fmt.countryFlag(''), '');
       expect(Fmt.countryFlag('U1'), '');
     });
-    test('translation falls back to English', () {
-      expect(AppStrings.t('ja', 'feed'), 'フィード');
-      expect(AppStrings.t('xx', 'feed'), 'Feed'); // unknown lang → en
+    test('translation falls back to English', () async {
+      expect(lookupAppLocalizations(const Locale('ja')).feed, 'フィード');
+      // A message a language lacks reads in English (bio is one of the gaps).
+      expect(lookupAppLocalizations(const Locale('ar')).bio, 'Bio');
+      // An unknown language is English: the controller never asks for it.
+      SharedPreferences.setMockInitialValues({});
+      final controller = LanguageController();
+      await controller.setLanguage('xx', persist: false);
+      expect(controller.state.code, 'en');
+      controller.dispose();
     });
   });
 }

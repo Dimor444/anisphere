@@ -249,7 +249,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await DmService.instance.setBlocked(widget.cid, blocking);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.tr(blocking ? 'conversationBlocked' : 'conversationUnblocked')),
+        content: Text(blocking ? ref.l10n.conversationBlocked : ref.l10n.conversationUnblocked),
         duration: const Duration(seconds: 2),
       ));
     } catch (_) {
@@ -262,10 +262,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Reason sheet shared by the user- and message-level reports; [onPick]
-  /// receives the reason code. [titleKey] names what is being reported —
-  /// the post-specific `whyReport` belongs to the feed, not here. The reason
+  /// receives the reason code. [title] names what is being reported — the
+  /// post-specific `whyReport` belongs to the feed, not here. The reason
   /// options themselves are shared with post reports.
-  void _showReasonSheet(String titleKey, void Function(String code) onPick) {
+  void _showReasonSheet(String title, void Function(String code) onPick) {
     final reasons = [
       ('spam', ref.l10n.reportSpam),
       ('spoiler', ref.l10n.reportSpoiler),
@@ -279,7 +279,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 16),
-            Text(ref.tr(titleKey), style: AppTextStyles.subheading),
+            Text(title, style: AppTextStyles.subheading),
             const SizedBox(height: 6),
             for (final (code, label) in reasons)
               ListTile(
@@ -314,7 +314,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final me = _me;
     final other = _convo?.otherUid(me ?? '') ?? '';
     if (other.isEmpty) return;
-    _showReasonSheet('whyReportUser',
+    _showReasonSheet(ref.l10n.whyReportUser,
         (code) => _submitReport(() => DmService.instance.reportUser(widget.cid, other, code)));
   }
 
@@ -374,7 +374,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   _showReasonSheet(
-                      'whyReportMessage',
+                      ref.l10n.whyReportMessage,
                       (code) => _submitReport(() => DmService.instance
                           .reportMessage(widget.cid, message.id, message.senderId, code)));
                 },
@@ -443,9 +443,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     const Icon(LucideIcons.ban, size: 17, color: AppColors.textSecondary),
                     const SizedBox(width: 10),
                     Text(
-                      ref.tr((me != null && (_convo?.blockedBy.contains(me) ?? false))
-                          ? 'unblock'
-                          : 'block'),
+                      (me != null && (_convo?.blockedBy.contains(me) ?? false))
+                          ? ref.l10n.unblock
+                          : ref.l10n.block,
                       style: AppTextStyles.body,
                     ),
                   ]),

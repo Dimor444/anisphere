@@ -363,9 +363,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get spoiler => 'Spoiler — toca para ver';
 
   @override
-  String get stories => 'Historias';
-
-  @override
   String get addStory => 'Añadir historia';
 
   @override
@@ -714,9 +711,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get searchUsers => 'Buscar usuarios…';
-
-  @override
-  String get likes => 'Me gusta';
 
   @override
   String get popularThisWeek => 'Popular esta semana';
