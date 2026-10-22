@@ -4,6 +4,19 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<!-- The eight languages the app ships, so the App Store lists them and
+	     iOS offers this app its own Language setting. -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ar</string>
+		<string>ja</string>
+		<string>ko</string>
+		<string>es</string>
+		<string>fr</string>
+		<string>tr</string>
+		<string>id</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>AniSphere</string>
 	<key>CFBundleExecutable</key>

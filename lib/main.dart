@@ -9,12 +9,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'app.dart';
 import 'core/constants/app_colors.dart';
 import 'core/session_lifecycle.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
+import 'shared/providers/language_provider.dart';
 
 /// Compile-time backend switch: `flutter run --dart-define=USE_EMULATOR=true`
 /// points the app at the local Firebase emulator suite (same define the
@@ -110,7 +112,19 @@ Future<void> main() async {
   // handle on it from outside the widget tree. UncontrolledProviderScope is
   // the supported way to hand an externally-owned container to the tree; it
   // lives for the life of the process, exactly like the old ProviderScope's.
-  final container = ProviderContainer();
+  //
+  // The language is settled here too, before the first frame: the saved
+  // pick, else the phone's languages (LanguageController.startLanguage).
+  // Read later, a non-English launch would draw its first frames in English.
+  final prefs = await SharedPreferences.getInstance();
+  final saved = prefs.getString(LanguageController.prefsKey);
+  final phone = PlatformDispatcher.instance.locales;
+  final language = LanguageController.startLanguage(saved: saved, phone: phone);
+  debugPrint('[Language] starting in ${language.code} — saved pick: ${saved ?? 'none'}, '
+      'phone: ${phone.map((l) => l.toLanguageTag()).join(', ')}');
+  final container = ProviderContainer(overrides: [
+    languageProvider.overrideWith((ref) => LanguageController(initial: language)),
+  ]);
   SessionLifecycle.instance.install(container);
 
   runApp(UncontrolledProviderScope(

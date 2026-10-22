@@ -18,6 +18,23 @@ const _pluralCategories = <String, Set<String>>{
   'id': {'other'},
 };
 
+/// The permission prompts Info.plist has — English, the source — and the
+/// languages it declares.
+Set<String> _promptKeys() => {
+      for (final m in RegExp(r'<key>(NS\w+UsageDescription)</key>').allMatches(File('ios/Runner/Info.plist').readAsStringSync()))
+        m.group(1)!,
+    };
+
+/// A language's InfoPlist.strings: `"Key" = "text";` per line.
+Map<String, String> _prompts(String code) {
+  final file = File('ios/Runner/$code.lproj/InfoPlist.strings');
+  if (!file.existsSync()) return const {};
+  return {
+    for (final m in RegExp(r'^"(\w+)"\s*=\s*"((?:[^"\\]|\\.)*)";', multiLine: true).allMatches(file.readAsStringSync()))
+      m.group(1)!: m.group(2)!,
+  };
+}
+
 Map<String, String> _messages(String code) => {
       for (final MapEntry(:key, :value)
           in (jsonDecode(File('lib/l10n/app_$code.arb').readAsStringSync()) as Map<String, dynamic>).entries)
@@ -136,10 +153,35 @@ void main() {
     expect(problems, isEmpty, reason: problems.join('\n'));
   });
 
+  test('every language has every iOS permission prompt, and the bundle declares the eight', () {
+    final keys = _promptKeys();
+    final problems = <String>[];
+    if (keys.isEmpty) problems.add('Info.plist has no permission prompts — the pattern no longer matches it');
+    final plist = File('ios/Runner/Info.plist').readAsStringSync();
+    final declared = RegExp(r'<key>CFBundleLocalizations</key>\s*<array>(.*?)</array>', dotAll: true)
+        .firstMatch(plist)
+        ?.group(1);
+    final codes = {for (final m in RegExp(r'<string>(\w+)</string>').allMatches(declared ?? '')) m.group(1)!};
+    final app = {for (final l in AppLanguages.all) l.code};
+    if (!(codes.containsAll(app) && app.containsAll(codes))) {
+      problems.add('CFBundleLocalizations is ${codes.toList()}, the app has ${app.toList()}');
+    }
+    for (final code in app.where((c) => c != 'en')) {
+      final prompts = _prompts(code);
+      for (final key in keys) {
+        if ((prompts[key] ?? '').trim().isEmpty) problems.add('$code: $key missing');
+      }
+      for (final key in prompts.keys.toSet().difference(keys)) {
+        problems.add('$code: $key is not a prompt Info.plist has');
+      }
+    }
+    expect(problems, isEmpty, reason: problems.join('\n'));
+  });
+
   // lib/l10n/translation_review.json says who wrote each translation and
   // whether a native reader has read it; it is only true while it lists
   // exactly the messages there are.
-  test('the review record lists every translated message, and nothing else', () {
+  test('the review record lists every translated message and iOS prompt, and nothing else', () {
     final record = jsonDecode(File('lib/l10n/translation_review.json').readAsStringSync()) as Map<String, dynamic>;
     final languages = record['languages'] as Map<String, dynamic>;
     final template = _messages('en').keys.toSet();
@@ -158,7 +200,12 @@ void main() {
       for (final key in messages.keys.toSet().difference(template)) {
         problems.add('$code.$key: in the record but not in the ARB files');
       }
-      for (final MapEntry(:key, :value) in messages.entries) {
+      final prompts = (lang['iosPrompts'] as Map<String, dynamic>?) ?? const {};
+      final promptKeys = _promptKeys();
+      if (!(prompts.keys.toSet().containsAll(promptKeys) && promptKeys.containsAll(prompts.keys))) {
+        problems.add('$code: iosPrompts ${prompts.keys.toList()}, Info.plist has ${promptKeys.toList()}');
+      }
+      for (final MapEntry(:key, :value) in {...messages, ...prompts}.entries) {
         final m = value as Map<String, dynamic>;
         if (!const {'assistant', 'person'}.contains(m['writtenBy'])) problems.add('$code.$key: writtenBy ${m['writtenBy']}');
         if (m['nativeRead'] is! bool) problems.add('$code.$key: nativeRead ${m['nativeRead']}');

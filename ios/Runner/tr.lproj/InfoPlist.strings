@@ -1,0 +1,7 @@
+/* The permission prompts in this language. English is in Info.plist;
+   each line here translates the key of the same name there. */
+
+"NSCameraUsageDescription" = "AniSphere, hikayen için fotoğraf çektiğinde veya Ani Video çektiğinde kamerayı kullanır.";
+"NSMicrophoneUsageDescription" = "AniSphere, uygulamada çektiğin Ani Video'ların sesini kaydetmek için mikrofonu kullanır.";
+"NSPhotoLibraryUsageDescription" = "AniSphere; bir gönderi, hikayen ya da bir mesaj için fotoğraf veya Ani Video olarak yüklemek için video seçtiğinde fotoğraf arşivini açar.";
+"NSPhotoLibraryAddUsageDescription" = "AniSphere, AniCard'ını ya da True Fan kartını paylaşırken görüntüyü kaydetmeyi seçtiğinde onu fotoğraf arşivine kaydeder.";

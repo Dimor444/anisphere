@@ -1,3 +1,5 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,18 +16,44 @@ class LanguageState {
 }
 
 class LanguageController extends StateNotifier<LanguageState> {
-  LanguageController() : super(const LanguageState('en', false)) {
-    _load();
+  /// [initial] is the language main() worked out before the first frame, from
+  /// [startLanguage]. Without it — tests, a bare ProviderScope — the
+  /// controller starts from the phone's languages and applies a saved pick
+  /// once it has been read.
+  LanguageController({LanguageState? initial})
+      : super(initial ?? startLanguage(saved: null, phone: PlatformDispatcher.instance.locales)) {
+    if (initial == null) _load();
   }
 
-  static const _key = 'app_language';
+  /// Where the player's own pick is kept.
+  static const prefsKey = 'app_language';
+
+  /// The language the app opens in: the player's saved pick; else the first
+  /// of the phone's preferred languages the app has, by language alone
+  /// (fr-CA is French); else English.
+  static LanguageState startLanguage({required String? saved, required List<Locale> phone}) {
+    LangMeta? offered(String? code) {
+      for (final l in AppLanguages.all) {
+        if (l.code == code) return l;
+      }
+      return null;
+    }
+
+    final meta = offered(saved) ??
+        phone.map((l) => offered(l.languageCode)).nonNulls.firstOrNull ??
+        offered('en')!;
+    return LanguageState(meta.code, meta.isRTL);
+  }
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    final code = prefs.getString(_key);
+    final code = prefs.getString(prefsKey);
     if (code != null) setLanguage(code, persist: false);
   }
 
+  /// Switches the language. [persist] saves it as the player's pick, which
+  /// then outranks the phone on every launch — only a choice made in a
+  /// language picker passes it; the phone's language is never saved.
   Future<void> setLanguage(String code, {bool persist = true}) async {
     final meta = AppLanguages.all.firstWhere(
       (l) => l.code == code,
@@ -34,7 +62,7 @@ class LanguageController extends StateNotifier<LanguageState> {
     state = LanguageState(meta.code, meta.isRTL);
     if (persist) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_key, code);
+      await prefs.setString(prefsKey, code);
     }
   }
 }

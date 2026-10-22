@@ -1,5 +1,5 @@
 {
-  "about": "Who wrote each translation in lib/l10n, and whether a native reader has read it. writtenBy is \"assistant\" or \"person\"; nativeRead turns true once a native reader has read the message as it stands, and goes back to false if the message changes. Arabic gates launch: every Arabic message is read before release. The other six do not gate it. English is the source text, not a translation, and is not listed.",
+  "about": "Who wrote each translation — the messages in lib/l10n, and the iOS permission prompts in ios/Runner/<lang>.lproj/InfoPlist.strings — and whether a native reader has read it. writtenBy is \"assistant\" or \"person\"; nativeRead turns true once a native reader has read the message as it stands, and goes back to false if the message changes. Arabic gates launch: every Arabic message is read before release. The other six do not gate it. English is the source text, not a translation, and is not listed.",
   "languages": {
     "ar": {
       "gatesLaunch": true,
@@ -271,6 +271,12 @@
         "seasonSpring": {"writtenBy": "assistant", "nativeRead": false},
         "seasonSummer": {"writtenBy": "assistant", "nativeRead": false},
         "seasonFall": {"writtenBy": "assistant", "nativeRead": false}
+      },
+      "iosPrompts": {
+        "NSCameraUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSMicrophoneUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryAddUsageDescription": {"writtenBy": "assistant", "nativeRead": false}
       }
     },
     "ja": {
@@ -543,6 +549,12 @@
         "seasonSpring": {"writtenBy": "assistant", "nativeRead": false},
         "seasonSummer": {"writtenBy": "assistant", "nativeRead": false},
         "seasonFall": {"writtenBy": "assistant", "nativeRead": false}
+      },
+      "iosPrompts": {
+        "NSCameraUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSMicrophoneUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryAddUsageDescription": {"writtenBy": "assistant", "nativeRead": false}
       }
     },
     "ko": {
@@ -815,6 +827,12 @@
         "seasonSpring": {"writtenBy": "assistant", "nativeRead": false},
         "seasonSummer": {"writtenBy": "assistant", "nativeRead": false},
         "seasonFall": {"writtenBy": "assistant", "nativeRead": false}
+      },
+      "iosPrompts": {
+        "NSCameraUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSMicrophoneUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryAddUsageDescription": {"writtenBy": "assistant", "nativeRead": false}
       }
     },
     "es": {
@@ -1087,6 +1105,12 @@
         "seasonSpring": {"writtenBy": "assistant", "nativeRead": false},
         "seasonSummer": {"writtenBy": "assistant", "nativeRead": false},
         "seasonFall": {"writtenBy": "assistant", "nativeRead": false}
+      },
+      "iosPrompts": {
+        "NSCameraUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSMicrophoneUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryAddUsageDescription": {"writtenBy": "assistant", "nativeRead": false}
       }
     },
     "fr": {
@@ -1359,6 +1383,12 @@
         "seasonSpring": {"writtenBy": "assistant", "nativeRead": false},
         "seasonSummer": {"writtenBy": "assistant", "nativeRead": false},
         "seasonFall": {"writtenBy": "assistant", "nativeRead": false}
+      },
+      "iosPrompts": {
+        "NSCameraUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSMicrophoneUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryAddUsageDescription": {"writtenBy": "assistant", "nativeRead": false}
       }
     },
     "tr": {
@@ -1631,6 +1661,12 @@
         "seasonSpring": {"writtenBy": "assistant", "nativeRead": false},
         "seasonSummer": {"writtenBy": "assistant", "nativeRead": false},
         "seasonFall": {"writtenBy": "assistant", "nativeRead": false}
+      },
+      "iosPrompts": {
+        "NSCameraUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSMicrophoneUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryAddUsageDescription": {"writtenBy": "assistant", "nativeRead": false}
       }
     },
     "id": {
@@ -1903,6 +1939,12 @@
         "seasonSpring": {"writtenBy": "assistant", "nativeRead": false},
         "seasonSummer": {"writtenBy": "assistant", "nativeRead": false},
         "seasonFall": {"writtenBy": "assistant", "nativeRead": false}
+      },
+      "iosPrompts": {
+        "NSCameraUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSMicrophoneUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryUsageDescription": {"writtenBy": "assistant", "nativeRead": false},
+        "NSPhotoLibraryAddUsageDescription": {"writtenBy": "assistant", "nativeRead": false}
       }
     }
   }

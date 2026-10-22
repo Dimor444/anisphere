@@ -1,0 +1,7 @@
+/* The permission prompts in this language. English is in Info.plist;
+   each line here translates the key of the same name there. */
+
+"NSCameraUsageDescription" = "스토리 사진을 찍거나 아니 비디오를 촬영할 때 카메라를 사용해요.";
+"NSMicrophoneUsageDescription" = "앱에서 촬영하는 아니 비디오의 소리를 녹음할 때 마이크를 사용해요.";
+"NSPhotoLibraryUsageDescription" = "게시물, 스토리, 메시지에 쓸 사진이나 아니 비디오로 올릴 동영상을 고를 때 사진 보관함을 열어요.";
+"NSPhotoLibraryAddUsageDescription" = "AniCard나 True Fan 카드를 공유하면서 이미지 저장을 선택하면 사진 보관함에 저장해요.";

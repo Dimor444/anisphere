@@ -1,0 +1,7 @@
+/* The permission prompts in this language. English is in Info.plist;
+   each line here translates the key of the same name there. */
+
+"NSCameraUsageDescription" = "ストーリーの写真を撮るときや、アニ動画を撮影するときにカメラを使用します。";
+"NSMicrophoneUsageDescription" = "アプリで撮影するアニ動画の音声を録音するためにマイクを使用します。";
+"NSPhotoLibraryUsageDescription" = "投稿・ストーリー・メッセージに使う写真や、アニ動画としてアップロードする動画を選ぶときに写真ライブラリを開きます。";
+"NSPhotoLibraryAddUsageDescription" = "AniCardやTrue Fanカードを共有するときに画像の保存を選ぶと、写真ライブラリに保存します。";

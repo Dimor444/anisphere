@@ -1,0 +1,7 @@
+/* The permission prompts in this language. English is in Info.plist;
+   each line here translates the key of the same name there. */
+
+"NSCameraUsageDescription" = "AniSphere utilise l'appareil photo quand tu prends une photo pour ta story ou que tu filmes une Ani Vidéo.";
+"NSMicrophoneUsageDescription" = "AniSphere utilise le micro pour enregistrer le son des Ani Vidéos que tu filmes dans l'app.";
+"NSPhotoLibraryUsageDescription" = "AniSphere ouvre ta photothèque quand tu choisis une photo pour un post, ta story ou un message, ou une vidéo à publier en Ani Vidéo.";
+"NSPhotoLibraryAddUsageDescription" = "AniSphere enregistre ta AniCard ou ta carte True Fan dans ta photothèque quand tu choisis d'enregistrer l'image en la partageant.";
