@@ -188,54 +188,54 @@ class AppLocalizationsId extends AppLocalizations {
   String get ok => 'OK';
 
   @override
-  String get displayName => 'Display Name';
+  String get displayName => 'Nama tampilan';
 
   @override
   String get bio => 'Bio';
 
   @override
-  String get usernameChecking => 'Checking…';
+  String get usernameChecking => 'Memeriksa…';
 
   @override
-  String get usernameAvailable => 'Available ✓';
+  String get usernameAvailable => 'Tersedia ✓';
 
   @override
-  String get usernameTaken => 'Already taken';
+  String get usernameTaken => 'Sudah dipakai';
 
   @override
-  String get usernameTooShort => 'At least 3 characters';
+  String get usernameTooShort => 'Minimal 3 karakter';
 
   @override
-  String get usernameInvalid => 'Lowercase letters, numbers and _ only';
+  String get usernameInvalid => 'Hanya huruf kecil (a–z), angka, dan _';
 
   @override
-  String get usernameReserved => 'This name is reserved';
+  String get usernameReserved => 'Nama ini sudah dicadangkan';
 
   @override
-  String get usernameCheckFailed => 'Couldn\'t check — try again';
+  String get usernameCheckFailed => 'Gagal memeriksa — coba lagi';
 
   @override
-  String get claimUsernameTitle => 'Claim your username';
+  String get claimUsernameTitle => 'Klaim nama penggunamu';
 
   @override
   String get claimUsernameBody =>
-      'Pick your unique @handle. Your display name stays separate and can be changed anytime.';
+      'Pilih @handle unikmu. Nama tampilanmu terpisah dan bisa diubah kapan saja.';
 
   @override
-  String get claim => 'Claim';
+  String get claim => 'Klaim';
 
   @override
-  String get claimLater => 'Not now — you can claim later';
+  String get claimLater => 'Nanti saja — kamu bisa mengklaimnya nanti';
 
   @override
   String get usernameClaimFailed =>
-      'Couldn\'t claim — check your connection and try again';
+      'Gagal mengklaim — periksa koneksimu dan coba lagi';
 
   @override
-  String get uploadPhotoSoon => 'Upload photo (coming soon)';
+  String get uploadPhotoSoon => 'Unggah foto (segera hadir)';
 
   @override
-  String get profileUpdated => 'Profile updated ✅';
+  String get profileUpdated => 'Profil diperbarui ✅';
 
   @override
   String get retry => 'Coba lagi';

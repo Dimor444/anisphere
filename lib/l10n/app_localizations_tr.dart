@@ -186,54 +186,54 @@ class AppLocalizationsTr extends AppLocalizations {
   String get ok => 'Tamam';
 
   @override
-  String get displayName => 'Display Name';
+  String get displayName => 'Görünen ad';
 
   @override
-  String get bio => 'Bio';
+  String get bio => 'Biyografi';
 
   @override
-  String get usernameChecking => 'Checking…';
+  String get usernameChecking => 'Kontrol ediliyor…';
 
   @override
-  String get usernameAvailable => 'Available ✓';
+  String get usernameAvailable => 'Kullanılabilir ✓';
 
   @override
-  String get usernameTaken => 'Already taken';
+  String get usernameTaken => 'Zaten alınmış';
 
   @override
-  String get usernameTooShort => 'At least 3 characters';
+  String get usernameTooShort => 'En az 3 karakter';
 
   @override
-  String get usernameInvalid => 'Lowercase letters, numbers and _ only';
+  String get usernameInvalid => 'Yalnızca a–z küçük harfler, rakamlar ve _';
 
   @override
-  String get usernameReserved => 'This name is reserved';
+  String get usernameReserved => 'Bu ad ayrılmış';
 
   @override
-  String get usernameCheckFailed => 'Couldn\'t check — try again';
+  String get usernameCheckFailed => 'Kontrol edilemedi — tekrar dene';
 
   @override
-  String get claimUsernameTitle => 'Claim your username';
+  String get claimUsernameTitle => 'Kullanıcı adını al';
 
   @override
   String get claimUsernameBody =>
-      'Pick your unique @handle. Your display name stays separate and can be changed anytime.';
+      'Sana özel @kullanıcı adını seç. Görünen adın ayrıdır ve istediğin zaman değiştirebilirsin.';
 
   @override
-  String get claim => 'Claim';
+  String get claim => 'Al';
 
   @override
-  String get claimLater => 'Not now — you can claim later';
+  String get claimLater => 'Şimdi değil — daha sonra alabilirsin';
 
   @override
   String get usernameClaimFailed =>
-      'Couldn\'t claim — check your connection and try again';
+      'Alınamadı — bağlantını kontrol et ve tekrar dene';
 
   @override
-  String get uploadPhotoSoon => 'Upload photo (coming soon)';
+  String get uploadPhotoSoon => 'Fotoğraf yükle (yakında)';
 
   @override
-  String get profileUpdated => 'Profile updated ✅';
+  String get profileUpdated => 'Profil güncellendi ✅';
 
   @override
   String get retry => 'Tekrar dene';

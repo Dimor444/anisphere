@@ -91,8 +91,6 @@ void main() {
     });
     test('translation falls back to English', () async {
       expect(lookupAppLocalizations(const Locale('ja')).feed, 'フィード');
-      // A message a language lacks reads in English (bio is one of the gaps).
-      expect(lookupAppLocalizations(const Locale('ar')).bio, 'Bio');
       // An unknown language is English: the controller never asks for it.
       SharedPreferences.setMockInitialValues({});
       final controller = LanguageController();

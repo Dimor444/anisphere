@@ -185,54 +185,53 @@ class AppLocalizationsAr extends AppLocalizations {
   String get ok => 'حسناً';
 
   @override
-  String get displayName => 'Display Name';
+  String get displayName => 'اسم العرض';
 
   @override
-  String get bio => 'Bio';
+  String get bio => 'نبذة';
 
   @override
-  String get usernameChecking => 'Checking…';
+  String get usernameChecking => 'جارٍ التحقق…';
 
   @override
-  String get usernameAvailable => 'Available ✓';
+  String get usernameAvailable => 'متاح ✓';
 
   @override
-  String get usernameTaken => 'Already taken';
+  String get usernameTaken => 'مستخدَم بالفعل';
 
   @override
-  String get usernameTooShort => 'At least 3 characters';
+  String get usernameTooShort => '3 أحرف على الأقل';
 
   @override
-  String get usernameInvalid => 'Lowercase letters, numbers and _ only';
+  String get usernameInvalid => 'أحرف لاتينية صغيرة (a–z) وأرقام و _ فقط';
 
   @override
-  String get usernameReserved => 'This name is reserved';
+  String get usernameReserved => 'هذا الاسم محجوز';
 
   @override
-  String get usernameCheckFailed => 'Couldn\'t check — try again';
+  String get usernameCheckFailed => 'تعذر التحقق — حاول مجددًا';
 
   @override
-  String get claimUsernameTitle => 'Claim your username';
+  String get claimUsernameTitle => 'احجز اسم المستخدم الخاص بك';
 
   @override
   String get claimUsernameBody =>
-      'Pick your unique @handle. Your display name stays separate and can be changed anytime.';
+      'اختر اسم مستخدم @ فريدًا. اسم العرض منفصل عنه، ويمكنك تغييره في أي وقت.';
 
   @override
-  String get claim => 'Claim';
+  String get claim => 'احجز';
 
   @override
-  String get claimLater => 'Not now — you can claim later';
+  String get claimLater => 'ليس الآن — يمكنك الحجز لاحقًا';
 
   @override
-  String get usernameClaimFailed =>
-      'Couldn\'t claim — check your connection and try again';
+  String get usernameClaimFailed => 'تعذر الحجز — تحقق من اتصالك وحاول مجددًا';
 
   @override
-  String get uploadPhotoSoon => 'Upload photo (coming soon)';
+  String get uploadPhotoSoon => 'رفع صورة (قريبًا)';
 
   @override
-  String get profileUpdated => 'Profile updated ✅';
+  String get profileUpdated => 'تم تحديث الملف ✅';
 
   @override
   String get retry => 'إعادة المحاولة';

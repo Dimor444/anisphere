@@ -189,54 +189,55 @@ class AppLocalizationsEs extends AppLocalizations {
   String get ok => 'Aceptar';
 
   @override
-  String get displayName => 'Display Name';
+  String get displayName => 'Nombre visible';
 
   @override
-  String get bio => 'Bio';
+  String get bio => 'Biografía';
 
   @override
-  String get usernameChecking => 'Checking…';
+  String get usernameChecking => 'Comprobando…';
 
   @override
-  String get usernameAvailable => 'Available ✓';
+  String get usernameAvailable => 'Disponible ✓';
 
   @override
-  String get usernameTaken => 'Already taken';
+  String get usernameTaken => 'Ya está en uso';
 
   @override
-  String get usernameTooShort => 'At least 3 characters';
+  String get usernameTooShort => 'Al menos 3 caracteres';
 
   @override
-  String get usernameInvalid => 'Lowercase letters, numbers and _ only';
+  String get usernameInvalid =>
+      'Solo minúsculas sin acentos (a–z), números y _';
 
   @override
-  String get usernameReserved => 'This name is reserved';
+  String get usernameReserved => 'Este nombre está reservado';
 
   @override
-  String get usernameCheckFailed => 'Couldn\'t check — try again';
+  String get usernameCheckFailed => 'No se pudo comprobar — inténtalo de nuevo';
 
   @override
-  String get claimUsernameTitle => 'Claim your username';
+  String get claimUsernameTitle => 'Reserva tu nombre de usuario';
 
   @override
   String get claimUsernameBody =>
-      'Pick your unique @handle. Your display name stays separate and can be changed anytime.';
+      'Elige tu @usuario único. Tu nombre visible va aparte y puedes cambiarlo cuando quieras.';
 
   @override
-  String get claim => 'Claim';
+  String get claim => 'Reservar';
 
   @override
-  String get claimLater => 'Not now — you can claim later';
+  String get claimLater => 'Ahora no — puedes reservarlo más tarde';
 
   @override
   String get usernameClaimFailed =>
-      'Couldn\'t claim — check your connection and try again';
+      'No se pudo reservar — comprueba tu conexión e inténtalo de nuevo';
 
   @override
-  String get uploadPhotoSoon => 'Upload photo (coming soon)';
+  String get uploadPhotoSoon => 'Subir foto (próximamente)';
 
   @override
-  String get profileUpdated => 'Profile updated ✅';
+  String get profileUpdated => 'Perfil actualizado ✅';
 
   @override
   String get retry => 'Reintentar';

@@ -181,54 +181,52 @@ class AppLocalizationsJa extends AppLocalizations {
   String get ok => 'OK';
 
   @override
-  String get displayName => 'Display Name';
+  String get displayName => '表示名';
 
   @override
-  String get bio => 'Bio';
+  String get bio => '自己紹介';
 
   @override
-  String get usernameChecking => 'Checking…';
+  String get usernameChecking => '確認中…';
 
   @override
-  String get usernameAvailable => 'Available ✓';
+  String get usernameAvailable => '使用できます ✓';
 
   @override
-  String get usernameTaken => 'Already taken';
+  String get usernameTaken => 'すでに使われています';
 
   @override
-  String get usernameTooShort => 'At least 3 characters';
+  String get usernameTooShort => '3文字以上にしてください';
 
   @override
-  String get usernameInvalid => 'Lowercase letters, numbers and _ only';
+  String get usernameInvalid => '半角英小文字（a–z）・数字・_ のみ使えます';
 
   @override
-  String get usernameReserved => 'This name is reserved';
+  String get usernameReserved => 'この名前は予約されています';
 
   @override
-  String get usernameCheckFailed => 'Couldn\'t check — try again';
+  String get usernameCheckFailed => '確認できませんでした — もう一度お試しください';
 
   @override
-  String get claimUsernameTitle => 'Claim your username';
+  String get claimUsernameTitle => 'ユーザー名を取得';
 
   @override
-  String get claimUsernameBody =>
-      'Pick your unique @handle. Your display name stays separate and can be changed anytime.';
+  String get claimUsernameBody => '自分だけの@ユーザー名を選んでください。表示名はこれとは別で、いつでも変更できます。';
 
   @override
-  String get claim => 'Claim';
+  String get claim => '取得する';
 
   @override
-  String get claimLater => 'Not now — you can claim later';
+  String get claimLater => '今はしない — あとで取得できます';
 
   @override
-  String get usernameClaimFailed =>
-      'Couldn\'t claim — check your connection and try again';
+  String get usernameClaimFailed => '取得できませんでした — 接続を確認して、もう一度お試しください';
 
   @override
-  String get uploadPhotoSoon => 'Upload photo (coming soon)';
+  String get uploadPhotoSoon => '写真をアップロード（近日対応）';
 
   @override
-  String get profileUpdated => 'Profile updated ✅';
+  String get profileUpdated => 'プロフィールを更新しました ✅';
 
   @override
   String get retry => '再試行';

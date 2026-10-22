@@ -181,54 +181,53 @@ class AppLocalizationsKo extends AppLocalizations {
   String get ok => '확인';
 
   @override
-  String get displayName => 'Display Name';
+  String get displayName => '표시 이름';
 
   @override
-  String get bio => 'Bio';
+  String get bio => '소개';
 
   @override
-  String get usernameChecking => 'Checking…';
+  String get usernameChecking => '확인 중…';
 
   @override
-  String get usernameAvailable => 'Available ✓';
+  String get usernameAvailable => '사용 가능 ✓';
 
   @override
-  String get usernameTaken => 'Already taken';
+  String get usernameTaken => '이미 사용 중이에요';
 
   @override
-  String get usernameTooShort => 'At least 3 characters';
+  String get usernameTooShort => '3자 이상이어야 해요';
 
   @override
-  String get usernameInvalid => 'Lowercase letters, numbers and _ only';
+  String get usernameInvalid => '영문 소문자(a–z), 숫자, _만 쓸 수 있어요';
 
   @override
-  String get usernameReserved => 'This name is reserved';
+  String get usernameReserved => '예약된 이름이에요';
 
   @override
-  String get usernameCheckFailed => 'Couldn\'t check — try again';
+  String get usernameCheckFailed => '확인하지 못했어요 — 다시 시도하세요';
 
   @override
-  String get claimUsernameTitle => 'Claim your username';
+  String get claimUsernameTitle => '사용자 이름을 정해 보세요';
 
   @override
   String get claimUsernameBody =>
-      'Pick your unique @handle. Your display name stays separate and can be changed anytime.';
+      '나만의 @사용자 이름을 고르세요. 표시 이름은 따로 있으며 언제든 바꿀 수 있어요.';
 
   @override
-  String get claim => 'Claim';
+  String get claim => '확정';
 
   @override
-  String get claimLater => 'Not now — you can claim later';
+  String get claimLater => '지금은 안 할래요 — 나중에 정할 수 있어요';
 
   @override
-  String get usernameClaimFailed =>
-      'Couldn\'t claim — check your connection and try again';
+  String get usernameClaimFailed => '정하지 못했어요 — 연결을 확인하고 다시 시도하세요';
 
   @override
-  String get uploadPhotoSoon => 'Upload photo (coming soon)';
+  String get uploadPhotoSoon => '사진 업로드 (곧 지원 예정)';
 
   @override
-  String get profileUpdated => 'Profile updated ✅';
+  String get profileUpdated => '프로필이 업데이트됐어요 ✅';
 
   @override
   String get retry => '다시 시도';
