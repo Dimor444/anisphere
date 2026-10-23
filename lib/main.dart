@@ -113,13 +113,13 @@ Future<void> main() async {
   // the supported way to hand an externally-owned container to the tree; it
   // lives for the life of the process, exactly like the old ProviderScope's.
   //
-  // The language is settled here too, before the first frame: the saved
-  // pick, else the phone's languages (LanguageController.startLanguage).
+  // The language is settled here too, before the first frame: the player's
+  // pick, else the phone's languages (LanguageController.launchLanguage).
   // Read later, a non-English launch would draw its first frames in English.
   final prefs = await SharedPreferences.getInstance();
   final saved = prefs.getString(LanguageController.prefsKey);
   final phone = PlatformDispatcher.instance.locales;
-  final language = LanguageController.startLanguage(saved: saved, phone: phone);
+  final language = await LanguageController.launchLanguage(prefs, phone);
   debugPrint('[Language] starting in ${language.code} — saved pick: ${saved ?? 'none'}, '
       'phone: ${phone.map((l) => l.toLanguageTag()).join(', ')}');
   final container = ProviderContainer(overrides: [
